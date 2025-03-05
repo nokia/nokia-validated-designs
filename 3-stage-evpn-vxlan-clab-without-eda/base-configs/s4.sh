@@ -1,3 +1,7 @@
+# © 2025 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License-Identifier: BSD-3-Clause
+
 ip link add bond0 type bond mode 802.3ad
 ip link set eth1 down
 ip link set eth2 down
