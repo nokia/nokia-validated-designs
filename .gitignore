@@ -1,0 +1,6 @@
+# ignore clab lab dir
+clab-*
+
+# ignore clab bak files
+**/*.yaml.bak
+**/*.yml.bak
