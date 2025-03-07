@@ -1,6 +1,6 @@
-# © 2025 Nokia
-# Licensed under the BSD 3-Clause License
-# SPDX-License-Identifier: BSD-3-Clause
+# © 2025 Nokia  
+# Licensed under the BSD 3-Clause License  
+# SPDX-License-Identifier: BSD-3-Clause  
 
 ip addr add 172.16.100.1/24 dev eth1
 ip link add lo1 type dummy

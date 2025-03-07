@@ -1,6 +1,6 @@
-# © 2025 Nokia
-# Licensed under the BSD 3-Clause License
-# SPDX-License-Identifier: BSD-3-Clause
+# © 2025 Nokia  
+# Licensed under the BSD 3-Clause License  
+# SPDX-License-Identifier: BSD-3-Clause  
 
 ip link add bond0 type bond mode active-backup primary eth2
 ip link set bond0 type bond miimon 100
