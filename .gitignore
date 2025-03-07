@@ -3,4 +3,8 @@ clab-*
 
 # ignore clab bak files
 **/*.yaml.bak
+<<<<<<< HEAD
 **/*.yml.bak
+=======
+**/*.yml.bak
+>>>>>>> 1a3ed2886fd12137707e169a705584fdce6d9bdc
