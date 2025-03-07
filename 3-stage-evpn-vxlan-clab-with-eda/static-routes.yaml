@@ -1,0 +1,21 @@
+# © 2025 Nokia  
+# Licensed under the BSD 3-Clause License  
+# SPDX-License-Identifier: BSD-3-Clause  
+
+apiVersion: protocols.eda.nokia.com/v1alpha1
+kind: StaticRoute
+metadata:
+  name: static-s5
+  namespace: eda
+spec:
+  prefixes:
+    - 172.16.92.0/24
+    - 172.16.93.0/24
+    - 172.16.94.0/24
+    - 172.16.95.0/24
+  router: vrf1
+  nodes:
+    - leaf1
+  nexthopGroup:
+    nexthops:
+      - ipPrefix: 172.16.100.1
