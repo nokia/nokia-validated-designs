@@ -20,10 +20,10 @@ EDA and the Containerlab topology are deployed on the same physical server, with
 > Minimum required containerlab version: 0.61.0
 
 ```
-anichatt@server:~$ sudo iptables -I FORWARD -s 172.21.21.0/24 -d 172.19.0.0/16 -j ACCEPT
-anichatt@server:~$ sudo iptables -I FORWARD -s 172.19.0.0/16 -d 172.21.21.0/24 -j ACCEPT
+:~$ sudo iptables -I FORWARD -s 172.21.21.0/24 -d 172.19.0.0/16 -j ACCEPT
+:~$ sudo iptables -I FORWARD -s 172.19.0.0/16 -d 172.21.21.0/24 -j ACCEPT
 
-anichatt@server:~$ docker network ls
+:~$ docker network ls
 NETWORK ID     NAME               DRIVER    SCOPE
 4a7dcb01ef79   bridge             bridge    local
 33bbfeb15718   eda_mgmt           bridge    local
@@ -32,7 +32,7 @@ NETWORK ID     NAME               DRIVER    SCOPE
 5baa438a66d2   kind               bridge    local
 9545cfab1ecc   none               null      local
 
-anichatt@server:~$ ifconfig br-5baa438a66d2
+:~$ ifconfig br-5baa438a66d2
 br-5baa438a66d2: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
         inet 172.19.0.1  netmask 255.255.0.0  broadcast 172.19.255.255
         inet6 fe80::42:2fff:fe11:85cd  prefixlen 64  scopeid 0x20<link>
@@ -44,7 +44,7 @@ br-5baa438a66d2: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
         TX packets 47077691  bytes 42606851496 (42.6 GB)
         TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
 
-anichatt@server:~$ ifconfig br-33bbfeb15718
+:~$ ifconfig br-33bbfeb15718
 br-33bbfeb15718: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
         inet 172.21.21.1  netmask 255.255.255.0  broadcast 172.21.21.255
         inet6 fe80::42:34ff:feac:93a7  prefixlen 64  scopeid 0x20<link>
@@ -62,7 +62,7 @@ Once you have confirmed that the EDA license is installed and valid (using `kube
 A snippet of the script deployment is shown below:
 
 ```
-anichatt@server:~/nokia-validated-designs/3-stage-evpn-vxlan-with-eda$ ./deploy-3-stage-nvd.sh 
+:~/nokia-validated-designs/3-stage-evpn-vxlan-with-eda$ ./deploy-3-stage-nvd.sh 
 ========================================
 Creating NodeUser for Containerlab nodes
 nodeuser.core.eda.nokia.com/clab-admin created
