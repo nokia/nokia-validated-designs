@@ -2,7 +2,8 @@
 Licensed under the BSD 3-Clause License  
 SPDX-License-Identifier: BSD-3-Clause  
 
-# 3-stage EVPN VXLAN NVD with EDA
+# 3-stage EVPN VXLAN NVD with EDA  
+> **Pre-requisite requirements:** This repository assumes that the user already has EDA deployed (using the kind installation method) with the SIMULATE flag set to false, which allows onboarding of external nodes (containerlab or real hardware). 
 
 The 3-stage EVPN VXLAN NVD digital twin deployment with EDA uses a two spine, six leaf topology deployed/instantiated using Containerlab and orchestrated by EDA. It covers the following server connectivity use cases:
 
@@ -15,7 +16,7 @@ The 3-stage EVPN VXLAN NVD digital twin deployment with EDA uses a two spine, si
 
 ## Deployment using Containerlab and EDA
 
-EDA and the Containerlab topology are deployed on the same physical server, with each creating their own respective bridges. Once the lab is deployed using `sudo containerlab deploy -t 3-stage-with-eda.clab.yaml`, you must ensure that iptables rules are correctly in place for communication between these two bridges. Example shown below, where 172.19.0.0/16 is the EDA Kind bridge and 172.21.21.0/24 is the Containerlab bridge to which all nodes are connected.
+EDA (with the kind installation) and the Containerlab topology are deployed on the same physical server, with each creating their own respective bridges. Once the lab is deployed using `sudo containerlab deploy -t 3-stage-with-eda.clab.yaml`, you must ensure that iptables rules are correctly in place for communication between these two bridges. Example shown below, where 172.19.0.0/16 is the EDA Kind bridge and 172.21.21.0/24 is the Containerlab bridge to which all nodes are connected.
 
 > Minimum required containerlab version: 0.61.0
 
@@ -138,3 +139,10 @@ All resources applied successfully.
 ### Destroying the fabric
 
 For quick teardown, another bash script called `destroy-3-stage-nvd` is provided as well. Again, this is a prescriptive script, specific to what is deployed using the `deploy-3-stage-nvd` script.
+
+### Revision history
+
+| EDA Version  | SRL version | Date tested |
+|--------------|-------------|-------------|
+| 24.12.1 | 24.10.2 | March 2025 |
+| 25.4.1  | 24.10.2 | May 2025   |
