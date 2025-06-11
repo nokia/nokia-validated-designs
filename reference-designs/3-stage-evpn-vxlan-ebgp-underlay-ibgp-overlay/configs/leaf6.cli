@@ -113,6 +113,7 @@ set / system network-instance protocols evpn ethernet-segments bgp-instance 1 et
 set / system network-instance protocols evpn ethernet-segments bgp-instance 1 ethernet-segment leaf5-leaf6-lag3 esi 00:00:00:00:00:55:66:00:00:00
 set / system network-instance protocols evpn ethernet-segments bgp-instance 1 ethernet-segment leaf5-leaf6-lag3 multi-homing-mode single-active
 set / system network-instance protocols evpn ethernet-segments bgp-instance 1 ethernet-segment leaf5-leaf6-lag3 interface lag3
+set / system network-instance protocols evpn ethernet-segments bgp-instance 1 ethernet-segment leaf5-leaf6-lag3 df-election timers activation-timer 0
 set / system network-instance protocols evpn ethernet-segments bgp-instance 1 ethernet-segment leaf5-leaf6-lag3 df-election interface-standby-signaling-on-non-df
 set / system network-instance protocols evpn ethernet-segments bgp-instance 1 ethernet-segment leaf5-leaf6-lag3 df-election algorithm type preference
 set / system network-instance protocols evpn ethernet-segments bgp-instance 1 ethernet-segment leaf5-leaf6-lag3 df-election algorithm preference-alg preference-value 500
