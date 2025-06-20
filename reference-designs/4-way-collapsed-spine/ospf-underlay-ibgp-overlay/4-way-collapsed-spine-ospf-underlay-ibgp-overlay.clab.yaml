@@ -1,0 +1,104 @@
+name: collapsed-spine-ospf-underlay-ibgp-overlay
+prefix: ""
+mgmt:
+  network: eda_mgmt
+  ipv4-subnet: 172.21.21.0/24
+topology:
+  defaults:
+    kind: nokia_srlinux
+  kinds:
+    nokia_srlinux:
+      image: ghcr.io/nokia/srlinux:25.3.2
+      type: ixrd3l
+      startup-config: configs/__clabNodeName__.cli
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+      binds:
+        - base-configs:/base-configs
+  nodes:
+    spine1:
+      mgmt-ipv4: 172.21.21.101
+    spine2:
+      mgmt-ipv4: 172.21.21.102
+    spine3:
+      mgmt-ipv4: 172.21.21.103
+    spine4:
+      mgmt-ipv4: 172.21.21.104
+    tor1:
+      mgmt-ipv4: 172.21.21.11
+    tor2:
+      mgmt-ipv4: 172.21.21.12
+    tor3:
+      mgmt-ipv4: 172.21.21.13
+    s1:
+      kind: linux
+      exec:
+      # __clabNodeName__ is not resolved for exec binds as of v0.61
+        - bash base-configs/s1.sh
+    s2:
+      kind: linux
+      exec:
+        - bash base-configs/s2.sh
+    s3:
+      kind: linux
+      exec:
+        - bash base-configs/s3.sh
+    s4:
+      kind: linux
+      exec:
+        - bash base-configs/s4.sh
+    s5:
+      kind: linux
+      exec:
+        - bash base-configs/s5.sh
+    s6:
+      kind: linux
+      exec:
+        - bash base-configs/s6.sh
+    s7:
+      kind: linux
+      exec:
+        - bash base-configs/s7.sh
+    s8:
+      kind: linux
+      exec:
+        - bash base-configs/s8.sh
+    s9:
+      kind: linux
+      exec:
+        - bash base-configs/s9.sh
+    s10:
+      kind: linux
+      exec:
+        - bash base-configs/s10.sh
+  links:
+    # spine to spine
+    - endpoints: ["spine1:e1-1", "spine2:e1-1"]
+    - endpoints: ["spine2:e1-2", "spine3:e1-1"]
+    - endpoints: ["spine3:e1-2", "spine4:e1-1"]
+    - endpoints: ["spine1:e1-2", "spine3:e1-3"]
+    - endpoints: ["spine1:e1-3", "spine4:e1-2"]
+    - endpoints: ["spine2:e1-3", "spine4:e1-3"]
+    # spine to tor and orphan hosts 
+      # links to hosts directly connected to spines
+    - endpoints: ["spine1:e1-4", "s1:eth1"]
+    - endpoints: ["spine4:e1-4", "s2:eth1"]
+    - endpoints: ["spine1:e1-7", "s9:eth1"]
+    - endpoints: ["spine2:e1-7", "s9:eth2"]
+    - endpoints: ["spine4:e1-7", "s10:eth1"]
+      # links to tor switches 
+    - endpoints: ["spine1:e1-5", "tor1:e1-1"]
+    - endpoints: ["spine2:e1-5", "tor1:e1-2"]
+    - endpoints: ["spine1:e1-6", "tor2:e1-1"]
+    - endpoints: ["spine2:e1-6", "tor2:e1-2"]
+    - endpoints: ["spine3:e1-6", "tor2:e1-3"]
+    - endpoints: ["spine4:e1-6", "tor2:e1-4"]
+    - endpoints: ["spine3:e1-5", "tor3:e1-1"]
+    - endpoints: ["spine4:e1-5", "tor3:e1-2"]
+    # tor switches to servers
+    - endpoints: ["tor1:e1-3", "s3:eth1"]
+    - endpoints: ["tor1:e1-4", "s4:eth1"]
+    - endpoints: ["tor2:e1-5", "s5:eth1"]
+    - endpoints: ["tor2:e1-6", "s6:eth1"]
+    - endpoints: ["tor3:e1-3", "s7:eth1"]
+    - endpoints: ["tor3:e1-4", "s8:eth1"]
