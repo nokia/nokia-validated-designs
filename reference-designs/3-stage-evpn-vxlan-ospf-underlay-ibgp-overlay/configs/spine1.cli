@@ -159,3 +159,8 @@ set / bfd subinterface ethernet-1/6.0 desired-minimum-transmit-interval 1000000
 set / bfd subinterface ethernet-1/6.0 required-minimum-receive 1000000
 set / bfd subinterface ethernet-1/6.0 detection-multiplier 3
 set / bfd subinterface ethernet-1/6.0 minimum-echo-receive-interval 1000000
+set / bfd subinterface system0.0 admin-state enable
+set / bfd subinterface system0.0 desired-minimum-transmit-interval 1000000
+set / bfd subinterface system0.0 required-minimum-receive 1000000
+set / bfd subinterface system0.0 detection-multiplier 3
+set / bfd subinterface system0.0 minimum-echo-receive-interval 1000000
