@@ -1,0 +1,18 @@
+# © 2025 Nokia  
+# Licensed under the BSD 3-Clause License  
+# SPDX-License-Identifier: BSD-3-Clause  
+
+# nodeuser created for Containerlab
+apiVersion: core.eda.nokia.com/v1
+kind: NodeUser
+metadata:
+  name: admin
+  namespace: eda
+spec:
+  groupBindings:
+    - groups:
+        - sudo
+      nodeSelector:
+        - ""
+  password: NokiaSrl1!
+  username: admin

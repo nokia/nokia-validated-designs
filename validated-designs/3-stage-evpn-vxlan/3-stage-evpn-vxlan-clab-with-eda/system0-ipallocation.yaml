@@ -1,0 +1,12 @@
+# © 2025 Nokia  
+# Licensed under the BSD 3-Clause License  
+# SPDX-License-Identifier: BSD-3-Clause  
+
+apiVersion: core.eda.nokia.com/v1
+kind: IPAllocationPool
+metadata:
+  name: system0
+  namespace: eda
+spec:
+  segments:
+    - subnet: 192.0.2.0/24

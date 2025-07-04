@@ -1,0 +1,231 @@
+# © 2025 Nokia  
+# Licensed under the BSD 3-Clause License  
+# SPDX-License-Identifier: BSD-3-Clause  
+
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf1-spine1
+  namespace: eda
+spec:
+  links:
+    - local:
+        node: leaf1
+        interface: ethernet-1-1
+        interfaceResource: "leaf1-ethernet-1-1"
+      remote:
+        node: spine1
+        interface: ethernet-1-1
+        interfaceResource: "spine1-ethernet-1-1"
+      type: interSwitch
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf1-spine2
+  namespace: eda
+spec:
+  links:
+    - local:
+        node: leaf1
+        interface: ethernet-1-2
+        interfaceResource: "leaf1-ethernet-1-2"
+      remote:
+        node: spine2
+        interface: ethernet-1-1
+        interfaceResource: "spine2-ethernet-1-1"
+      type: interSwitch
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf2-spine1
+  namespace: eda
+spec:
+  links:
+    - local:
+        node: leaf2
+        interface: ethernet-1-1
+        interfaceResource: "leaf2-ethernet-1-1"
+      remote:
+        node: spine1
+        interface: ethernet-1-2
+        interfaceResource: "spine1-ethernet-1-2"
+      type: interSwitch
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf2-spine2
+  namespace: eda
+spec:
+  links:
+    - local:
+        node: leaf2
+        interface: ethernet-1-2
+        interfaceResource: "leaf2-ethernet-1-2"
+      remote:
+        node: spine2
+        interface: ethernet-1-2
+        interfaceResource: "spine2-ethernet-1-2"
+      type: interSwitch
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf3-spine1
+  namespace: eda
+spec:
+  links:
+    - local:
+        node: leaf3
+        interface: ethernet-1-1
+        interfaceResource: "leaf3-ethernet-1-1"
+      remote:
+        node: spine1
+        interface: ethernet-1-3
+        interfaceResource: "spine1-ethernet-1-3"
+      type: interSwitch
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf3-spine2
+  namespace: eda
+spec:
+  links:
+    - local:
+        node: leaf3
+        interface: ethernet-1-2
+        interfaceResource: "leaf3-ethernet-1-2"
+      remote:
+        node: spine2
+        interface: ethernet-1-3
+        interfaceResource: "spine2-ethernet-1-3"
+      type: interSwitch
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf4-spine1
+  namespace: eda
+spec:
+  links:
+    - local:
+        node: leaf4
+        interface: ethernet-1-1
+        interfaceResource: "leaf4-ethernet-1-1"
+      remote:
+        node: spine1
+        interface: ethernet-1-4
+        interfaceResource: "spine1-ethernet-1-4"
+      type: interSwitch
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf4-spine2
+  namespace: eda
+spec:
+  links:
+    - local:
+        node: leaf4
+        interface: ethernet-1-2
+        interfaceResource: "leaf4-ethernet-1-2"
+      remote:
+        node: spine2
+        interface: ethernet-1-4
+        interfaceResource: "spine2-ethernet-1-4"
+      type: interSwitch
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf5-spine1
+  namespace: eda
+spec:
+  links:
+    - local:
+        node: leaf5
+        interface: ethernet-1-1
+        interfaceResource: "leaf5-ethernet-1-1"
+      remote:
+        node: spine1
+        interface: ethernet-1-5
+        interfaceResource: "spine1-ethernet-1-5"
+      type: interSwitch
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf5-spine2
+  namespace: eda
+spec:
+  links:
+    - local:
+        node: leaf5
+        interface: ethernet-1-2
+        interfaceResource: "leaf5-ethernet-1-2"
+      remote:
+        node: spine2
+        interface: ethernet-1-5
+        interfaceResource: "spine2-ethernet-1-5"
+      type: interSwitch
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf6-spine1
+  namespace: eda
+spec:
+  links:
+    - local:
+        node: leaf6
+        interface: ethernet-1-1
+        interfaceResource: "leaf6-ethernet-1-1"
+      remote:
+        node: spine1
+        interface: ethernet-1-6
+        interfaceResource: "spine1-ethernet-1-6"
+      type: interSwitch
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf6-spine2
+  namespace: eda
+spec:
+  links:
+    - local:
+        node: leaf6
+        interface: ethernet-1-2
+        interfaceResource: "leaf6-ethernet-1-2"
+      remote:
+        node: spine2
+        interface: ethernet-1-6
+        interfaceResource: "spine2-ethernet-1-6"
+      type: interSwitch

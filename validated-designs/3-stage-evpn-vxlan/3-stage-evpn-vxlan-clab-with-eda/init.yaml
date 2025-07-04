@@ -1,0 +1,16 @@
+# © 2025 Nokia  
+# Licensed under the BSD 3-Clause License  
+# SPDX-License-Identifier: BSD-3-Clause  
+
+# modify exiting init-base CR to set commitSave to true
+apiVersion: bootstrap.eda.nokia.com/v1alpha1
+kind: Init
+metadata:
+  name: init-base
+  namespace: eda
+spec:
+  commitSave: true
+  mgmt:
+    ipv4DHCP: true
+    ipv6DHCP: true
+

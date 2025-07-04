@@ -1,0 +1,196 @@
+# © 2025 Nokia  
+# Licensed under the BSD 3-Clause License  
+# SPDX-License-Identifier: BSD-3-Clause  
+
+# Configlet to enable node isolation on leafs with ethernet segments
+# holdown time is in ms
+apiVersion: config.eda.nokia.com/v1alpha1
+kind: Configlet
+metadata:
+  name: node-isolation-leaf2-lag
+  namespace: eda
+spec:
+  endpoints:
+    - leaf2
+  operatingSystem: srl
+  priority: 50
+  configs:
+    - path: .system
+      operation: Create
+      config: |-
+        {
+            "event-handler": {
+              "instance": [
+              {
+                "name": "overlay-bgp",
+                "admin-state": "enable",
+                "upython-script": "node-isolation.py",
+                "paths": [
+                  "network-instance default protocols bgp neighbor * session-state"
+                ],
+                "options": {
+                  "object": [
+                    {
+                      "name": "down-links",
+                      "values": [
+                        "ethernet-1/6"
+                      ]
+                    },
+                    {
+                      "name": "hold-down-time",
+                      "value": "20000"
+                    },
+                    {
+                      "name": "required-bgp-sessions-established",
+                      "value": "1"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+---
+apiVersion: config.eda.nokia.com/v1alpha1
+kind: Configlet
+metadata:
+  name: node-isolation-leaf3-lag
+  namespace: eda
+spec:
+  endpoints:
+    - leaf3
+  operatingSystem: srl
+  priority: 50
+  configs:
+    - path: .system
+      operation: Create
+      config: |-
+        {
+            "event-handler": {
+              "instance": [
+              {
+                "name": "overlay-bgp",
+                "admin-state": "enable",
+                "upython-script": "node-isolation.py",
+                "paths": [
+                  "network-instance default protocols bgp neighbor * session-state"
+                ],
+                "options": {
+                  "object": [
+                    {
+                      "name": "down-links",
+                      "values": [
+                        "ethernet-1/6"
+                      ]
+                    },
+                    {
+                      "name": "hold-down-time",
+                      "value": "20000"
+                    },
+                    {
+                      "name": "required-bgp-sessions-established",
+                      "value": "1"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+---
+apiVersion: config.eda.nokia.com/v1alpha1
+kind: Configlet
+metadata:
+  name: node-isolation-leaf4-lag
+  namespace: eda
+spec:
+  endpoints:
+    - leaf4
+  operatingSystem: srl
+  priority: 50
+  configs:
+    - path: .system
+      operation: Create
+      config: |-
+        {
+            "event-handler": {
+              "instance": [
+              {
+                "name": "overlay-bgp",
+                "admin-state": "enable",
+                "upython-script": "node-isolation.py",
+                "paths": [
+                  "network-instance default protocols bgp neighbor * session-state"
+                ],
+                "options": {
+                  "object": [
+                    {
+                      "name": "down-links",
+                      "values": [
+                        "ethernet-1/4",
+                        "ethernet-1/6"
+                      ]
+                    },
+                    {
+                      "name": "hold-down-time",
+                      "value": "20000"
+                    },
+                    {
+                      "name": "required-bgp-sessions-established",
+                      "value": "1"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+---
+apiVersion: config.eda.nokia.com/v1alpha1
+kind: Configlet
+metadata:
+  name: node-isolation-leaf5-lag
+  namespace: eda
+spec:
+  endpoints:
+    - leaf5
+  operatingSystem: srl
+  priority: 50
+  configs:
+    - path: .system
+      operation: Create
+      config: |-
+        {
+            "event-handler": {
+              "instance": [
+              {
+                "name": "overlay-bgp",
+                "admin-state": "enable",
+                "upython-script": "node-isolation.py",
+                "paths": [
+                  "network-instance default protocols bgp neighbor * session-state"
+                ],
+                "options": {
+                  "object": [
+                    {
+                      "name": "down-links",
+                      "values": [
+                        "ethernet-1/4",
+                        "ethernet-1/5",
+                        "ethernet-1/6"
+                      ]
+                    },
+                    {
+                      "name": "hold-down-time",
+                      "value": "20000"
+                    },
+                    {
+                      "name": "required-bgp-sessions-established",
+                      "value": "1"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }

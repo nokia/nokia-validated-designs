@@ -1,0 +1,13 @@
+# © 2025 Nokia  
+# Licensed under the BSD 3-Clause License  
+# SPDX-License-Identifier: BSD-3-Clause  
+
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: leaf-asn
+  namespace: eda
+spec:
+  segments:
+    - start: 65411
+      size: 20

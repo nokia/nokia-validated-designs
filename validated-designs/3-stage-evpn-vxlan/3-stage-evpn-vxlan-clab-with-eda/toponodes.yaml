@@ -1,0 +1,171 @@
+# © 2025 Nokia  
+# Licensed under the BSD 3-Clause License  
+# SPDX-License-Identifier: BSD-3-Clause  
+
+apiVersion: core.eda.nokia.com/v1
+kind: TopoNode
+metadata:
+  name: leaf1
+  namespace: eda
+  labels:
+    eda.nokia.com/role: leaf
+    eda.nokia.com/name: leaf1
+    eda.nokia.com/security-profile: managed
+spec:
+  platform: 7220 IXR-D3L
+  version: 24.10.2
+  onBoarded: false
+  operatingSystem: srl
+  nodeProfile: clab-srlinux-24.10.2
+  productionAddress:
+    ipv4: 172.21.21.11
+    ipv6: ""
+  npp:
+    mode: normal
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoNode
+metadata:
+  name: leaf2
+  namespace: eda
+  labels:
+    eda.nokia.com/role: leaf
+    eda.nokia.com/name: leaf2
+    eda.nokia.com/security-profile: managed
+spec:
+  platform: 7220 IXR-D3L
+  version: 24.10.2
+  onBoarded: false
+  operatingSystem: srl
+  nodeProfile: clab-srlinux-24.10.2
+  productionAddress:
+    ipv4: 172.21.21.12
+    ipv6: ""
+  npp:
+    mode: normal
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoNode
+metadata:
+  name: leaf3
+  namespace: eda
+  labels:
+    eda.nokia.com/role: leaf
+    eda.nokia.com/name: leaf3
+    eda.nokia.com/security-profile: managed
+spec:
+  platform: 7220 IXR-D3L
+  version: 24.10.2
+  onBoarded: false
+  operatingSystem: srl
+  nodeProfile: clab-srlinux-24.10.2
+  productionAddress:
+    ipv4: 172.21.21.13
+    ipv6: ""
+  npp:
+    mode: normal
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoNode
+metadata:
+  name: leaf4
+  namespace: eda
+  labels:
+    eda.nokia.com/role: leaf
+    eda.nokia.com/name: leaf4
+    eda.nokia.com/security-profile: managed
+spec:
+  platform: 7220 IXR-D3L
+  version: 24.10.2
+  onBoarded: false
+  operatingSystem: srl
+  nodeProfile: clab-srlinux-24.10.2
+  productionAddress:
+    ipv4: 172.21.21.14
+    ipv6: ""
+  npp:
+    mode: normal
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoNode
+metadata:
+  name: leaf5
+  namespace: eda
+  labels:
+    eda.nokia.com/role: leaf
+    eda.nokia.com/name: leaf5
+    eda.nokia.com/security-profile: managed
+spec:
+  platform: 7220 IXR-D3L
+  version: 24.10.2
+  onBoarded: false
+  operatingSystem: srl
+  nodeProfile: clab-srlinux-24.10.2
+  productionAddress:
+    ipv4: 172.21.21.15
+    ipv6: ""
+  npp:
+    mode: normal
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoNode
+metadata:
+  name: leaf6
+  namespace: eda
+  labels:
+    eda.nokia.com/role: leaf
+    eda.nokia.com/name: leaf6
+    eda.nokia.com/security-profile: managed
+spec:
+  platform: 7220 IXR-D3L
+  version: 24.10.2
+  onBoarded: false
+  operatingSystem: srl
+  nodeProfile: clab-srlinux-24.10.2
+  productionAddress:
+    ipv4: 172.21.21.16
+    ipv6: ""
+  npp:
+    mode: normal
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoNode
+metadata:
+  name: spine1
+  namespace: eda
+  labels:
+    eda.nokia.com/role: spine
+    eda.nokia.com/name: spine1
+    eda.nokia.com/security-profile: managed
+spec:
+  platform: 7220 IXR-D3L
+  version: 24.10.2
+  onBoarded: false
+  operatingSystem: srl
+  nodeProfile: clab-srlinux-24.10.2
+  productionAddress:
+    ipv4: 172.21.21.101
+    ipv6: ""
+  npp:
+    mode: normal
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoNode
+metadata:
+  name: spine2
+  namespace: eda
+  labels:
+    eda.nokia.com/role: spine
+    eda.nokia.com/name: spine2
+    eda.nokia.com/security-profile: managed
+spec:
+  platform: 7220 IXR-D3L
+  version: 24.10.2
+  onBoarded: false
+  operatingSystem: srl
+  nodeProfile: clab-srlinux-24.10.2
+  productionAddress:
+    ipv4: 172.21.21.102
+    ipv6: ""
+  npp:
+    mode: normal

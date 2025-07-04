@@ -1,0 +1,834 @@
+# © 2025 Nokia  
+# Licensed under the BSD 3-Clause License  
+# SPDX-License-Identifier: BSD-3-Clause  
+
+# interface to spine1
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf1-ethernet-1-1
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-1
+      node: leaf1
+  type: interface
+---
+# interface to spine2
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf1-ethernet-1-2
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-2
+      node: leaf1
+  type: interface
+---
+# interface to server s1
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.come/role: edge
+    eda.nokia.com/tagged-v10: enabled
+  name: leaf1-ethernet-1-3
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: leaf1
+  type: interface
+---
+# interface to server s5
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: routed-s5
+  name: leaf1-ethernet-1-4
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: leaf1
+  type: interface
+---
+# interface to server s7
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v40: enabled
+  name: leaf1-ethernet-1-5
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-5
+      node: leaf1
+  type: interface
+---
+# interface to spine1
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf2-ethernet-1-1
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-1
+      node: leaf2
+  type: interface
+---
+# interface to spine2
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf2-ethernet-1-2
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-2
+      node: leaf2
+  type: interface
+---
+# interface to server s2 (no LAG)
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v10: enabled
+  name: leaf2-ethernet-1-3
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: leaf2
+  type: interface
+---
+# member interface of lag2 to server s8
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+  name: leaf2-ethernet-1-6
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  encapType: "null"
+  members:
+    - enabled: true
+      interface: ethernet-1-6
+      node: leaf2
+  type: interface
+---
+# interface to spine1
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf3-ethernet-1-1
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-1
+      node: leaf3
+  type: interface
+---
+# interface to spine2
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf3-ethernet-1-2
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-2
+      node: leaf3
+  type: interface
+---
+# interface to server s2 (no LAG)
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v10: enabled
+  name: leaf3-ethernet-1-3
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: leaf3
+  type: interface
+---
+# member interface of lag2 to server s8
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+  name: leaf3-ethernet-1-6
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  encapType: "null"
+  members:
+    - enabled: true
+      interface: ethernet-1-6
+      node: leaf3
+  type: interface
+---
+# interface to spine1
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf4-ethernet-1-1
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-1
+      node: leaf4
+  type: interface
+---
+# interface to spine2
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf4-ethernet-1-2
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-2
+      node: leaf4
+  type: interface
+---
+# interface to server s3
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v20: enabled
+  name: leaf4-ethernet-1-3
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: leaf4
+  type: interface
+---
+# member interface of lag1 to server s4
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+  name: leaf4-ethernet-1-4
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  encapType: "null"
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: leaf4
+  type: interface
+---
+# member interface of lag2 to server s8
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+  name: leaf4-ethernet-1-6
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  encapType: "null"
+  members:
+    - enabled: true
+      interface: ethernet-1-6
+      node: leaf4
+  type: interface
+---
+# interface to spine1
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf5-ethernet-1-1
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-1
+      node: leaf5
+  type: interface
+---
+# interface to spine2
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf5-ethernet-1-2
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-2
+      node: leaf5
+  type: interface
+---
+# member interface of lag1 to server s4
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+  name: leaf5-ethernet-1-4
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  encapType: "null"
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: leaf5
+  type: interface
+---
+# member interface of lag3 to server s6
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+  name: leaf5-ethernet-1-5
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  encapType: "null"
+  members:
+    - enabled: true
+      interface: ethernet-1-5
+      node: leaf5
+  type: interface
+---
+# member interface of lag2 to server s8
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+  name: leaf5-ethernet-1-6
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  encapType: "null"
+  members:
+    - enabled: true
+      interface: ethernet-1-6
+      node: leaf5
+  type: interface
+---
+# interface to spine1
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf6-ethernet-1-1
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-1
+      node: leaf6
+  type: interface
+---
+# interface to spine2
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: leaf6-ethernet-1-2
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-2
+      node: leaf6
+  type: interface
+---
+# member interface of lag3 to server s6
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+  name: leaf6-ethernet-1-5
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-5
+      node: leaf6
+  type: interface
+---
+# interface to server s9
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v60: enabled
+  name: leaf6-ethernet-1-6
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-6
+      node: leaf6
+  type: interface
+---
+# interface to leaf1
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-1
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-1
+      node: spine1
+  type: interface
+---
+# interface to leaf2
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-2
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-2
+      node: spine1
+  type: interface
+---
+# interface to leaf3
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-3
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: spine1
+  type: interface
+---
+# interface to leaf4
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-4
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: spine1
+  type: interface
+---
+# interface to leaf5
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-5
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-5
+      node: spine1
+  type: interface
+---
+# interface to leaf6
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-6
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-6
+      node: spine1
+  type: interface
+---
+# interface to leaf1
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-1
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-1
+      node: spine2
+  type: interface
+---
+# interface to leaf2
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-2
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-2
+      node: spine2
+  type: interface
+---
+# interface to leaf3
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-3
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: spine2
+  type: interface
+---
+# interface to leaf4
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-4
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: spine2
+  type: interface
+---
+# interface to leaf5
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-5
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-5
+      node: spine2
+  type: interface
+---
+# interface to leaf6
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-6
+  namespace: eda
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-6
+      node: spine2
+  type: interface
+---
+# LAG interfaces on leaf4/leaf5 (lagid 1)
+# connects to server s4
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: leaf4-leaf5-lag1
+  namespace: eda
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v30: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  ethernet:
+    reloadDelayTimer: 100
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: leaf4
+      aggregateId: "1"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-4
+      node: leaf5
+      aggregateId: "1"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:00:00:44:55"
+      lacpFallback:
+        mode: static
+        timeout: 60
+    multihoming:
+      mode: all-active
+      revertive: false
+      preferredActiveNode: ""
+      reloadDelayTimer: 100
+      esi: auto
+---
+# LAG interfaces on leaf5/leaf6 (lagid 3)
+# connects to server s6 (single-active)
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: leaf5-leaf6-lag3
+  namespace: eda
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v30: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  ethernet:
+    standbySignaling: lacp
+    reloadDelayTimer: 100
+  members:
+    - enabled: true
+      interface: ethernet-1-5
+      node: leaf5
+      aggregateId: "3"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-5
+      node: leaf6
+      aggregateId: "3"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:00:00:55:66"
+      lacpFallback:
+        mode: static
+        timeout: 60
+    multihoming:
+      mode: port-active
+      revertive: true
+      preferredActiveNode: leaf5
+      reloadDelayTimer: 100
+      esi: auto
+---
+# LAG interfaces on leaf2/leaf3/leaf4/leaf5 (lagid 2)
+# connects to server s8 (all-active)
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: leaf2-leaf3-leaf4-leaf5-lag2
+  namespace: eda
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v50: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  ethernet:
+    reloadDelayTimer: 100
+  members:
+    - enabled: true
+      interface: ethernet-1-6
+      node: leaf2
+      aggregateId: "2"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-6
+      node: leaf3
+      aggregateId: "2"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-6
+      node: leaf4
+      aggregateId: "2"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-6
+      node: leaf5
+      aggregateId: "2"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:22:33:44:55"
+      lacpFallback:
+        mode: static
+        timeout: 60
+    multihoming:
+      mode: all-active
+      revertive: false
+      preferredActiveNode:
+      reloadDelayTimer: 100
+      esi: auto
