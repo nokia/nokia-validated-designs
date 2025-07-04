@@ -1,0 +1,45 @@
+delete / system aaa authentication admin-user ssh-key
+delete / system aaa authentication linuxadmin-user ssh-key
+set / interface ethernet-1/1 description spine1-spine2-spine3-spine4-lag1
+set / interface ethernet-1/1 admin-state enable
+set / interface ethernet-1/1 ethernet aggregate-id lag1
+set / interface ethernet-1/2 description spine1-spine2-spine3-spine4-lag1
+set / interface ethernet-1/2 admin-state enable
+set / interface ethernet-1/2 ethernet aggregate-id lag1
+set / interface ethernet-1/5 admin-state enable
+set / interface ethernet-1/5 vlan-tagging true
+set / interface ethernet-1/5 subinterface 4096 type bridged
+set / interface ethernet-1/5 subinterface 4096 admin-state enable
+set / interface ethernet-1/5 subinterface 4096 vlan encap untagged
+set / interface ethernet-1/6 admin-state enable
+set / interface ethernet-1/6 vlan-tagging true
+set / interface ethernet-1/6 subinterface 4096 type bridged
+set / interface ethernet-1/6 subinterface 4096 admin-state enable
+set / interface ethernet-1/6 subinterface 4096 vlan encap untagged
+set / interface lag1 description spine1-spine2-spine3-spine4-lag1
+set / interface lag1 admin-state enable
+set / interface lag1 vlan-tagging true
+set / interface lag1 subinterface 40 type bridged
+set / interface lag1 subinterface 40 admin-state enable
+set / interface lag1 subinterface 40 vlan encap single-tagged vlan-id 40
+set / interface lag1 subinterface 50 type bridged
+set / interface lag1 subinterface 50 admin-state enable
+set / interface lag1 subinterface 50 vlan encap single-tagged vlan-id 50
+set / interface lag1 lag lag-type lacp
+set / interface lag1 lag min-links 1
+set / interface lag1 lag lacp-fallback-mode static
+set / interface lag1 lag lacp-fallback-timeout 60
+set / interface lag1 lag lacp interval FAST
+set / interface lag1 lag lacp lacp-mode ACTIVE
+set / interface lag1 lag lacp admin-key 1
+set / interface lag1 lag lacp system-id-mac 00:00:00:22:22:22
+set / network-instance macvrf-v40 type mac-vrf
+set / network-instance macvrf-v40 admin-state enable
+set / network-instance macvrf-v40 description macvrf-v40
+set / network-instance macvrf-v40 interface ethernet-1/5.4096
+set / network-instance macvrf-v40 interface lag1.40
+set / network-instance macvrf-v50 type mac-vrf
+set / network-instance macvrf-v50 admin-state enable
+set / network-instance macvrf-v50 description macvrf-v50
+set / network-instance macvrf-v50 interface ethernet-1/6.4096
+set / network-instance macvrf-v50 interface lag1.50
