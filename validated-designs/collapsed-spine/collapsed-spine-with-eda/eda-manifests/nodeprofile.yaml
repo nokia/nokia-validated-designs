@@ -1,0 +1,40 @@
+# nodeprofile for SRL v25.3.2 for containerlab nodes
+apiVersion: core.eda.nokia.com/v1
+kind: NodeProfile
+metadata:
+  name: clab-srlinux-25.3.2
+  namespace: 2-spine-collapsed
+spec:
+  annotate: false
+  images:
+  - image: srlimages/srlinux-25.3.2-bin/srlinux.bin
+    imageMd5: srlimages/srlinux-25.3.2-md5/srlinux.md5
+  nodeUser: admin
+  operatingSystem: srl
+  port: 57410
+  version: 25.3.2
+  versionMatch: v25\.3\.2.*
+  versionPath: .system.information.version
+  yang: https://eda-asvr.eda-system/eda-system/schemaprofiles/srlinux-ghcr-25.3.2/srlinux-25.3.2.zip
+---  
+# # nodeprofile for SRL v25.3.2 for hardware ZTP onboarding
+# apiVersion: core.eda.nokia.com/v1
+# kind: NodeProfile
+# metadata:
+#   name: real-srlinux-25.3.2
+#   namespace: 2-way-collapsed-spine
+# spec:
+#   dhcp:
+#     managementPoolv4: hw-ipv4-mgmt-pool
+#   images:
+#     - image: 2-way-collapsed-spine/srlimages/srlinux-25.3.2-bin/srlinux.bin
+#       imageMd5: 2-way-collapsed-spine/srlimages/srlinux-25.3.2-md5/srlinux.md5
+#   nodeUser: admin
+#   onboardingUsername: 'admin'
+#   onboardingPassword: 'NokiaSrl1!'
+#   operatingSystem: srl
+#   port: 57400
+#   version: 25.3.2
+#   versionMatch: v25\.3\.2.*
+#   versionPath: .system.information.version
+#   yang: https://eda-asvr.eda-system/2-way-collapsed-spine/schemaprofiles/srlinux-25.3.2/srlinux-25.3.2.zip

@@ -1,0 +1,17 @@
+# node group for NVD
+apiVersion: v1
+items:
+- apiVersion: aaa.eda.nokia.com/v1alpha1
+  kind: NodeGroup
+  metadata:
+    name: sudo
+    namespace: 2-spine-collapsed
+  spec:
+    services:
+    - GNMI
+    - CLI
+    - NETCONF
+    - GNOI
+    - GNSI
+    superuser: true
+kind: List

@@ -1,0 +1,457 @@
+# VRFs (Routers in EDA)
+# deployed without nodeSelector, gets pushed based on BD reference 
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: Router
+metadata:
+  name: vrf1
+  namespace: 2-spine-collapsed
+spec:
+  type: EVPNVXLAN
+  vni: 10500
+  evi: 500
+  tunnelIndexPool: tunnel-index-pool
+---
+# EVPN VXLAN BDs
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: BridgeDomain
+metadata:
+  name: macvrf-v10
+  namespace: 2-spine-collapsed
+spec:
+  type: EVPNVXLAN
+  vni: 10010
+  evi: 10
+  tunnelIndexPool: tunnel-index-pool
+  macAging: 300
+  macDuplicationDetection:
+    enabled: true
+    holdDownTime: 9
+    monitoringWindow: 3
+    action: StopLearning
+    numMoves: 5
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: BridgeDomain
+metadata:
+  name: macvrf-v20
+  namespace: 2-spine-collapsed
+spec:
+  type: EVPNVXLAN
+  vni: 10020
+  evi: 20
+  tunnelIndexPool: tunnel-index-pool
+  macAging: 300
+  macDuplicationDetection:
+    enabled: true
+    holdDownTime: 9
+    monitoringWindow: 3
+    action: StopLearning
+    numMoves: 5
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: BridgeDomain
+metadata:
+  name: macvrf-v30
+  namespace: 2-spine-collapsed
+spec:
+  type: EVPNVXLAN
+  vni: 10030
+  evi: 30
+  tunnelIndexPool: tunnel-index-pool
+  macAging: 300
+  macDuplicationDetection:
+    enabled: true
+    holdDownTime: 9
+    monitoringWindow: 3
+    action: StopLearning
+    numMoves: 5
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: BridgeDomain
+metadata:
+  name: macvrf-v40
+  namespace: 2-spine-collapsed
+spec:
+  type: EVPNVXLAN
+  vni: 10040
+  evi: 40
+  tunnelIndexPool: tunnel-index-pool
+  macAging: 300
+  macDuplicationDetection:
+    enabled: true
+    holdDownTime: 9
+    monitoringWindow: 3
+    action: StopLearning
+    numMoves: 5
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: BridgeDomain
+metadata:
+  name: macvrf-v50
+  namespace: 2-spine-collapsed
+spec:
+  type: EVPNVXLAN
+  vni: 10050
+  evi: 50
+  tunnelIndexPool: tunnel-index-pool
+  macAging: 300
+  macDuplicationDetection:
+    enabled: true
+    holdDownTime: 9
+    monitoringWindow: 3
+    action: StopLearning
+    numMoves: 5
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: BridgeDomain
+metadata:
+  name: macvrf-v70
+  namespace: 2-spine-collapsed
+spec:
+  type: EVPNVXLAN
+  vni: 10070
+  evi: 70
+  tunnelIndexPool: tunnel-index-pool
+  macAging: 300
+  macDuplicationDetection:
+    enabled: true
+    holdDownTime: 9
+    monitoringWindow: 3
+    action: StopLearning
+    numMoves: 5
+---
+# Simple BDs for ToRs
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: BridgeDomain
+metadata:
+  name: v10-simple
+  namespace: 2-spine-collapsed
+spec:
+  type: SIMPLE
+  macAging: 300
+  macDuplicationDetection:
+    enabled: true
+    holdDownTime: 9
+    monitoringWindow: 3
+    action: StopLearning
+    numMoves: 5
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: BridgeDomain
+metadata:
+  name: v50-simple
+  namespace: 2-spine-collapsed
+spec:
+  type: SIMPLE
+  macAging: 300
+  macDuplicationDetection:
+    enabled: true
+    holdDownTime: 9
+    monitoringWindow: 3
+    action: StopLearning
+    numMoves: 5
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: BridgeDomain
+metadata:
+  name: v70-simple
+  namespace: 2-spine-collapsed
+spec:
+  type: SIMPLE
+  macAging: 300
+  macDuplicationDetection:
+    enabled: true
+    holdDownTime: 9
+    monitoringWindow: 3
+    action: StopLearning
+    numMoves: 5
+---
+# IRB interfaces
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: IRBInterface
+metadata:
+  name: irb-v10
+  namespace: 2-spine-collapsed
+spec:
+  bridgeDomain: macvrf-v10
+  router: vrf1
+  ipMTU: 9200
+  learnUnsolicited: BOTH
+  ipAddresses:
+    - ipv4Address:
+        ipPrefix: 172.16.10.254/24
+        primary: true
+    - ipv6Address:
+        ipPrefix: 2001:db8:0:10::254/64
+        primary: true
+  arpTimeout: 250
+  evpnRouteAdvertisementType:
+    arpDynamic: true
+    ndDynamic: true
+  hostRoutePopulate:
+    dynamic: false
+    evpn: false
+    static: false
+  l3ProxyARPND:
+    proxyARP: true
+    proxyND: true
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: IRBInterface
+metadata:
+  name: irb-v20
+  namespace: 2-spine-collapsed
+spec:
+  bridgeDomain: macvrf-v20
+  router: vrf1
+  ipMTU: 9200
+  learnUnsolicited: BOTH
+  ipAddresses:
+    - ipv4Address:
+        ipPrefix: 172.16.20.254/24
+        primary: true
+    - ipv6Address:
+        ipPrefix: 2001:db8:0:20::254/64
+        primary: true
+  arpTimeout: 14400
+  evpnRouteAdvertisementType:
+    arpDynamic: true
+    ndDynamic: true
+  hostRoutePopulate:
+    dynamic: false
+    evpn: false
+    static: false
+  l3ProxyARPND:
+    proxyARP: true
+    proxyND: true
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: IRBInterface
+metadata:
+  name: irb-v30
+  namespace: 2-spine-collapsed
+spec:
+  bridgeDomain: macvrf-v30
+  router: vrf1
+  ipMTU: 9200
+  learnUnsolicited: BOTH
+  ipAddresses:
+    - ipv4Address:
+        ipPrefix: 172.16.30.254/24
+        primary: true
+    - ipv6Address:
+        ipPrefix: 2001:db8:0:30::254/64
+        primary: true
+  arpTimeout: 14400
+  evpnRouteAdvertisementType:
+    arpDynamic: true
+    ndDynamic: true
+  hostRoutePopulate:
+    dynamic: false
+    evpn: false
+    static: false
+  l3ProxyARPND:
+    proxyARP: true
+    proxyND: true
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: IRBInterface
+metadata:
+  name: irb-v40
+  namespace: 2-spine-collapsed
+spec:
+  bridgeDomain: macvrf-v40
+  router: vrf1
+  ipMTU: 9200
+  learnUnsolicited: BOTH
+  ipAddresses:
+    - ipv4Address:
+        ipPrefix: 172.16.40.254/24
+        primary: true
+    - ipv6Address:
+        ipPrefix: 2001:db8:0:40::254/64
+        primary: true
+  arpTimeout: 14400
+  evpnRouteAdvertisementType:
+    arpDynamic: true
+    ndDynamic: true
+  hostRoutePopulate:
+    dynamic: false
+    evpn: false
+    static: false
+  l3ProxyARPND:
+    proxyARP: true
+    proxyND: true
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: IRBInterface
+metadata:
+  name: irb-v50
+  namespace: 2-spine-collapsed
+spec:
+  bridgeDomain: macvrf-v50
+  router: vrf1
+  ipMTU: 9200
+  learnUnsolicited: BOTH
+  ipAddresses:
+    - ipv4Address:
+        ipPrefix: 172.16.50.254/24
+        primary: true
+    - ipv6Address:
+        ipPrefix: 2001:db8:0:50::254/64
+        primary: true
+  arpTimeout: 14400
+  evpnRouteAdvertisementType:
+    arpDynamic: true
+    ndDynamic: true
+  hostRoutePopulate:
+    dynamic: false
+    evpn: false
+    static: false
+  l3ProxyARPND:
+    proxyARP: true
+    proxyND: true
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: IRBInterface
+metadata:
+  name: irb-v70
+  namespace: 2-spine-collapsed
+spec:
+  bridgeDomain: macvrf-v70
+  router: vrf1
+  ipMTU: 9200
+  learnUnsolicited: BOTH
+  ipAddresses:
+    - ipv4Address:
+        ipPrefix: 172.16.70.254/24
+        primary: true
+    - ipv6Address:
+        ipPrefix: 2001:db8:0:70::254/64
+        primary: true
+  arpTimeout: 14400
+  evpnRouteAdvertisementType:
+    arpDynamic: true
+    ndDynamic: true
+  hostRoutePopulate:
+    dynamic: false
+    evpn: false
+    static: false
+  l3ProxyARPND:
+    proxyARP: true
+    proxyND: true
+---
+# VLANs untagged for EVPN VXLAN BDs
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: VLAN
+metadata:
+  name: untagged-v10
+  namespace: 2-spine-collapsed
+spec:
+  bridgeDomain: macvrf-v10
+  interfaceSelector:
+    - eda.nokia.com/untagged-v10=enabled
+  vlanID: untagged
+---
+# VLANs untagged for SIMPLE BDs
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: VLAN
+metadata:
+  name: untagged-v10-tor
+  namespace: 2-spine-collapsed
+spec:
+  bridgeDomain: v10-simple
+  interfaceSelector:
+    - eda.nokia.com/untagged-v10-simple=enabled
+  vlanID: untagged
+---
+# VLANs tagged for EVPN VXLAN BDs
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: VLAN
+metadata:
+  name: tagged-v10
+  namespace: 2-spine-collapsed
+spec:
+  bridgeDomain: macvrf-v10
+  interfaceSelector:
+    - eda.nokia.com/tagged-v10=enabled
+  vlanID: '10'
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: VLAN
+metadata:
+  name: tagged-v20
+  namespace: 2-spine-collapsed
+spec:
+  bridgeDomain: macvrf-v20
+  interfaceSelector:
+    - eda.nokia.com/tagged-v20=enabled
+  vlanID: '20'
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: VLAN
+metadata:
+  name: tagged-v30
+  namespace: 2-spine-collapsed
+spec:
+  bridgeDomain: macvrf-v30
+  interfaceSelector:
+    - eda.nokia.com/tagged-v30=enabled
+  vlanID: '30'
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: VLAN
+metadata:
+  name: tagged-v40
+  namespace: 2-spine-collapsed
+spec:
+  bridgeDomain: macvrf-v40
+  interfaceSelector:
+    - eda.nokia.com/tagged-v40=enabled
+  vlanID: '40'
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: VLAN
+metadata:
+  name: tagged-v50
+  namespace: 2-spine-collapsed
+spec:
+  bridgeDomain: macvrf-v50
+  interfaceSelector:
+    - eda.nokia.com/tagged-v50=enabled
+  vlanID: '50'
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: VLAN
+metadata:
+  name: tagged-v70
+  namespace: 2-spine-collapsed
+spec:
+  bridgeDomain: macvrf-v70
+  interfaceSelector:
+    - eda.nokia.com/tagged-v70=enabled
+  vlanID: '70'
+---
+# VLANs tagged for SIMPLE BDs
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: VLAN
+metadata:
+  name: tagged-v50-tor
+  namespace: 2-spine-collapsed
+spec:
+  bridgeDomain: v50-simple
+  interfaceSelector:
+    - eda.nokia.com/tagged-v50-simple=enabled
+  vlanID: '50'
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: VLAN
+metadata:
+  name: tagged-v70-tor
+  namespace: 2-spine-collapsed
+spec:
+  bridgeDomain: v70-simple
+  interfaceSelector:
+    - eda.nokia.com/tagged-v70-simple=enabled
+  vlanID: '70'
+---

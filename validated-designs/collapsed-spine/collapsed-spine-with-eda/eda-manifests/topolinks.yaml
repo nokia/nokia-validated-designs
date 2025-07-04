@@ -1,0 +1,157 @@
+# spine to spine links
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-spine2-link1
+  namespace: 2-spine-collapsed
+spec:
+  links:
+    - local:
+        node: d3l-29-spine1
+        interface: ethernet-1-31
+        interfaceResource: "spine1-ethernet-1-31"
+      remote:
+        node: d3l-30-spine2
+        interface: ethernet-1-31
+        interfaceResource: "spine2-ethernet-1-31"
+      type: interSwitch
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-spine2-link2
+  namespace: 2-spine-collapsed
+spec:
+  links:
+    - local:
+        node: d3l-29-spine1
+        interface: ethernet-1-32
+        interfaceResource: "spine1-ethernet-1-32"
+      remote:
+        node: d3l-30-spine2
+        interface: ethernet-1-32
+        interfaceResource: "spine2-ethernet-1-32"
+      type: interSwitch
+---
+# spine to tor1 links
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+  name: spine1-tor1
+  namespace: 2-spine-collapsed
+spec:
+  links:
+    - local:
+        node: d3l-29-spine1
+        interface: ethernet-1-25
+        interfaceResource: "spine1-ethernet-1-25"
+      remote:
+        node: d2l-34-tor1
+        interface: ethernet-1-51
+        interfaceResource: "tor1-ethernet-1-51"
+      type: interSwitch
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+  name: spine2-tor1
+  namespace: 2-spine-collapsed
+spec:
+  links:
+    - local:
+        node: d3l-30-spine2
+        interface: ethernet-1-25
+        interfaceResource: "spine2-ethernet-1-25"
+      remote:
+        node: d2l-34-tor1
+        interface: ethernet-1-52
+        interfaceResource: "tor1-ethernet-1-52"
+      type: interSwitch
+---
+# spine to tor2 links
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+  name: spine1-tor2
+  namespace: 2-spine-collapsed
+spec:
+  links:
+    - local:
+        node: d3l-29-spine1
+        interface: ethernet-1-26
+        interfaceResource: "spine1-ethernet-1-26"
+      remote:
+        node: d2l-35-tor2
+        interface: ethernet-1-51
+        interfaceResource: "tor2-ethernet-1-51"
+      type: interSwitch
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+  name: spine2-tor2
+  namespace: 2-spine-collapsed
+spec:
+  links:
+    - local:
+        node: d3l-30-spine2
+        interface: ethernet-1-26
+        interfaceResource: "spine2-ethernet-1-26"
+      remote:
+        node: d2l-35-tor2
+        interface: ethernet-1-52
+        interfaceResource: "tor2-ethernet-1-52"
+      type: interSwitch
+---
+# spine to tor3 links
+
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+  name: spine1-tor3
+  namespace: 2-spine-collapsed
+spec:
+  links:
+    - local:
+        node: d3l-29-spine1
+        interface: ethernet-1-29
+        interfaceResource: "spine1-ethernet-1-29"
+      remote:
+        node: d3l-28-tor3
+        interface: ethernet-1-29
+        interfaceResource: "tor3-ethernet-1-29"
+      type: interSwitch
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+  name: spine2-tor3
+  namespace: 2-spine-collapsed
+spec:
+  links:
+    - local:
+        node: d3l-30-spine2
+        interface: ethernet-1-30
+        interfaceResource: "spine2-ethernet-1-30"
+      remote:
+        node: d3l-28-tor3
+        interface: ethernet-1-30
+        interfaceResource: "tor3-ethernet-1-30"
+      type: interSwitch
+---

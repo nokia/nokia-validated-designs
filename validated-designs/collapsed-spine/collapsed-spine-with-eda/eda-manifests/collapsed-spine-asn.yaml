@@ -1,0 +1,10 @@
+# ASN pool for collapsed spines
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: collapsed-spine-asn
+  namespace: 2-spine-collapsed
+spec:
+  segments:
+    - start: 65501
+      size: 20

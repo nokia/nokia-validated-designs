@@ -1,0 +1,9 @@
+# pool for system0 address allocation
+apiVersion: core.eda.nokia.com/v1
+kind: IPAllocationPool
+metadata:
+  name: system0
+  namespace: 2-spine-collapsed
+spec:
+  segments:
+    - subnet: 192.0.2.0/24

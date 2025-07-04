@@ -1,0 +1,67 @@
+apiVersion: config.eda.nokia.com/v1alpha1
+kind: Configlet
+metadata:
+  name: system-logging-spines
+  namespace: 2-spine-collapsed
+spec:
+  endpointSelector:
+    - eda.nokia.com/role=collapsed-spine
+    - eda.nokia.com/role=tor
+  operatingSystem: srl
+  priority: 100
+  configs:
+    - path: .system.logging
+      operation: Create
+      config: |-
+        {
+          "buffer": [
+            {
+              "buffer-name": "log-buffer",
+              "subsystem": [
+                {
+                  "subsystem-name": "arpnd",
+                  "priority": {
+                    "match-above": "informational"
+                  }
+                },
+                {
+                  "subsystem-name": "bfd",
+                  "priority": {
+                    "match-above": "informational"
+                  }
+                },
+                {
+                  "subsystem-name": "bgp",
+                  "priority": {
+                    "match-above": "informational"
+                  }
+                },
+                {
+                  "subsystem-name": "evpn",
+                  "priority": {
+                    "match-above": "informational"
+                  }
+                },
+                {
+                  "subsystem-name": "lag",
+                  "priority": {
+                    "match-above": "informational"
+                  }
+                },
+                {
+                  "subsystem-name": "lldp",
+                  "priority": {
+                    "match-above": "informational"
+                  }
+                },
+                {
+                  "subsystem-name": "vxlan",
+                  "priority": {
+                    "match-above": "informational"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+---

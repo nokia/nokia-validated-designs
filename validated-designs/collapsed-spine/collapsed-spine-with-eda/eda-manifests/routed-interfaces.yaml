@@ -1,0 +1,37 @@
+# routed interface on spine2
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: RoutedInterface
+metadata:
+  name: spine2-ixia-1
+  namespace: 2-spine-collapsed
+spec:
+  arpTimeout: 250
+  interface: spine2-ixia-1
+  ipMTU: 9200
+  ipv4Addresses:
+    - ipPrefix: 172.16.100.0/31
+      primary: true
+  ipv6Addresses:
+    - ipPrefix: 2001:db8:0:100::0/127
+      primary: true
+  router: vrf1
+  vlanID: "100"
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: RoutedInterface
+metadata:
+  name: spine1-l3-1
+  namespace: 2-spine-collapsed
+spec:
+  arpTimeout: 250
+  interface: spine1-ixia-1
+  ipMTU: 9200
+  ipv4Addresses:
+    - ipPrefix: 172.16.100.2/31
+      primary: true
+  ipv6Addresses:
+    - ipPrefix: 2001:db8:0:100::2/127
+      primary: true
+  router: vrf1
+  vlanID: "100"
+---

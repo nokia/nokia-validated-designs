@@ -1,0 +1,9 @@
+# namespace for collapsed spine
+apiVersion: core.eda.nokia.com/v1
+kind: Namespace
+metadata:
+  name: 2-spine-collapsed
+  namespace: "eda-system"
+spec:
+  description: 'namespace for 2-spine collapsed NVD'
+---

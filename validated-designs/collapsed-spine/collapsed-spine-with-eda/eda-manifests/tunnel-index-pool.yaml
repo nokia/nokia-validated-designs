@@ -1,0 +1,9 @@
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: tunnel-index-pool
+  namespace: 2-spine-collapsed
+spec:
+  segments:
+    - size: 4000
+      start: 500

@@ -1,0 +1,34 @@
+apiVersion: topologies.eda.nokia.com/v1alpha1
+kind: TopologyGrouping
+metadata:
+  name: role # no namespace-specific topology can be configured so it has to be the same role topology in eda-system ns
+  namespace: eda-system
+spec:
+  tierSelectors:
+  - nodeSelector:
+    - eda.nokia.com/role=backbone
+    tier: 1
+  - nodeSelector:
+    - eda.nokia.com/role=superspine
+    tier: 2
+  - nodeSelector:
+    - eda.nokia.com/role=spine
+    tier: 3
+  - nodeSelector:
+    - eda.nokia.com/role=collapsed-spine
+    tier: 3
+  - nodeSelector:
+    - eda.nokia.com/role=borderleaf
+    tier: 4
+  - nodeSelector:
+    - eda.nokia.com/role=leaf
+    tier: 4   
+  - nodeSelector:
+    - eda.nokia.com/role=tor
+    tier: 4   
+  - nodeSelector:
+    - eda.nokia.com/role=rail
+    tier: 4
+  - tier: 4
+  uiDescription: Assign nodes to tiers based on eda.nokia.com/role labels.
+  uiName: Role

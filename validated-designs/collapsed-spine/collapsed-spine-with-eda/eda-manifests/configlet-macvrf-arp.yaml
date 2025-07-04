@@ -1,0 +1,144 @@
+apiVersion: config.eda.nokia.com/v1alpha1
+kind: Configlet
+metadata:
+  name: macvrf-v10-arp-nd
+  namespace: 2-spine-collapsed
+spec:
+  endpointSelector:
+    - eda.nokia.com/role=collapsed-spine
+  operatingSystem: srl
+  priority: 100
+  configs:
+    - path: .network-instance{.name=="macvrf-v10"}.protocols.bgp-evpn.bgp-instance{.id==1}
+      operation: Create
+      config: |-
+        {
+          "routes": {
+            "bridge-table": {
+              "mac-ip": {
+                "advertise-arp-nd-only-with-mac-table-entry": true
+              }
+            }
+          }
+        }
+---
+apiVersion: config.eda.nokia.com/v1alpha1
+kind: Configlet
+metadata:
+  name: macvrf-v20-arp-nd
+  namespace: 2-spine-collapsed
+spec:
+  endpointSelector:
+    - eda.nokia.com/name=d3l-29-spine1
+  operatingSystem: srl
+  priority: 100
+  configs:
+    - path: .network-instance{.name=="macvrf-v20"}.protocols.bgp-evpn.bgp-instance{.id==1}
+      operation: Create
+      config: |-
+        {
+          "routes": {
+            "bridge-table": {
+              "mac-ip": {
+                "advertise-arp-nd-only-with-mac-table-entry": true
+              }
+            }
+          }
+        }
+---
+apiVersion: config.eda.nokia.com/v1alpha1
+kind: Configlet
+metadata:
+  name: macvrf-v30-arp-nd
+  namespace: 2-spine-collapsed
+spec:
+  endpointSelector:
+    - eda.nokia.com/name=d3l-30-spine2
+  operatingSystem: srl
+  priority: 100
+  configs:
+    - path: .network-instance{.name=="macvrf-v30"}.protocols.bgp-evpn.bgp-instance{.id==1}
+      operation: Create
+      config: |-
+        {
+          "routes": {
+            "bridge-table": {
+              "mac-ip": {
+                "advertise-arp-nd-only-with-mac-table-entry": true
+              }
+            }
+          }
+        }
+---
+apiVersion: config.eda.nokia.com/v1alpha1
+kind: Configlet
+metadata:
+  name: macvrf-v40-arp-nd
+  namespace: 2-spine-collapsed
+spec:
+  endpointSelector:
+    - eda.nokia.com/role=collapsed-spine
+  operatingSystem: srl
+  priority: 100
+  configs:
+    - path: .network-instance{.name=="macvrf-v40"}.protocols.bgp-evpn.bgp-instance{.id==1}
+      operation: Create
+      config: |-
+        {
+          "routes": {
+            "bridge-table": {
+              "mac-ip": {
+                "advertise-arp-nd-only-with-mac-table-entry": true
+              }
+            }
+          }
+        }
+---
+apiVersion: config.eda.nokia.com/v1alpha1
+kind: Configlet
+metadata:
+  name: macvrf-v50-arp-nd
+  namespace: 2-spine-collapsed
+spec:
+  endpointSelector:
+    - eda.nokia.com/role=collapsed-spine
+  operatingSystem: srl
+  priority: 100
+  configs:
+    - path: .network-instance{.name=="macvrf-v50"}.protocols.bgp-evpn.bgp-instance{.id==1}
+      operation: Create
+      config: |-
+        {
+          "routes": {
+            "bridge-table": {
+              "mac-ip": {
+                "advertise-arp-nd-only-with-mac-table-entry": true
+              }
+            }
+          }
+        }
+---
+apiVersion: config.eda.nokia.com/v1alpha1
+kind: Configlet
+metadata:
+  name: macvrf-v70-arp-nd
+  namespace: 2-spine-collapsed
+spec:
+  endpointSelector:
+    - eda.nokia.com/role=collapsed-spine
+  operatingSystem: srl
+  priority: 100
+  configs:
+    - path: .network-instance{.name=="macvrf-v70"}.protocols.bgp-evpn.bgp-instance{.id==1}
+      operation: Create
+      config: |-
+        {
+          "routes": {
+            "bridge-table": {
+              "mac-ip": {
+                "advertise-arp-nd-only-with-mac-table-entry": true
+              }
+            }
+          }
+        }
+---

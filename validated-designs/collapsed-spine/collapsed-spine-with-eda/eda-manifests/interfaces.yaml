@@ -1,0 +1,677 @@
+# spine to spine interfaces
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-31
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-31
+      node: d3l-29-spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-32
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-32
+      node: d3l-29-spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-31
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-31
+      node: d3l-30-spine2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-32
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-32
+      node: d3l-30-spine2
+  type: interface
+---
+# d3l-29-spine1 to tor interfaces
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-25
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-25
+      node: d3l-29-spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-26
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-26
+      node: d3l-29-spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-29
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-29
+      node: d3l-29-spine1
+  type: interface
+---
+# d3l-30-spine2 to tor
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-25
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-25
+      node: d3l-30-spine2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-26
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-26
+      node: d3l-30-spine2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-30
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-30
+      node: d3l-30-spine2
+  type: interface
+---
+# tor1 to spine interfaces
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: tor1-ethernet-1-51
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-51
+      node: d2l-34-tor1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: tor1-ethernet-1-52
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-52
+      node: d2l-34-tor1
+  type: interface
+--- 
+# tor2 to spine interfaces
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: tor2-ethernet-1-51
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-51
+      node: d2l-35-tor2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: tor2-ethernet-1-52
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-52
+      node: d2l-35-tor2
+  type: interface
+---
+# tor3 to spine interfaces
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: tor3-ethernet-1-29
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-29
+      node: d3l-28-tor3
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: tor3-ethernet-1-30
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-30
+      node: d3l-28-tor3
+  type: interface
+---
+# tor to ixia
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/tagged-v50-simple: enabled
+  name: tor1-ixia
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-55
+      node: d2l-34-tor1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v10-simple: enabled
+  name: tor2-ixia
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-56
+      node: d2l-35-tor2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/tagged-v70-simple: enabled
+  name: tor3-ixia
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-32
+      node: d3l-28-tor3
+  type: interface
+---
+# spine to ixia
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v10: enabled
+    eda.nokia.com/tagged-v20: enabled
+  name: spine1-ixia-1
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-27
+      node: d3l-29-spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+  name: spine1-ixia-2
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-23
+      node: d3l-29-spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/tagged-v10: enabled
+    eda.nokia.com/tagged-v30: enabled
+  name: spine2-ixia-1
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-29
+      node: d3l-30-spine2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+  name: spine2-ixia-2
+  namespace: 2-spine-collapsed
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-23
+      node: d3l-30-spine2
+  type: interface
+---
+# ESI-based LAG interfaces on spine1/spine2 (to tors) 
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: spine1-spine2-tor1-lag
+  namespace: 2-spine-collapsed
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/tagged-v50: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  ethernet:
+    reloadDelayTimer: 100
+  members:
+    - enabled: true
+      interface: ethernet-1-25
+      node: d3l-29-spine1
+      aggregateId: "1"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-25
+      node: d3l-30-spine2
+      aggregateId: "1"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:00:00:00:12"
+      lacpFallback:
+        mode: static
+        timeout: 60
+    multihoming:
+      mode: all-active
+      revertive: false
+      preferredActiveNode: ""
+      reloadDelayTimer: 100
+      esi: auto
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: spine1-spine2-tor2-lag
+  namespace: 2-spine-collapsed
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v10: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  ethernet:
+    reloadDelayTimer: 100
+  members:
+    - enabled: true
+      interface: ethernet-1-26
+      node: d3l-29-spine1
+      aggregateId: "2"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-26
+      node: d3l-30-spine2
+      aggregateId: "2"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:00:00:12:00"
+      lacpFallback:
+        mode: static
+        timeout: 60
+    multihoming:
+      mode: all-active
+      revertive: false
+      preferredActiveNode: ""
+      reloadDelayTimer: 100
+      esi: auto
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: spine1-spine2-tor3-lag
+  namespace: 2-spine-collapsed
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/tagged-v70: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  ethernet:
+    reloadDelayTimer: 100
+  members:
+    - enabled: true
+      interface: ethernet-1-29
+      node: d3l-29-spine1
+      aggregateId: "3"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-30
+      node: d3l-30-spine2
+      aggregateId: "3"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:00:12:00:00"
+      lacpFallback:
+        mode: static
+        timeout: 60
+    multihoming:
+      mode: all-active
+      revertive: false
+      preferredActiveNode: ""
+      reloadDelayTimer: 100
+      esi: auto
+---
+# ESI LAG based interfaces on spine to ixia direct
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: spine1-spine2-tor4-lag
+  namespace: 2-spine-collapsed
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v10: enabled
+    eda.nokia.com/tagged-v40: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  ethernet:
+    reloadDelayTimer: 100
+    standbySignaling: lacp
+  members:
+    - enabled: true
+      interface: ethernet-1-23
+      node: d3l-29-spine1
+      aggregateId: "4"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-23
+      node: d3l-30-spine2
+      aggregateId: "4"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:12:00:00:00"
+      lacpFallback:
+        mode: static
+        timeout: 60
+    multihoming:
+      mode: port-active
+      revertive: false
+      preferredActiveNode: d3l-29-spine1
+      reloadDelayTimer: 100
+      esi: auto
+---
+# LAG interfaces on tors (to spines)
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: tor1-spine-lag
+  namespace: 2-spine-collapsed
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/tagged-v50-simple: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-51
+      node: d2l-34-tor1
+      aggregateId: "1"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-52
+      node: d2l-34-tor1
+      aggregateId: "1"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:11:11:11:11"
+      lacpFallback:
+        mode: static
+        timeout: 60
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: tor2-spine-lag
+  namespace: 2-spine-collapsed
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v10-simple: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-51
+      node: d2l-35-tor2
+      aggregateId: "1"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-52
+      node: d2l-35-tor2
+      aggregateId: "1"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:22:22:22:22"
+      lacpFallback:
+        mode: static
+        timeout: 60
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: tor3-spine-lag
+  namespace: 2-spine-collapsed
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/tagged-v70-simple: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-29
+      node: d3l-28-tor3
+      aggregateId: "1"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-30
+      node: d3l-28-tor3
+      aggregateId: "1"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:33:33:33:33"
+      lacpFallback:
+        mode: static
+        timeout: 60
+---
