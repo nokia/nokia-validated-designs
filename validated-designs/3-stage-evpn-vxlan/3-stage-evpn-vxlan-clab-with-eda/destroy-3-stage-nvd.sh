@@ -151,16 +151,6 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Delete nodeuser for Containerlab nodes
-
-print_separator
-echo "Deleting NodeUser for Containerlab nodes"
-kubectl delete -f nodeusers.yaml
-if [ $? -ne 0 ]; then
-    echo "Failed to delete nodeusers.yaml. Exiting."
-    exit 1
-fi
-
 print_separator
 echo "All resources deleted successfully."
 print_separator

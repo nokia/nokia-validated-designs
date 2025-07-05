@@ -1,0 +1,10 @@
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: lag-admin-key-pool
+  namespace: 2-spine-collapsed
+spec:
+  segments:
+    - size: 65535
+      start: 1
+  publishAllocations: null

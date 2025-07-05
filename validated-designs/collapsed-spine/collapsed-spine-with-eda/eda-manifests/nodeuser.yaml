@@ -1,0 +1,14 @@
+# node user for NVD
+apiVersion: core.eda.nokia.com/v1
+kind: NodeUser
+metadata:
+  name: admin
+  namespace: 2-spine-collapsed
+spec:
+  groupBindings:
+    - groups:
+        - sudo
+      nodeSelector:
+        - ""
+  password: NokiaSrl1!
+  username: admin

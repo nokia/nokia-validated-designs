@@ -1,0 +1,105 @@
+# toponodes for collapsed spine fabric
+apiVersion: core.eda.nokia.com/v1
+kind: TopoNode
+metadata:
+  name: d3l-29-spine1
+  namespace: 2-spine-collapsed
+  labels:
+    eda.nokia.com/role: collapsed-spine
+    eda.nokia.com/name: d3l-29-spine1
+    eda.nokia.com/security-profile: managed
+spec:
+  platform: 7220 IXR-D3L
+  onBoarded: false
+  version: 25.3.2
+  operatingSystem: srl
+  nodeProfile: clab-srlinux-25.3.2
+  productionAddress:
+    ipv4: 172.21.21.101
+    ipv6: ""
+  npp:
+    mode: normal
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoNode
+metadata:
+  name: d3l-30-spine2
+  namespace: 2-spine-collapsed
+  labels:
+    eda.nokia.com/role: collapsed-spine
+    eda.nokia.com/name: d3l-30-spine2
+    eda.nokia.com/security-profile: managed
+spec:
+  platform: 7220 IXR-D3L
+  onBoarded: false
+  version: 25.3.2
+  operatingSystem: srl
+  nodeProfile: clab-srlinux-25.3.2
+  productionAddress:
+    ipv4: 172.21.21.102
+    ipv6: ""
+  npp:
+    mode: normal
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoNode
+metadata:
+  name: d2l-34-tor1
+  namespace: 2-spine-collapsed
+  labels:
+    eda.nokia.com/role: tor
+    eda.nokia.com/name: d2l-34-tor1
+    eda.nokia.com/security-profile: managed
+spec:
+  platform: 7220 IXR-D2L
+  onBoarded: false
+  version: 25.3.2
+  operatingSystem: srl
+  nodeProfile: clab-srlinux-25.3.2
+  productionAddress:
+    ipv4: 172.21.21.11
+    ipv6: ""
+  npp:
+    mode: normal
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoNode
+metadata:
+  name: d2l-35-tor2
+  namespace: 2-spine-collapsed
+  labels:
+    eda.nokia.com/role: tor
+    eda.nokia.com/name: d2l-35-tor2
+    eda.nokia.com/security-profile: managed
+spec:
+  platform: 7220 IXR-D2L
+  onBoarded: false
+  version: 25.3.2
+  operatingSystem: srl
+  nodeProfile: clab-srlinux-25.3.2
+  productionAddress:
+    ipv4: 172.21.21.12
+    ipv6: ""
+  npp:
+    mode: normal
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoNode
+metadata:
+  name: d3l-28-tor3
+  namespace: 2-spine-collapsed
+  labels:
+    eda.nokia.com/role: tor
+    eda.nokia.com/name: d3l-28-tor3
+    eda.nokia.com/security-profile: managed
+spec:
+  platform: 7220 IXR-D3L
+  onBoarded: false
+  version: 25.3.2
+  operatingSystem: srl
+  nodeProfile: clab-srlinux-25.3.2
+  productionAddress:
+    ipv4: 172.21.21.13
+    ipv6: ""
+  npp:
+    mode: normal
