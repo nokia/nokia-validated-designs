@@ -57,7 +57,7 @@ br-33bbfeb15718: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
 
 ## Deploying EDA fabric constructs
 
-Once you have confirmed that the EDA license is installed and valid (using `kubectl describe license -A`) and the fabric nodes are reachable via the bootstrap server pod `bsvr`, you can then use the script `destroy-collapsed-spine-nvd.sh`. This is a prescriptive bash script built specifically for the Containerlab NVD topology found in this repository. It deploys all the necessary EDA components to bring the fabric to life (the script simply does a `kubectl apply` for the individual manifest files and ensures that they are successfully applied before proceeding to the next file).
+Once you have confirmed that the EDA license is installed and valid (using `kubectl describe license -A`) and the fabric nodes are reachable via the bootstrap server pod `bsvr`, you can then run the deploy script with `bash ./destroy-collapsed-spine-nvd.sh`. This is a prescriptive bash script built specifically for the Containerlab NVD topology found in this repository. It deploys all the necessary EDA components to bring the fabric to life (the script simply does a `kubectl apply -f [manifest-file]` for the individual manifest files and ensures that they are successfully applied before proceeding to the next file).
 
 ### Destroying the fabric
 
