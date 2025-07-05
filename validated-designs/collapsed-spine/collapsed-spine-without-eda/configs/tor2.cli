@@ -1,45 +1,56 @@
 delete / system aaa authentication admin-user ssh-key
 delete / system aaa authentication linuxadmin-user ssh-key
-set / interface ethernet-1/1 description spine1-spine2-spine3-spine4-lag1
-set / interface ethernet-1/1 admin-state enable
-set / interface ethernet-1/1 ethernet aggregate-id lag1
-set / interface ethernet-1/2 description spine1-spine2-spine3-spine4-lag1
-set / interface ethernet-1/2 admin-state enable
-set / interface ethernet-1/2 ethernet aggregate-id lag1
-set / interface ethernet-1/5 admin-state enable
-set / interface ethernet-1/5 vlan-tagging true
-set / interface ethernet-1/5 subinterface 4096 type bridged
-set / interface ethernet-1/5 subinterface 4096 admin-state enable
-set / interface ethernet-1/5 subinterface 4096 vlan encap untagged
-set / interface ethernet-1/6 admin-state enable
-set / interface ethernet-1/6 vlan-tagging true
-set / interface ethernet-1/6 subinterface 4096 type bridged
-set / interface ethernet-1/6 subinterface 4096 admin-state enable
-set / interface ethernet-1/6 subinterface 4096 vlan encap untagged
-set / interface lag1 description spine1-spine2-spine3-spine4-lag1
+set / system name host-name d2l-35-tor2
+set / system logging buffer log-buffer subsystem arpnd priority match-above informational
+set / system logging buffer log-buffer subsystem bfd priority match-above informational
+set / system logging buffer log-buffer subsystem bgp priority match-above informational
+set / system logging buffer log-buffer subsystem evpn priority match-above informational
+set / system logging buffer log-buffer subsystem lag priority match-above informational
+set / system logging buffer log-buffer subsystem lldp priority match-above informational
+set / system logging buffer log-buffer subsystem vxlan priority match-above informational
+set / system lldp interface ethernet-1/51 admin-state enable
+set / system lldp interface ethernet-1/52 admin-state enable
+set / system lldp interface ethernet-1/56 admin-state enable
+set / interface ethernet-1/51 description tor2-spine-lag
+set / interface ethernet-1/51 admin-state enable
+set / interface ethernet-1/51 ethernet aggregate-id lag1
+set / interface ethernet-1/51 ethernet lacp-port-priority 32768
+set / interface ethernet-1/52 description tor2-spine-lag
+set / interface ethernet-1/52 admin-state enable
+set / interface ethernet-1/52 ethernet aggregate-id lag1
+set / interface ethernet-1/52 ethernet lacp-port-priority 32768
+set / interface ethernet-1/56 admin-state enable
+set / interface ethernet-1/56 vlan-tagging true
+set / interface ethernet-1/56 subinterface 4096 type bridged
+set / interface ethernet-1/56 subinterface 4096 description untagged-v10-tor
+set / interface ethernet-1/56 subinterface 4096 admin-state enable
+set / interface ethernet-1/56 subinterface 4096 vlan encap untagged
+set / interface lag1 description tor2-spine-lag
 set / interface lag1 admin-state enable
 set / interface lag1 vlan-tagging true
-set / interface lag1 subinterface 40 type bridged
-set / interface lag1 subinterface 40 admin-state enable
-set / interface lag1 subinterface 40 vlan encap single-tagged vlan-id 40
-set / interface lag1 subinterface 50 type bridged
-set / interface lag1 subinterface 50 admin-state enable
-set / interface lag1 subinterface 50 vlan encap single-tagged vlan-id 50
+set / interface lag1 subinterface 4096 type bridged
+set / interface lag1 subinterface 4096 description untagged-v10-tor
+set / interface lag1 subinterface 4096 admin-state enable
+set / interface lag1 subinterface 4096 vlan encap untagged
 set / interface lag1 lag lag-type lacp
 set / interface lag1 lag min-links 1
 set / interface lag1 lag lacp-fallback-mode static
 set / interface lag1 lag lacp-fallback-timeout 60
 set / interface lag1 lag lacp interval FAST
 set / interface lag1 lag lacp lacp-mode ACTIVE
-set / interface lag1 lag lacp admin-key 1
-set / interface lag1 lag lacp system-id-mac 00:00:00:22:22:22
-set / network-instance macvrf-v40 type mac-vrf
-set / network-instance macvrf-v40 admin-state enable
-set / network-instance macvrf-v40 description macvrf-v40
-set / network-instance macvrf-v40 interface ethernet-1/5.4096
-set / network-instance macvrf-v40 interface lag1.40
-set / network-instance macvrf-v50 type mac-vrf
-set / network-instance macvrf-v50 admin-state enable
-set / network-instance macvrf-v50 description macvrf-v50
-set / network-instance macvrf-v50 interface ethernet-1/6.4096
-set / network-instance macvrf-v50 interface lag1.50
+set / interface lag1 lag lacp admin-key 6
+set / interface lag1 lag lacp system-id-mac 00:00:22:22:22:22
+set / interface lag1 lag lacp system-priority 32768
+set / network-instance v10-simple type mac-vrf
+set / network-instance v10-simple admin-state enable
+set / network-instance v10-simple description v10-simple
+set / network-instance v10-simple interface ethernet-1/56.4096
+set / network-instance v10-simple interface lag1.4096
+set / network-instance v10-simple bridge-table mac-learning admin-state enable
+set / network-instance v10-simple bridge-table mac-learning aging admin-state enable
+set / network-instance v10-simple bridge-table mac-learning aging age-time 300
+set / network-instance v10-simple bridge-table mac-duplication admin-state enable
+set / network-instance v10-simple bridge-table mac-duplication monitoring-window 3
+set / network-instance v10-simple bridge-table mac-duplication num-moves 5
+set / network-instance v10-simple bridge-table mac-duplication hold-down-time 9
+set / network-instance v10-simple bridge-table mac-duplication action stop-learning

@@ -1,6 +1,8 @@
-ip addr add 172.16.50.6/24 dev eth1
-ip -6 addr add 2001:db8:0:50::1/64 dev eth1
-ip route add 172.16.30.0/24 via 172.16.50.254
-ip route add 172.16.70.0/24 via 172.16.50.254
-ip -6 route add 2001:db8:0:30::/64 via 2001:db8:0:50::254
-ip -6 route add 2001:db8:0:70::/64 via 2001:db8:0:50::254 
+ip link set dev eth1 down
+ip link add link eth1 name eth1.70 type vlan id 70
+ip link set dev eth1 up
+ip link set dev eth1.70 up
+ip addr add 172.16.70.6/24 dev eth1.70
+ip -6 addr add 2001:db8:0:70::6/64 dev eth1.70
+ip route add default via 172.16.70.254 dev eth1.70 table 70
+ip -6 route add default via 2001:db8:0:70::254 dev eth1.70 table 70

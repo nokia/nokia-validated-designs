@@ -55,44 +55,24 @@ topology:
       kind: linux
       exec:
         - bash base-configs/s6.sh
-    s7:
-      kind: linux
-      exec:
-        - bash base-configs/s7.sh
-    s8:
-      kind: linux
-      exec:
-        - bash base-configs/s8.sh
-    s9:
-      kind: linux
-      exec:
-        - bash base-configs/s9.sh
-    s10:
-      kind: linux
-      exec:
-        - bash base-configs/s10.sh
   links:
     # spine to spine
-    - endpoints: ["spine1:e1-1", "spine2:e1-1"]
-    - endpoints: ["spine1:e1-2", "spine2:e1-2"]
+    - endpoints: ["spine1:e1-31", "spine2:e1-31"]
+    - endpoints: ["spine1:e1-32", "spine2:e1-32"]
     # spine to tor and orphan hosts 
       # links to hosts directly connected to spines
-    - endpoints: ["spine1:e1-3", "s1:eth1"]
-    - endpoints: ["spine2:e1-3", "s2:eth1"]
-    - endpoints: ["spine1:e1-7", "s9:eth1"]
-    - endpoints: ["spine2:e1-7", "s9:eth2"]
-    - endpoints: ["spine2:e1-8", "s10:eth1"]
+    - endpoints: ["spine1:e1-27", "s1:eth1"]
+    - endpoints: ["spine2:e1-29", "s2:eth1"]
+    - endpoints: ["spine1:e1-23", "s3:eth1"]
+    - endpoints: ["spine2:e1-23", "s3:eth2"]
       # links to tor switches 
-    - endpoints: ["spine1:e1-4", "tor1:e1-1"]
-    - endpoints: ["spine2:e1-4", "tor1:e1-2"]
-    - endpoints: ["spine1:e1-5", "tor2:e1-1"]
-    - endpoints: ["spine2:e1-5", "tor2:e1-2"]
-    - endpoints: ["spine1:e1-6", "tor3:e1-1"]
-    - endpoints: ["spine2:e1-6", "tor3:e1-2"]
+    - endpoints: ["spine1:e1-25", "tor1:e1-51"]
+    - endpoints: ["spine2:e1-25", "tor1:e1-52"]
+    - endpoints: ["spine1:e1-26", "tor2:e1-51"]
+    - endpoints: ["spine2:e1-26", "tor2:e1-52"]
+    - endpoints: ["spine1:e1-29", "tor3:e1-29"]
+    - endpoints: ["spine2:e1-30", "tor3:e1-30"]
     # tor switches to servers
-    - endpoints: ["tor1:e1-3", "s3:eth1"]
-    - endpoints: ["tor1:e1-4", "s4:eth1"]
-    - endpoints: ["tor2:e1-5", "s5:eth1"]
-    - endpoints: ["tor2:e1-6", "s6:eth1"]
-    - endpoints: ["tor3:e1-3", "s7:eth1"]
-    - endpoints: ["tor3:e1-4", "s8:eth1"]
+    - endpoints: ["tor1:e1-55", "s4:eth1"]
+    - endpoints: ["tor2:e1-56", "s5:eth1"]
+    - endpoints: ["tor3:e1-32", "s6:eth1"]
