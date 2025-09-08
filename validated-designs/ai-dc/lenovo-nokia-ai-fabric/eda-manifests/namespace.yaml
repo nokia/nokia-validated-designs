@@ -1,0 +1,7 @@
+apiVersion: core.eda.nokia.com/v1
+kind: Namespace
+metadata:
+  name: lenovo-nokia-ai-fabric
+  namespace: "eda-system"
+spec:
+  description: 'namespace for Lenovo Nokia AI fabric'

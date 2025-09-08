@@ -1,0 +1,167 @@
+apiVersion: v1
+items:
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: Queue
+  metadata:
+    name: pfc-0
+    namespace: lenovo-nokia-ai-fabric
+  spec:
+    queueID: 0
+    queueType: Pfc
+    trafficType: Unicast
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: Queue
+  metadata:
+    name: pfc-1
+    namespace: lenovo-nokia-ai-fabric
+  spec:
+    queueID: 1
+    queueType: Pfc
+    trafficType: Unicast
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: Queue
+  metadata:
+    name: pfc-2
+    namespace: lenovo-nokia-ai-fabric
+  spec:
+    queueID: 2
+    queueType: Pfc
+    trafficType: Unicast
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: Queue
+  metadata:
+    name: pfc-3
+    namespace: lenovo-nokia-ai-fabric
+  spec:
+    queueID: 3
+    queueType: Pfc
+    trafficType: Unicast
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: Queue
+  metadata:
+    name: pfc-4
+    namespace: lenovo-nokia-ai-fabric
+  spec:
+    queueID: 4
+    queueType: Pfc
+    trafficType: Unicast
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: Queue
+  metadata:
+    name: pfc-5
+    namespace: lenovo-nokia-ai-fabric
+  spec:
+    queueID: 5
+    queueType: Pfc
+    trafficType: Unicast
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: Queue
+  metadata:
+    name: pfc-6
+    namespace: lenovo-nokia-ai-fabric
+  spec:
+    queueID: 6
+    queueType: Pfc
+    trafficType: Unicast
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: Queue
+  metadata:
+    name: pfc-7
+    namespace: lenovo-nokia-ai-fabric
+  spec:
+    queueID: 7
+    queueType: Pfc
+    trafficType: Unicast
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: Queue
+  metadata:
+    name: pfc-8
+    namespace: lenovo-nokia-ai-fabric
+  spec:
+    queueID: 8
+    queueType: Pfc
+    trafficType: Unicast
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: Queue
+  metadata:
+    name: unicast-0
+    namespace: lenovo-nokia-ai-fabric
+  spec:
+    queueID: 0
+    queueType: Normal
+    trafficType: Unicast
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: Queue
+  metadata:
+    name: unicast-1
+    namespace: lenovo-nokia-ai-fabric
+  spec:
+    queueID: 1
+    queueType: Normal
+    trafficType: Unicast
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: Queue
+  metadata:
+    name: unicast-2
+    namespace: lenovo-nokia-ai-fabric
+  spec:
+    queueID: 2
+    queueType: Normal
+    trafficType: Unicast
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: Queue
+  metadata:
+    name: unicast-3
+    namespace: lenovo-nokia-ai-fabric
+  spec:
+    queueID: 3
+    queueType: Normal
+    trafficType: Unicast
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: Queue
+  metadata:
+    name: unicast-4
+    namespace: lenovo-nokia-ai-fabric
+  spec:
+    queueID: 4
+    queueType: Normal
+    trafficType: Unicast
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: Queue
+  metadata:
+    name: unicast-5
+    namespace: lenovo-nokia-ai-fabric
+  spec:
+    queueID: 5
+    queueType: Normal
+    trafficType: Unicast
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: Queue
+  metadata:
+    name: unicast-6
+    namespace: lenovo-nokia-ai-fabric
+  spec:
+    queueID: 6
+    queueType: Normal
+    trafficType: Unicast
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: Queue
+  metadata:
+    name: unicast-7
+    namespace: lenovo-nokia-ai-fabric
+  spec:
+    queueID: 7
+    queueType: Normal
+    trafficType: Unicast
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: Queue
+  metadata:
+    name: unicast-8
+    namespace: lenovo-nokia-ai-fabric
+  spec:
+    queueID: 8
+    queueType: Normal
+    trafficType: Unicast
+kind: List
+metadata:
+  resourceVersion: ""

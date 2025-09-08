@@ -1,0 +1,8 @@
+apiVersion: core.eda.nokia.com/v1
+kind: IPAllocationPool
+metadata:
+  name: systemipv4-pool
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  segments:
+  - subnet: 192.0.2.0/24
