@@ -461,15 +461,15 @@ set / network-instance vrf1 protocols bgp-evpn bgp-instance 1 routes route-table
 set / network-instance vrf1 protocols bgp-vpn bgp-instance 1 route-target export-rt target:1:500
 set / network-instance vrf1 protocols bgp-vpn bgp-instance 1 route-target import-rt target:1:500
 set / bfd subinterface ethernet-1/31.0 admin-state enable
-set / bfd subinterface ethernet-1/31.0 desired-minimum-transmit-interval 250000
-set / bfd subinterface ethernet-1/31.0 required-minimum-receive 250000
+set / bfd subinterface ethernet-1/31.0 desired-minimum-transmit-interval 1000000
+set / bfd subinterface ethernet-1/31.0 required-minimum-receive 1000000
 set / bfd subinterface ethernet-1/31.0 detection-multiplier 3
-set / bfd subinterface ethernet-1/31.0 minimum-echo-receive-interval 250000
+set / bfd subinterface ethernet-1/31.0 minimum-echo-receive-interval 1000000
 set / bfd subinterface ethernet-1/32.0 admin-state enable
-set / bfd subinterface ethernet-1/32.0 desired-minimum-transmit-interval 250000
-set / bfd subinterface ethernet-1/32.0 required-minimum-receive 250000
+set / bfd subinterface ethernet-1/32.0 desired-minimum-transmit-interval 1000000
+set / bfd subinterface ethernet-1/32.0 required-minimum-receive 1000000
 set / bfd subinterface ethernet-1/32.0 detection-multiplier 3
-set / bfd subinterface ethernet-1/32.0 minimum-echo-receive-interval 250000
+set / bfd subinterface ethernet-1/32.0 minimum-echo-receive-interval 1000000
 set / tunnel-interface vxlan0 vxlan-interface 500 type bridged
 set / tunnel-interface vxlan0 vxlan-interface 500 ingress vni 10030
 set / tunnel-interface vxlan0 vxlan-interface 500 egress source-ip use-system-ipv4-address

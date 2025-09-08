@@ -1,0 +1,46 @@
+apiVersion: aifabrics.eda.nokia.com/v1alpha1
+kind: Backend
+metadata:
+  name: lenovo-nokia-backend
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  systemPoolIPV4: systemipv4-pool
+  asnPool: asn-pool
+  stripes:
+    - name: backend
+      stripeID: 100
+      nodeSelector:
+        - eda.nokia.com/role=backend-leaf
+      gpuVlan: 100
+  gpuIsolationGroups:
+    - name: rail1
+      interfaceSelector:
+        - eda.nokia.com/role=rail1
+    - name: rail2
+      interfaceSelector:
+        - eda.nokia.com/role=rail2
+    - name: rail3
+      interfaceSelector:
+        - eda.nokia.com/role=rail3
+    - name: rail4
+      interfaceSelector:
+        - eda.nokia.com/role=rail4
+    - name: rail5
+      interfaceSelector:
+        - eda.nokia.com/role=rail5
+    - name: rail6
+      interfaceSelector:
+        - eda.nokia.com/role=rail6
+    - name: rail7
+      interfaceSelector:
+        - eda.nokia.com/role=rail7
+    - name: rail8
+      interfaceSelector:
+        - eda.nokia.com/role=rail8
+  rocev2QoS:
+    ecnMaxDropProbabilityPercent: 100
+    ecnSlopeMaxThresholdPercent: 80
+    ecnSlopeMinThresholdPercent: 5
+    pfcDeadlockDetectionTimer: 750
+    pfcDeadlockRecoveryTimer: 750
+    queueMaximumBurstSize: 52110640

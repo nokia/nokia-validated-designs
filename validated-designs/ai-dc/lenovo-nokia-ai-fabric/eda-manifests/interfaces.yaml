@@ -1,0 +1,587 @@
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail1
+  name: backend-leaf1-ethernet-1-1
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-1
+      node: backend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail2
+  name: backend-leaf1-ethernet-1-2
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-2
+      node: backend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail3
+  name: backend-leaf1-ethernet-1-3
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: backend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail4
+  name: backend-leaf1-ethernet-1-4
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: backend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail1
+  name: backend-leaf1-ethernet-1-5
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-5
+      node: backend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail2
+  name: backend-leaf1-ethernet-1-6
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-6
+      node: backend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail3
+  name: backend-leaf1-ethernet-1-7
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-7
+      node: backend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail4
+  name: backend-leaf1-ethernet-1-8
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-8
+      node: backend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail5
+  name: backend-leaf2-ethernet-1-1
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-1
+      node: backend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail6
+  name: backend-leaf2-ethernet-1-2
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-2
+      node: backend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail7
+  name: backend-leaf2-ethernet-1-3
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: backend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail8
+  name: backend-leaf2-ethernet-1-4
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: backend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail5
+  name: backend-leaf2-ethernet-1-5
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-5
+      node: backend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail6
+  name: backend-leaf2-ethernet-1-6
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-6
+      node: backend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail7
+  name: backend-leaf2-ethernet-1-7
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-7
+      node: backend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail8
+  name: backend-leaf2-ethernet-1-8
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-8
+      node: backend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-storage: enabled
+  name: storage-leaf1-ethernet-1-1
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-1
+      node: storage-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-storage: enabled
+  name: storage-leaf1-ethernet-1-2
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-2
+      node: storage-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-storage: enabled
+  name: storage-leaf1-ethernet-1-3
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: storage-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-storage: enabled
+  name: storage-leaf2-ethernet-1-1
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-1
+      node: storage-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-storage: enabled
+  name: storage-leaf2-ethernet-1-2
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-2
+      node: storage-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-storage: enabled
+  name: storage-leaf2-ethernet-1-3
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: storage-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-frontend: enabled
+  name: frontend-leaf1-ethernet-1-1
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-1
+      node: frontend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+  name: frontend-leaf1-ethernet-1-2
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-2
+      node: frontend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+  name: frontend-leaf1-ethernet-1-3
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: frontend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-frontend: enabled
+  name: frontend-leaf1-ethernet-1-4
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: frontend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-frontend: enabled
+  name: frontend-leaf2-ethernet-1-1
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-1
+      node: frontend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+  name: frontend-leaf2-ethernet-1-2
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-2
+      node: frontend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+  name: frontend-leaf2-ethernet-1-3
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: frontend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-frontend: enabled
+  name: frontend-leaf2-ethernet-1-4
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: frontend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: frontend-leaf1-leaf2-lag
+  namespace: lenovo-nokia-ai-fabric
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-frontend: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-2
+      node: frontend-leaf1
+      aggregateId: "1"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-3
+      node: frontend-leaf1
+      aggregateId: "1"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:00:00:00:11"
+      lacpFallback:
+        mode: static
+        timeout: 60
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: frontend-leaf2-leaf1-lag
+  namespace: lenovo-nokia-ai-fabric
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-frontend: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-2
+      node: frontend-leaf2
+      aggregateId: "1"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-3
+      node: frontend-leaf2
+      aggregateId: "1"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:00:00:00:22"
+      lacpFallback:
+        mode: static
+        timeout: 60

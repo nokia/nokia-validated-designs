@@ -1,0 +1,129 @@
+# © 2025 Nokia  
+# Licensed under the BSD 3-Clause License  
+# SPDX-License-Identifier: BSD-3-Clause  
+
+apiVersion: core.eda.nokia.com/v1
+kind: TopoNode
+metadata:
+  name: backend-leaf1
+  namespace: lenovo-nokia-ai-fabric
+  labels:
+    eda.nokia.com/role: backend-leaf
+    eda.nokia.com/name: backend-leaf1
+    eda.nokia.com/security-profile: managed
+spec:
+  platform: 7220 IXR-H4
+  version: 25.3.2
+  onBoarded: false
+  operatingSystem: srl
+  nodeProfile: clab-srlinux-25.3.2
+  productionAddress:
+    ipv4: 172.21.21.11
+    ipv6: ""
+  npp:
+    mode: normal
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoNode
+metadata:
+  name: backend-leaf2
+  namespace: lenovo-nokia-ai-fabric
+  labels:
+    eda.nokia.com/role: backend-leaf
+    eda.nokia.com/name: backend-leaf2
+    eda.nokia.com/security-profile: managed
+spec:
+  platform: 7220 IXR-H4
+  version: 25.3.2
+  onBoarded: false
+  operatingSystem: srl
+  nodeProfile: clab-srlinux-25.3.2
+  productionAddress:
+    ipv4: 172.21.21.12
+    ipv6: ""
+  npp:
+    mode: normal
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoNode
+metadata:
+  name: frontend-leaf1
+  namespace: lenovo-nokia-ai-fabric
+  labels:
+    eda.nokia.com/role: frontend-leaf
+    eda.nokia.com/name: frontend-leaf1
+    eda.nokia.com/security-profile: managed
+spec:
+  platform: 7220 IXR-D3L
+  version: 25.3.2
+  onBoarded: false
+  operatingSystem: srl
+  nodeProfile: clab-srlinux-25.3.2
+  productionAddress:
+    ipv4: 172.21.21.13
+    ipv6: ""
+  npp:
+    mode: normal
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoNode
+metadata:
+  name: frontend-leaf2
+  namespace: lenovo-nokia-ai-fabric
+  labels:
+    eda.nokia.com/role: frontend-leaf
+    eda.nokia.com/name: frontend-leaf2
+    eda.nokia.com/security-profile: managed
+spec:
+  platform: 7220 IXR-D3L
+  version: 25.3.2
+  onBoarded: false
+  operatingSystem: srl
+  nodeProfile: clab-srlinux-25.3.2
+  productionAddress:
+    ipv4: 172.21.21.14
+    ipv6: ""
+  npp:
+    mode: normal
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoNode
+metadata:
+  name: storage-leaf1
+  namespace: lenovo-nokia-ai-fabric
+  labels:
+    eda.nokia.com/role: storage-leaf
+    eda.nokia.com/name: storage-leaf1
+    eda.nokia.com/security-profile: managed
+spec:
+  platform: 7220 IXR-D5
+  version: 25.3.2
+  onBoarded: false
+  operatingSystem: srl
+  nodeProfile: clab-srlinux-25.3.2
+  productionAddress:
+    ipv4: 172.21.21.15
+    ipv6: ""
+  npp:
+    mode: normal
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoNode
+metadata:
+  name: storage-leaf2
+  namespace: lenovo-nokia-ai-fabric
+  labels:
+    eda.nokia.com/role: storage-leaf
+    eda.nokia.com/name: storage-leaf2
+    eda.nokia.com/security-profile: managed
+spec:
+  platform: 7220 IXR-D5
+  version: 25.3.2
+  onBoarded: false
+  operatingSystem: srl
+  nodeProfile: clab-srlinux-25.3.2
+  productionAddress:
+    ipv4: 172.21.21.16
+    ipv6: ""
+  npp:
+    mode: normal

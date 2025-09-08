@@ -1,0 +1,24 @@
+# © 2025 Nokia  
+# Licensed under the BSD 3-Clause License  
+# SPDX-License-Identifier: BSD-3-Clause  
+
+# nodeprofile for v25.3.2
+apiVersion: core.eda.nokia.com/v1
+kind: NodeProfile
+metadata:
+  name: clab-srlinux-25.3.2
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  images:
+    - image: srlimages/srlinux-25.3.2-bin/srlinux.bin
+      imageMd5: srlimages/srlinux-25.3.2-md5/srlinux.md5
+  nodeUser: admin
+  operatingSystem: srl
+  port: 57410
+  version: 25.3.2
+  versionMatch: v25\.3\.2.*
+  versionPath: .system.information.version
+  yang: https://eda-asvr.eda-system/eda-system/schemaprofiles/srlinux-ghcr-25.3.2/srlinux-25.3.2.zip
+  # set annotate to true for source EDA CRs to be added as a description in configuration lines
+  # choosing false to prefer configuration readability
+  annotate: false 

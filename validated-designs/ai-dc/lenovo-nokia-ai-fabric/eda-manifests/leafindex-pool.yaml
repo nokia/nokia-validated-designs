@@ -1,0 +1,14 @@
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: leafindex-pool
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  segments:
+  - size: 4000
+    start: 1
+    allocations:
+      - name: backend-leaf1
+        value: 1
+      - name: backend-leaf2
+        value: 2

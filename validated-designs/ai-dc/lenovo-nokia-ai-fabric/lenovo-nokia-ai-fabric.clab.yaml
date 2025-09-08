@@ -1,0 +1,93 @@
+# © 2025 Nokia  
+# Licensed under the BSD 3-Clause License  
+# SPDX-License-Identifier: BSD-3-Clause  
+
+name: lenovo-nokia-ai-fabric
+prefix: ""
+mgmt:
+  network: eda_mgmt
+  ipv4-subnet: 172.21.21.0/24
+topology:
+  defaults:
+    kind: nokia_srlinux
+  kinds:
+    nokia_srlinux:
+      image: ghcr.io/nokia/srlinux:25.3.2
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+      binds:
+        - base-configs:/base-configs
+  nodes:
+    backend-leaf1:
+      mgmt-ipv4: 172.21.21.11
+      type: ixr-h4
+    backend-leaf2:
+      mgmt-ipv4: 172.21.21.12
+      type: ixr-h4
+    frontend-leaf1:
+      mgmt-ipv4: 172.21.21.13
+      type: ixr-d3l
+    frontend-leaf2:
+      mgmt-ipv4: 172.21.21.14
+      type: ixr-d3l
+    storage-leaf1:
+      mgmt-ipv4: 172.21.21.15
+      type: ixr-d5
+    storage-leaf2:
+      mgmt-ipv4: 172.21.21.16
+      type: ixr-d5
+    gpu1:
+      mgmt-ipv4: 172.21.21.51
+      kind: linux
+      exec:
+        - bash base-configs/gpu1.sh
+    gpu2:
+      mgmt-ipv4: 172.21.21.52
+      kind: linux
+      exec:
+        - bash base-configs/gpu2.sh
+    frontend-server:
+      mgmt-ipv4: 172.21.21.53
+      kind: linux
+      exec:
+        - bash base-configs/frontend-server.sh
+    storage:
+      mgmt-ipv4: 172.21.21.54
+      kind: linux
+      exec:
+        - bash base-configs/storage.sh
+  links:
+  # GPUs to backend fabric
+    - endpoints: [ "backend-leaf1:e1-1", "gpu1:eth1" ]
+    - endpoints: [ "backend-leaf1:e1-2", "gpu1:eth2" ]
+    - endpoints: [ "backend-leaf1:e1-3", "gpu1:eth3" ]
+    - endpoints: [ "backend-leaf1:e1-4", "gpu1:eth4" ]
+    - endpoints: [ "backend-leaf1:e1-5", "gpu2:eth1" ]
+    - endpoints: [ "backend-leaf1:e1-6", "gpu2:eth2" ]
+    - endpoints: [ "backend-leaf1:e1-7", "gpu2:eth3" ]
+    - endpoints: [ "backend-leaf1:e1-8", "gpu2:eth4" ]
+    - endpoints: [ "backend-leaf2:e1-1", "gpu1:eth5" ]
+    - endpoints: [ "backend-leaf2:e1-2", "gpu1:eth6" ]
+    - endpoints: [ "backend-leaf2:e1-3", "gpu1:eth7" ]
+    - endpoints: [ "backend-leaf2:e1-4", "gpu1:eth8" ]
+    - endpoints: [ "backend-leaf2:e1-5", "gpu2:eth5" ]
+    - endpoints: [ "backend-leaf2:e1-6", "gpu2:eth6" ]
+    - endpoints: [ "backend-leaf2:e1-7", "gpu2:eth7" ]
+    - endpoints: [ "backend-leaf2:e1-8", "gpu2:eth8" ]
+  # GPUs to frontend fabric
+    - endpoints: [ "frontend-leaf1:e1-1", "gpu1:eth9" ]
+    - endpoints: [ "frontend-leaf2:e1-1", "gpu2:eth9" ]
+  # GPUs to storage fabric
+    - endpoints: [ "storage-leaf1:e1-1", "gpu1:eth10" ]
+    - endpoints: [ "storage-leaf2:e1-1", "gpu1:eth11" ]
+    - endpoints: [ "storage-leaf1:e1-2", "gpu2:eth10" ]
+    - endpoints: [ "storage-leaf2:e1-2", "gpu2:eth11" ]
+  # frontend leaf connectivity
+    - endpoints: [ "frontend-leaf1:e1-2", "frontend-leaf2:e1-2" ]
+    - endpoints: [ "frontend-leaf1:e1-3", "frontend-leaf2:e1-3" ]
+  # frontend server connectivity
+    - endpoints: [ "frontend-leaf1:e1-4", "frontend-server:eth1" ]
+    - endpoints: [ "frontend-leaf2:e1-4", "frontend-server:eth2" ]
+  # storage server connectivity
+    - endpoints: [ "storage-leaf1:e1-3", "storage:eth1" ]
+    - endpoints: [ "storage-leaf2:e1-3", "storage:eth2" ]

@@ -1,0 +1,9 @@
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: asn-pool
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  segments:
+  - size: 3000
+    start: 100

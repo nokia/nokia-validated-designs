@@ -1,0 +1,52 @@
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: BridgeDomain
+metadata:
+  name: untagged-storage
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  type: SIMPLE
+  macAging: 300
+  macDuplicationDetection:
+    enabled: true
+    holdDownTime: 9
+    monitoringWindow: 3
+    action: StopLearning
+    numMoves: 5
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: BridgeDomain
+metadata:
+  name: untagged-frontend
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  type: SIMPLE
+  macAging: 300
+  macDuplicationDetection:
+    enabled: true
+    holdDownTime: 9
+    monitoringWindow: 3
+    action: StopLearning
+    numMoves: 5
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: VLAN
+metadata:
+  name: untagged-storage
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  bridgeDomain: untagged-storage
+  interfaceSelector:
+    - eda.nokia.com/untagged-storage=enabled
+  vlanID: untagged
+---
+apiVersion: services.eda.nokia.com/v1alpha1
+kind: VLAN
+metadata:
+  name: untagged-frontend
+  namespace: lenovo-nokia-ai-fabric
+spec:
+  bridgeDomain: untagged-frontend
+  interfaceSelector:
+    - eda.nokia.com/untagged-frontend=enabled
+  vlanID: untagged
+---

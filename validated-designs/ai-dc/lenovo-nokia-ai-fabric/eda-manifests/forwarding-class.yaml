@@ -1,0 +1,85 @@
+apiVersion: v1
+items:
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: ForwardingClass
+  metadata:
+    name: af
+    namespace: lenovo-nokia-ai-fabric
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: ForwardingClass
+  metadata:
+    name: be
+    namespace: lenovo-nokia-ai-fabric
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: ForwardingClass
+  metadata:
+    name: ef
+    namespace: lenovo-nokia-ai-fabric
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: ForwardingClass
+  metadata:
+    name: fc0
+    namespace: lenovo-nokia-ai-fabric
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: ForwardingClass
+  metadata:
+    name: fc1
+    namespace: lenovo-nokia-ai-fabric
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: ForwardingClass
+  metadata:
+    name: fc2
+    namespace: lenovo-nokia-ai-fabric
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: ForwardingClass
+  metadata:
+    name: fc3
+    namespace: lenovo-nokia-ai-fabric
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: ForwardingClass
+  metadata:
+    name: fc4
+    namespace: lenovo-nokia-ai-fabric
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: ForwardingClass
+  metadata:
+    name: fc5
+    namespace: lenovo-nokia-ai-fabric
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: ForwardingClass
+  metadata:
+    name: fc6
+    namespace: lenovo-nokia-ai-fabric
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: ForwardingClass
+  metadata:
+    name: fc7
+    namespace: lenovo-nokia-ai-fabric
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: ForwardingClass
+  metadata:
+    name: h1
+    namespace: lenovo-nokia-ai-fabric
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: ForwardingClass
+  metadata:
+    name: h2
+    namespace: lenovo-nokia-ai-fabric
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: ForwardingClass
+  metadata:
+    name: l1
+    namespace: lenovo-nokia-ai-fabric
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: ForwardingClass
+  metadata:
+    name: l2
+    namespace: lenovo-nokia-ai-fabric
+- apiVersion: qos.eda.nokia.com/v1alpha1
+  kind: ForwardingClass
+  metadata:
+    name: nc
+    namespace: lenovo-nokia-ai-fabric
+kind: List
+metadata:
+  resourceVersion: ""
