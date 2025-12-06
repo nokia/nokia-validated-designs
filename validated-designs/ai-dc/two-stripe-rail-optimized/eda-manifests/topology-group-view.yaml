@@ -1,0 +1,38 @@
+apiVersion: topologies.eda.nokia.com/v1alpha1
+kind: TopologyGrouping
+metadata:
+  name: per-rail
+  namespace: eda-system
+spec:
+  groupSelectors:
+  - nodeSelector:
+    - eda.nokia.com/stripe=stripe1
+    group: stripe1
+  - nodeSelector:
+    - eda.nokia.com/stripe=stripe2
+    group: stripe2
+  - nodeSelector:
+    - eda.nokia.com/role=spine
+    group: stripe-conn
+  tierSelectors:
+  - nodeSelector:
+    - eda.nokia.com/role=backbone
+    tier: 1
+  - nodeSelector:
+    - eda.nokia.com/role=superspine
+    tier: 2
+  - nodeSelector:
+    - eda.nokia.com/role=spine
+    tier: 3
+  - nodeSelector:
+    - eda.nokia.com/role=borderleaf
+    tier: 4
+  - nodeSelector:
+    - eda.nokia.com/role=leaf
+    tier: 4    
+  - nodeSelector:
+    - eda.nokia.com/role=rail
+    tier: 4
+  - tier: 4
+  uiDescription: Assign nodes to tiers based on eda.nokia.com/role labels.
+  uiName: per-rail

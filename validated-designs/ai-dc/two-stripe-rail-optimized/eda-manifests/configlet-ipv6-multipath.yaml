@@ -1,0 +1,23 @@
+apiVersion: config.eda.nokia.com/v1alpha1
+kind: Configlet
+metadata:
+  name: ipv6-multipath
+  namespace: dc1-backend
+spec:
+  endpointSelector:
+    - eda.nokia.com/stripe=stripe1
+    - eda.nokia.com/stripe=stripe2
+  operatingSystem: srl
+  priority: 100
+  configs:
+    - path: .network-instance{.name=="default"}.protocols.bgp.afi-safi{.afi-safi-name=="ipv6-unicast"}
+      operation: Update
+      config: |-
+        {
+          "multipath": {
+            "allow-multiple-as": true,
+            "ebgp": {
+              "maximum-paths": 2
+            }
+          }
+        }

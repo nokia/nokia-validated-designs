@@ -1,0 +1,1668 @@
+# spine1 interfaces
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-1
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-2
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-3
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-3
+    node: spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-4
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-4
+    node: spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-5
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-5
+    node: spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-6
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-6
+    node: spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-7
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-7
+    node: spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-8
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-8
+    node: spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-9
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-9
+    node: spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-10
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-10
+    node: spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-11
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-11
+    node: spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-12
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-12
+    node: spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-13
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-13
+    node: spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-14
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-14
+    node: spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-15
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-15
+    node: spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine1-ethernet-1-16
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-16
+    node: spine1
+  type: interface
+---
+# spine2 interfaces
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-1
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: spine2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-2
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: spine2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-3
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-3
+    node: spine2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-4
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-4
+    node: spine2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-5
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-5
+    node: spine2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-6
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-6
+    node: spine2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-7
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-7
+    node: spine2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-8
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-8
+    node: spine2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-9
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-9
+    node: spine2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-10
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-10
+    node: spine2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-11
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-11
+    node: spine2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-12
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-12
+    node: spine2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-13
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-13
+    node: spine2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-14
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-14
+    node: spine2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-15
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-15
+    node: spine2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: spine2-ethernet-1-16
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-16
+    node: spine2
+  type: interface
+---
+# stripe1 spine-facing interfaces
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe1-leaf1-ethernet-1-1
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: stripe1-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe1-leaf1-ethernet-1-2
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: stripe1-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe1-leaf2-ethernet-1-1
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: stripe1-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe1-leaf2-ethernet-1-2
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: stripe1-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe1-leaf3-ethernet-1-1
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: stripe1-leaf3
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe1-leaf3-ethernet-1-2
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: stripe1-leaf3
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe1-leaf4-ethernet-1-1
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: stripe1-leaf4
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe1-leaf4-ethernet-1-2
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: stripe1-leaf4
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe1-leaf5-ethernet-1-1
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: stripe1-leaf5
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe1-leaf5-ethernet-1-2
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: stripe1-leaf5
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe1-leaf6-ethernet-1-1
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: stripe1-leaf6
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe1-leaf6-ethernet-1-2
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: stripe1-leaf6
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe1-leaf7-ethernet-1-1
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: stripe1-leaf7
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe1-leaf7-ethernet-1-2
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: stripe1-leaf7
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe1-leaf8-ethernet-1-1
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: stripe1-leaf8
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe1-leaf8-ethernet-1-2
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: stripe1-leaf8
+  type: interface
+---
+# stripe2 spine-facing interfaces
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe2-leaf1-ethernet-1-1
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: stripe2-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe2-leaf1-ethernet-1-2
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: stripe2-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe2-leaf2-ethernet-1-1
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: stripe2-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe2-leaf2-ethernet-1-2
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: stripe2-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe2-leaf3-ethernet-1-1
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: stripe2-leaf3
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe2-leaf3-ethernet-1-2
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: stripe2-leaf3
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe2-leaf4-ethernet-1-1
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: stripe2-leaf4
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe2-leaf4-ethernet-1-2
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: stripe2-leaf4
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe2-leaf5-ethernet-1-1
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: stripe2-leaf5
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe2-leaf5-ethernet-1-2
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: stripe2-leaf5
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe2-leaf6-ethernet-1-1
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: stripe2-leaf6
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe2-leaf6-ethernet-1-2
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: stripe2-leaf6
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe2-leaf7-ethernet-1-1
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: stripe2-leaf7
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe2-leaf7-ethernet-1-2
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: stripe2-leaf7
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe2-leaf8-ethernet-1-1
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: stripe2-leaf8
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: stripe2-leaf8-ethernet-1-2
+  namespace: dc1-backend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: stripe2-leaf8
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail1
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe1-leaf1-ethernet-1-3
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: stripe1-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail2
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe1-leaf2-ethernet-1-3
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: stripe1-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail3
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe1-leaf3-ethernet-1-3
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: stripe1-leaf3
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail4
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe1-leaf4-ethernet-1-3
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: stripe1-leaf4
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail5
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe1-leaf5-ethernet-1-3
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: stripe1-leaf5
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail6
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe1-leaf6-ethernet-1-3
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: stripe1-leaf6
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail7
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe1-leaf7-ethernet-1-3
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: stripe1-leaf7
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail8
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe1-leaf8-ethernet-1-3
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: stripe1-leaf8
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail1
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe2-leaf1-ethernet-1-3
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: stripe2-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail2
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe2-leaf2-ethernet-1-3
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: stripe2-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail3
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe2-leaf3-ethernet-1-3
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: stripe2-leaf3
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail4
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe2-leaf4-ethernet-1-3
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: stripe2-leaf4
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail5
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe2-leaf5-ethernet-1-3
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: stripe2-leaf5
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail6
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe2-leaf6-ethernet-1-3
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: stripe2-leaf6
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail7
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe2-leaf7-ethernet-1-3
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: stripe2-leaf7
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail8
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe2-leaf8-ethernet-1-3
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: stripe2-leaf8
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail1
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe1-leaf1-ethernet-1-4
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: stripe1-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail2
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe1-leaf2-ethernet-1-4
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: stripe1-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail3
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe1-leaf3-ethernet-1-4
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: stripe1-leaf3
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail4
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe1-leaf4-ethernet-1-4
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: stripe1-leaf4
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail5
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe1-leaf5-ethernet-1-4
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: stripe1-leaf5
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail6
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe1-leaf6-ethernet-1-4
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: stripe1-leaf6
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail7
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe1-leaf7-ethernet-1-4
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: stripe1-leaf7
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail8
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe1-leaf8-ethernet-1-4
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: stripe1-leaf8
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail1
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe2-leaf1-ethernet-1-4
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: stripe2-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail2
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe2-leaf2-ethernet-1-4
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: stripe2-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail3
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe2-leaf3-ethernet-1-4
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: stripe2-leaf3
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail4
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe2-leaf4-ethernet-1-4
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: stripe2-leaf4
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail5
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe2-leaf5-ethernet-1-4
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: stripe2-leaf5
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail6
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe2-leaf6-ethernet-1-4
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: stripe2-leaf6
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail7
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe2-leaf7-ethernet-1-4
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: stripe2-leaf7
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: rail8
+    eda.nokia.com/gpu-tenant: tenant1
+  name: stripe2-leaf8-ethernet-1-4
+  namespace: dc1-backend
+spec:
+  enabled: true
+  lldp: true
+  encapType: dot1q
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: stripe2-leaf8
+  type: interface
+---

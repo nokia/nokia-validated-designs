@@ -1,0 +1,150 @@
+# © 2025 Nokia  
+# Licensed under the BSD 3-Clause License  
+# SPDX-License-Identifier: BSD-3-Clause  
+
+name: two-stripe-rail-optimized
+prefix: ""
+mgmt:
+  network: eda_mgmt
+  ipv4-subnet: 172.21.21.0/24
+topology:
+  defaults:
+    kind: nokia_srlinux
+  kinds:
+    nokia_srlinux:
+      image: ghcr.io/nokia/srlinux:25.10.1
+      type: ixr-h4
+    linux:
+      image: aninchat/ubuntu-server:v1
+  nodes:
+    spine1:
+      mgmt-ipv4: 172.21.21.101
+    spine2:
+      mgmt-ipv4: 172.21.21.102
+    stripe1-leaf1:
+      mgmt-ipv4: 172.21.21.11
+    stripe1-leaf2:
+      mgmt-ipv4: 172.21.21.12
+    stripe1-leaf3:
+      mgmt-ipv4: 172.21.21.13
+    stripe1-leaf4:
+      mgmt-ipv4: 172.21.21.14
+    stripe1-leaf5:
+      mgmt-ipv4: 172.21.21.15
+    stripe1-leaf6:
+      mgmt-ipv4: 172.21.21.16
+    stripe1-leaf7:
+      mgmt-ipv4: 172.21.21.17
+    stripe1-leaf8:
+      mgmt-ipv4: 172.21.21.18
+    stripe2-leaf1:
+      kind: nokia_srlinux
+      mgmt-ipv4: 172.21.21.21
+      type: ixr-h5-64d
+    stripe2-leaf2:
+      kind: nokia_srlinux
+      mgmt-ipv4: 172.21.21.22
+      type: ixr-h5-64d
+    stripe2-leaf3:
+      kind: nokia_srlinux
+      mgmt-ipv4: 172.21.21.23
+      type: ixr-h5-64d
+    stripe2-leaf4:
+      kind: nokia_srlinux
+      mgmt-ipv4: 172.21.21.24
+      type: ixr-h5-64d
+    stripe2-leaf5:
+      kind: nokia_srlinux
+      mgmt-ipv4: 172.21.21.25
+      type: ixr-h5-64d
+    stripe2-leaf6:
+      kind: nokia_srlinux
+      mgmt-ipv4: 172.21.21.26
+      type: ixr-h5-64d
+    stripe2-leaf7:
+      kind: nokia_srlinux
+      mgmt-ipv4: 172.21.21.27
+      type: ixr-h5-64d
+    stripe2-leaf8:
+      kind: nokia_srlinux
+      mgmt-ipv4: 172.21.21.28
+      type: ixr-h5-64d
+    s1:
+      mgmt-ipv4: 172.21.21.51
+      kind: linux
+    s2:
+      mgmt-ipv4: 172.21.21.52
+      kind: linux
+    s3:
+      mgmt-ipv4: 172.21.21.53
+      kind: linux
+    s4:
+      mgmt-ipv4: 172.21.21.54
+      kind: linux
+  links:
+    # stripe leafs to spines connectivity
+    - endpoints: [ "stripe1-leaf1:e1-1", "spine1:e1-1" ]
+    - endpoints: [ "stripe1-leaf1:e1-2", "spine2:e1-1" ]
+    - endpoints: [ "stripe1-leaf2:e1-1", "spine1:e1-2" ]
+    - endpoints: [ "stripe1-leaf2:e1-2", "spine2:e1-2" ]
+    - endpoints: [ "stripe1-leaf3:e1-1", "spine1:e1-3" ]
+    - endpoints: [ "stripe1-leaf3:e1-2", "spine2:e1-3" ]
+    - endpoints: [ "stripe1-leaf4:e1-1", "spine1:e1-4" ]
+    - endpoints: [ "stripe1-leaf4:e1-2", "spine2:e1-4" ]
+    - endpoints: [ "stripe1-leaf5:e1-1", "spine1:e1-5" ]
+    - endpoints: [ "stripe1-leaf5:e1-2", "spine2:e1-5" ]
+    - endpoints: [ "stripe1-leaf6:e1-1", "spine1:e1-6" ]
+    - endpoints: [ "stripe1-leaf6:e1-2", "spine2:e1-6" ]
+    - endpoints: [ "stripe1-leaf7:e1-1", "spine1:e1-7" ]
+    - endpoints: [ "stripe1-leaf7:e1-2", "spine2:e1-7" ]
+    - endpoints: [ "stripe1-leaf8:e1-1", "spine1:e1-8" ]
+    - endpoints: [ "stripe1-leaf8:e1-2", "spine2:e1-8" ]
+    - endpoints: [ "stripe2-leaf1:e1-1", "spine1:e1-9" ]
+    - endpoints: [ "stripe2-leaf1:e1-2", "spine2:e1-9" ]
+    - endpoints: [ "stripe2-leaf2:e1-1", "spine1:e1-10" ]
+    - endpoints: [ "stripe2-leaf2:e1-2", "spine2:e1-10" ]
+    - endpoints: [ "stripe2-leaf3:e1-1", "spine1:e1-11" ]
+    - endpoints: [ "stripe2-leaf3:e1-2", "spine2:e1-11" ]
+    - endpoints: [ "stripe2-leaf4:e1-1", "spine1:e1-12" ]
+    - endpoints: [ "stripe2-leaf4:e1-2", "spine2:e1-12" ]
+    - endpoints: [ "stripe2-leaf5:e1-1", "spine1:e1-13" ]
+    - endpoints: [ "stripe2-leaf5:e1-2", "spine2:e1-13" ]
+    - endpoints: [ "stripe2-leaf6:e1-1", "spine1:e1-14" ]
+    - endpoints: [ "stripe2-leaf6:e1-2", "spine2:e1-14" ]
+    - endpoints: [ "stripe2-leaf7:e1-1", "spine1:e1-15" ]
+    - endpoints: [ "stripe2-leaf7:e1-2", "spine2:e1-15" ]
+    - endpoints: [ "stripe2-leaf8:e1-1", "spine1:e1-16" ]
+    - endpoints: [ "stripe2-leaf8:e1-2", "spine2:e1-16" ]
+    # server to leaf backend connectivity
+    - endpoints: [ "s1:eth1", "stripe1-leaf1:e1-3" ]
+    - endpoints: [ "s1:eth2", "stripe1-leaf2:e1-3" ]
+    - endpoints: [ "s1:eth3", "stripe1-leaf3:e1-3" ]
+    - endpoints: [ "s1:eth4", "stripe1-leaf4:e1-3" ]
+    - endpoints: [ "s1:eth5", "stripe1-leaf5:e1-3" ]
+    - endpoints: [ "s1:eth6", "stripe1-leaf6:e1-3" ]
+    - endpoints: [ "s1:eth7", "stripe1-leaf7:e1-3" ]
+    - endpoints: [ "s1:eth8", "stripe1-leaf8:e1-3" ]
+    - endpoints: [ "s2:eth1", "stripe1-leaf1:e1-4" ]
+    - endpoints: [ "s2:eth2", "stripe1-leaf2:e1-4" ]
+    - endpoints: [ "s2:eth3", "stripe1-leaf3:e1-4" ]
+    - endpoints: [ "s2:eth4", "stripe1-leaf4:e1-4" ]
+    - endpoints: [ "s2:eth5", "stripe1-leaf5:e1-4" ]
+    - endpoints: [ "s2:eth6", "stripe1-leaf6:e1-4" ]
+    - endpoints: [ "s2:eth7", "stripe1-leaf7:e1-4" ]
+    - endpoints: [ "s2:eth8", "stripe1-leaf8:e1-4" ]
+    - endpoints: [ "s3:eth1", "stripe2-leaf1:e1-3" ]
+    - endpoints: [ "s3:eth2", "stripe2-leaf2:e1-3" ]
+    - endpoints: [ "s3:eth3", "stripe2-leaf3:e1-3" ]
+    - endpoints: [ "s3:eth4", "stripe2-leaf4:e1-3" ]
+    - endpoints: [ "s3:eth5", "stripe2-leaf5:e1-3" ]
+    - endpoints: [ "s3:eth6", "stripe2-leaf6:e1-3" ]
+    - endpoints: [ "s3:eth7", "stripe2-leaf7:e1-3" ]
+    - endpoints: [ "s3:eth8", "stripe2-leaf8:e1-3" ]
+    - endpoints: [ "s4:eth1", "stripe2-leaf1:e1-4" ]
+    - endpoints: [ "s4:eth2", "stripe2-leaf2:e1-4" ]
+    - endpoints: [ "s4:eth3", "stripe2-leaf3:e1-4" ]
+    - endpoints: [ "s4:eth4", "stripe2-leaf4:e1-4" ]
+    - endpoints: [ "s4:eth5", "stripe2-leaf5:e1-4" ]
+    - endpoints: [ "s4:eth6", "stripe2-leaf6:e1-4" ]
+    - endpoints: [ "s4:eth7", "stripe2-leaf7:e1-4" ]
+    - endpoints: [ "s4:eth8", "stripe2-leaf8:e1-4" ]
