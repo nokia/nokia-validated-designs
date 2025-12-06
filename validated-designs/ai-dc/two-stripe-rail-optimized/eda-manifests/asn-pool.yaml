@@ -1,0 +1,9 @@
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: asn-pool
+  namespace: dc1-backend
+spec:
+  segments:
+  - size: 3000
+    start: 100

@@ -1,0 +1,8 @@
+apiVersion: core.eda.nokia.com/v1
+kind: IPAllocationPool
+metadata:
+  name: systemipv4-pool
+  namespace: dc1-backend
+spec:
+  segments:
+  - subnet: 11.0.0.0/8

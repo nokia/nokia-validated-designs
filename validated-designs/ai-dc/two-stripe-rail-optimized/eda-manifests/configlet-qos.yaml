@@ -1,0 +1,122 @@
+apiVersion: config.eda.nokia.com/v1alpha1
+kind: Configlet
+metadata:
+  name: qos-mbs-q0
+  namespace: dc1-backend
+spec:
+  endpointSelector:
+    - eda.nokia.com/role=leaf
+    - eda.nokia.com/role=spine
+  operatingSystem: srl
+  priority: 100
+  configs:
+    - path: .qos.buffer-management.buffer-allocation-profile{.name=="egress-backend-backend-fabric"}.queues
+      operation: Update
+      config: |-
+        {
+          "queue": [
+            {
+              "queue-name": "unicast-0",
+              "maximum-burst-size": 5211064
+            }
+          ]
+        }
+---
+apiVersion: config.eda.nokia.com/v1alpha1
+kind: Configlet
+metadata:
+  name: qos-pfc-headroom
+  namespace: dc1-backend
+spec:
+  endpointSelector:
+    - eda.nokia.com/role=leaf
+    - eda.nokia.com/role=spine
+  operatingSystem: srl
+  priority: 100
+  configs:
+    - path: .qos.linecard{.slot==1}.forwarding-complex{.name=="0"}.input
+      operation: Update
+      config: |-
+        {
+          "pfc-buffer-reservation": 10
+        }
+---
+apiVersion: config.eda.nokia.com/v1alpha1
+kind: Configlet
+metadata:
+  name: qos-enable-ecn-slope
+  namespace: dc1-backend
+spec:
+  endpointSelector:
+    - eda.nokia.com/role=leaf
+    - eda.nokia.com/role=spine
+  operatingSystem: srl
+  priority: 100
+  configs:
+    - path: .qos.buffer-management.queue-management-profile{.name=="egress-backend-backend-fabric-2"}.wred
+      operation: Update
+      config: |-
+        {
+          "wred-slope": [
+            {
+              "traffic-type": "all",
+              "drop-probability": "all",
+              "enable-ecn": true,
+              "min-threshold-percent": 30,
+              "max-threshold-percent": 85,
+              "slope-enabled": true,
+              "max-drop-probability-percent": 100
+            }
+          ]
+        }
+---
+apiVersion: config.eda.nokia.com/v1alpha1
+kind: Configlet
+metadata:
+  name: qos-unicast-3-queue
+  namespace: dc1-backend
+spec:
+  endpointSelector:
+    - eda.nokia.com/role=leaf
+    - eda.nokia.com/role=spine
+  operatingSystem: srl
+  priority: 100
+  configs:
+    - path: .qos.scheduler-policies.scheduler-policy{.name=="egress-backend-backend-fabric"}.scheduler{.sequence==1}
+      operation: Update
+      config: |-
+        {
+          "input": [
+            {
+              "id": "unicast-0",
+              "queue-name": "unicast-0",
+              "peak-rate-percent": 10,
+              "weight": 10
+            }
+          ]
+        }
+---
+apiVersion: config.eda.nokia.com/v1alpha1
+kind: Configlet
+metadata:
+  name: qos-unicast-6-queue
+  namespace: dc1-backend
+spec:
+  endpointSelector:
+    - eda.nokia.com/role=leaf
+    - eda.nokia.com/role=spine
+  operatingSystem: srl
+  priority: 100
+  configs:
+    - path: .qos.scheduler-policies.scheduler-policy{.name=="egress-backend-backend-fabric"}.scheduler{.sequence==0}
+      operation: Update
+      config: |-
+        {
+          "input": [
+            {
+              "id": "unicast-6",
+              "queue-name": "unicast-6",
+              "peak-rate-percent": 80
+            }
+          ]
+        }

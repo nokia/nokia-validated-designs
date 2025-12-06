@@ -1,0 +1,25 @@
+interfaces:
+  - name: eth1
+    leaf_num: 1
+    leaf_intf_num: 4
+  - name: eth2
+    leaf_num: 2
+    leaf_intf_num: 4
+  - name: eth3
+    leaf_num: 3
+    leaf_intf_num: 4
+  - name: eth4
+    leaf_num: 4
+    leaf_intf_num: 4
+  - name: eth5
+    leaf_num: 5
+    leaf_intf_num: 4
+  - name: eth6
+    leaf_num: 6
+    leaf_intf_num: 4
+  - name: eth7
+    leaf_num: 7
+    leaf_intf_num: 4
+  - name: eth8
+    leaf_num: 8
+    leaf_intf_num: 4

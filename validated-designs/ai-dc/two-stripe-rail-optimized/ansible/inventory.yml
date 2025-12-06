@@ -1,0 +1,24 @@
+all:
+  children:
+    stripe1:
+      hosts:
+        s1:
+          ansible_host: 172.21.21.51
+          ansible_password: password
+        s2:
+          ansible_host: 172.21.21.52
+          ansible_password: password
+    stripe2:
+      hosts:
+        s3:
+          ansible_host: 172.21.21.53
+          ansible_password: password
+        s4:
+          ansible_host: 172.21.21.54
+          ansible_password: password
+
+  vars:
+    ansible_user: root
+    ansible_become: true
+    ansible_become_method: sudo
+    ansible_become_password: password

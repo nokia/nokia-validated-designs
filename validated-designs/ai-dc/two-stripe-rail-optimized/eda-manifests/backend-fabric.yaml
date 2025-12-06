@@ -1,0 +1,36 @@
+apiVersion: aifabrics.eda.nokia.com/v1alpha1
+kind: Backend
+metadata:
+  name: dc1-backend
+  namespace: dc1-backend
+spec:
+  systemPoolIPV4: systemipv4-pool
+  asnPool: asn-pool
+  stripes:
+    - name: stripe1
+      stripeID: 100
+      nodeSelector:
+        - eda.nokia.com/stripe=stripe1
+      gpuVlan: 100
+    - name: stripe2
+      stripeID: 200
+      nodeSelector:
+        - eda.nokia.com/stripe=stripe2
+      gpuVlan: 100
+  gpuIsolationGroups:
+    - name: all-rails
+      interfaceSelector:
+        - eda.nokia.com/gpu-tenant=tenant1
+  stripeConnector:
+    name: backend
+    nodeSelector:
+      - eda.nokia.com/role=spine
+    linkSelector:
+      - eda.nokia.com/role=interSwitch
+  rocev2QoS:
+    ecnMaxDropProbabilityPercent: 100
+    ecnSlopeMaxThresholdPercent: 80
+    ecnSlopeMinThresholdPercent: 40
+    pfcDeadlockDetectionTimer: 750
+    pfcDeadlockRecoveryTimer: 750
+    queueMaximumBurstSize: 52110640

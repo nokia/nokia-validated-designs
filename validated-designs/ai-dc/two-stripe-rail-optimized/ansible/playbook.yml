@@ -1,0 +1,18 @@
+- name: Assign IPv6 addresses using stripe, leaf, and interface info
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Check if IPv6 address is already assigned on each interface
+      ansible.builtin.shell: |
+        ip -6 addr show dev {{ item.name }} | grep -w 'fd00:{{ stripe_id }}:{{ item.leaf_num }}:1:0:{{ item.leaf_intf_num }}:0:2/96'
+      loop: "{{ interfaces }}"
+      register: ipv6_check_results
+      changed_when: false
+      failed_when: false
+    - name: Add IPv6 address if not present
+      ansible.builtin.command: >
+        ip -6 addr add fd00:{{ stripe_id }}:{{ item.0.leaf_num }}:1:0:{{ item.0.leaf_intf_num }}:0:2/96 dev {{ item.0.name }}
+      loop: "{{ interfaces | zip(ipv6_check_results.results) | list }}"
+      when: item.1.rc != 0
