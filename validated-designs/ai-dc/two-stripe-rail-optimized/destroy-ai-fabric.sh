@@ -40,6 +40,24 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# destroy frontend fabric
+print_separator
+echo "Destroying frontend/storage fabric"
+kubectl delete -f eda-manifests/frontend-fabric.yaml
+if [ $? -ne 0 ]; then
+    echo "Failed to delete frontend-fabric.yaml. Exiting."
+    exit 1
+fi
+
+# destroy frontend VNETs
+print_separator
+echo "Destroying frontend/storage VNETs"
+kubectl delete -f eda-manifests/frontend-vnets.yaml
+if [ $? -ne 0 ]; then
+    echo "Failed to delete frontend-vnets.yaml. Exiting."
+    exit 1
+fi
+
 # destroy system0 allocation pool
 print_separator
 echo "Destroying interfaces"
@@ -104,6 +122,15 @@ echo "Destroying toponodes"
 kubectl delete -f eda-manifests/toponodes.yaml
 if [ $? -ne 0 ]; then
     echo "Failed to delete toponodes.yaml. Exiting."
+    exit 1
+fi
+
+# delete tunnels, VNIs and LAGs pool index
+print_separator
+echo "Destroying index pools for tunnels, VNIs and LAGs"
+kubectl delete -f eda-manifests/tunnel-vni-lag-index-pool.yaml
+if [ $? -ne 0 ]; then
+    echo "Failed to delete tunnel-vni-lag-index-pool.yaml. Exiting."
     exit 1
 fi
 

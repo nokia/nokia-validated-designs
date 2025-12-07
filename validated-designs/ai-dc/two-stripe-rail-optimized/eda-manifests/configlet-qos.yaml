@@ -10,7 +10,7 @@ spec:
   operatingSystem: srl
   priority: 100
   configs:
-    - path: .qos.buffer-management.buffer-allocation-profile{.name=="egress-backend-backend-fabric"}.queues
+    - path: .qos.buffer-management.buffer-allocation-profile{.name=="egress-backend-dc1-backend"}.queues
       operation: Update
       config: |-
         {
@@ -53,7 +53,7 @@ spec:
   operatingSystem: srl
   priority: 100
   configs:
-    - path: .qos.buffer-management.queue-management-profile{.name=="egress-backend-backend-fabric-2"}.wred
+    - path: .qos.buffer-management.queue-management-profile{.name=="egress-backend-dc1-backend-2"}.wred
       operation: Update
       config: |-
         {
@@ -82,7 +82,7 @@ spec:
   operatingSystem: srl
   priority: 100
   configs:
-    - path: .qos.scheduler-policies.scheduler-policy{.name=="egress-backend-backend-fabric"}.scheduler{.sequence==1}
+    - path: .qos.scheduler-policies.scheduler-policy{.name=="egress-backend-dc1-backend"}.scheduler{.sequence==1}
       operation: Update
       config: |-
         {
@@ -108,7 +108,7 @@ spec:
   operatingSystem: srl
   priority: 100
   configs:
-    - path: .qos.scheduler-policies.scheduler-policy{.name=="egress-backend-backend-fabric"}.scheduler{.sequence==0}
+    - path: .qos.scheduler-policies.scheduler-policy{.name=="egress-backend-dc1-backend"}.scheduler{.sequence==0}
       operation: Update
       config: |-
         {

@@ -5,4 +5,13 @@ metadata:
   namespace: dc1-backend
 spec:
   segments:
-  - subnet: 11.0.0.0/8
+  - subnet: 192.0.2.0/24
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IPAllocationPool
+metadata:
+  name: systemipv4-pool
+  namespace: dc1-frontend
+spec:
+  segments:
+  - subnet: 192.0.2.0/24

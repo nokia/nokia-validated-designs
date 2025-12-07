@@ -16,6 +16,8 @@ topology:
       type: ixr-h4
     linux:
       image: aninchat/ubuntu-server:v1
+      binds:
+        - base-configs:/base-configs
   nodes:
     spine1:
       mgmt-ipv4: 172.21.21.101
@@ -69,18 +71,82 @@ topology:
       kind: nokia_srlinux
       mgmt-ipv4: 172.21.21.28
       type: ixr-h5-64d
+    frontend-spine1:
+      kind: nokia_srlinux
+      mgmt-ipv4: 172.21.21.31
+      type: ixr-h5-64o
+    frontend-spine2:
+      kind: nokia_srlinux
+      mgmt-ipv4: 172.21.21.32
+      type: ixr-h5-64o
+    frontend-leaf1:
+      kind: nokia_srlinux
+      mgmt-ipv4: 172.21.21.33
+      type: ixr-d5
+    frontend-leaf2:
+      kind: nokia_srlinux
+      mgmt-ipv4: 172.21.21.34
+      type: ixr-d5
     s1:
       mgmt-ipv4: 172.21.21.51
       kind: linux
+      exec:
+        - bash base-configs/s1.sh
     s2:
       mgmt-ipv4: 172.21.21.52
       kind: linux
+      exec:
+        - bash base-configs/s2.sh
     s3:
       mgmt-ipv4: 172.21.21.53
       kind: linux
+      exec:
+        - bash base-configs/s3.sh
     s4:
       mgmt-ipv4: 172.21.21.54
       kind: linux
+      exec:
+        - bash base-configs/s4.sh
+    weka1:
+      mgmt-ipv4: 172.21.21.60
+      kind: linux
+      exec:
+        - bash base-configs/weka1.sh
+    weka2:
+      mgmt-ipv4: 172.21.21.61
+      kind: linux
+      exec:
+        - bash base-configs/weka2.sh
+    weka3:
+      mgmt-ipv4: 172.21.21.63
+      kind: linux
+      exec:
+        - bash base-configs/weka3.sh
+    weka4:
+      mgmt-ipv4: 172.21.21.64
+      kind: linux
+      exec:
+        - bash base-configs/weka4.sh
+    weka5:
+      mgmt-ipv4: 172.21.21.65
+      kind: linux
+      exec:
+        - bash base-configs/weka5.sh
+    weka6:
+      mgmt-ipv4: 172.21.21.66
+      kind: linux
+      exec:
+        - bash base-configs/weka6.sh
+    weka7:
+      mgmt-ipv4: 172.21.21.67
+      kind: linux
+      exec:
+        - bash base-configs/weka7.sh
+    weka8:
+      mgmt-ipv4: 172.21.21.68
+      kind: linux
+      exec:
+        - bash base-configs/weka8.sh
   links:
     # stripe leafs to spines connectivity
     - endpoints: [ "stripe1-leaf1:e1-1", "spine1:e1-1" ]
@@ -148,3 +214,34 @@ topology:
     - endpoints: [ "s4:eth6", "stripe2-leaf6:e1-4" ]
     - endpoints: [ "s4:eth7", "stripe2-leaf7:e1-4" ]
     - endpoints: [ "s4:eth8", "stripe2-leaf8:e1-4" ]
+    # frontend/storage leaf-spine connectivity
+    - endpoints: [ "frontend-leaf1:e1-1", "frontend-spine1:e1-1" ]
+    - endpoints: [ "frontend-leaf1:e1-2", "frontend-spine2:e1-1" ]
+    - endpoints: [ "frontend-leaf2:e1-1", "frontend-spine1:e1-2" ]
+    - endpoints: [ "frontend-leaf2:e1-2", "frontend-spine2:e1-2" ]
+    # GPU server to frontend/storage fabric connectivity
+    - endpoints: [ "s1:eth9", "frontend-leaf1:e1-3" ]
+    - endpoints: [ "s1:eth10", "frontend-leaf2:e1-3" ]
+    - endpoints: [ "s2:eth9", "frontend-leaf1:e1-4" ]
+    - endpoints: [ "s2:eth10", "frontend-leaf2:e1-4" ]
+    - endpoints: [ "s3:eth9", "frontend-leaf1:e1-5" ]
+    - endpoints: [ "s3:eth10", "frontend-leaf2:e1-5" ]
+    - endpoints: [ "s4:eth9", "frontend-leaf1:e1-6" ]
+    - endpoints: [ "s4:eth10", "frontend-leaf2:e1-6" ]
+    # Weka servers to frontend/storage fabric connectivity
+    - endpoints: [ "weka1:eth1", "frontend-leaf1:e1-7" ]
+    - endpoints: [ "weka1:eth2", "frontend-leaf2:e1-7" ]
+    - endpoints: [ "weka2:eth1", "frontend-leaf1:e1-8" ]
+    - endpoints: [ "weka2:eth2", "frontend-leaf2:e1-8" ]
+    - endpoints: [ "weka3:eth1", "frontend-leaf1:e1-9" ]
+    - endpoints: [ "weka3:eth2", "frontend-leaf2:e1-9" ]
+    - endpoints: [ "weka4:eth1", "frontend-leaf1:e1-10" ]
+    - endpoints: [ "weka4:eth2", "frontend-leaf2:e1-10" ]
+    - endpoints: [ "weka5:eth1", "frontend-leaf1:e1-11" ]
+    - endpoints: [ "weka5:eth2", "frontend-leaf2:e1-11" ]
+    - endpoints: [ "weka6:eth1", "frontend-leaf1:e1-12" ]
+    - endpoints: [ "weka6:eth2", "frontend-leaf2:e1-12" ]
+    - endpoints: [ "weka7:eth1", "frontend-leaf1:e1-13" ]
+    - endpoints: [ "weka7:eth2", "frontend-leaf2:e1-13" ]
+    - endpoints: [ "weka8:eth1", "frontend-leaf1:e1-14" ]
+    - endpoints: [ "weka8:eth2", "frontend-leaf2:e1-14" ]

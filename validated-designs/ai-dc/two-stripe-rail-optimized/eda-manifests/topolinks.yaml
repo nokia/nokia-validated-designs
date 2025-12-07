@@ -1,3 +1,4 @@
+# backend topolinks
 apiVersion: core.eda.nokia.com/v1
 kind: TopoLink
 metadata:
@@ -604,5 +605,82 @@ spec:
         node: stripe2-leaf8
         interface: ethernet-1-2
         interfaceResource: "stripe2-leaf8-ethernet-1-2"
+      type: interSwitch
+---
+# frontend topolinks
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-spine1-leaf1
+  namespace: dc1-frontend
+spec:
+  links:
+    - local:
+        node: frontend-spine1
+        interface: ethernet-1-1
+        interfaceResource: "frontend-spine1-ethernet-1-1"
+      remote:
+        node: frontend-leaf1
+        interface: ethernet-1-1
+        interfaceResource: "frontend-leaf1-ethernet-1-1"
+      type: interSwitch
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-spine2-leaf1
+  namespace: dc1-frontend
+spec:
+  links:
+    - local:
+        node: frontend-spine2
+        interface: ethernet-1-1
+        interfaceResource: "frontend-spine2-ethernet-1-1"
+      remote:
+        node: frontend-leaf1
+        interface: ethernet-1-2
+        interfaceResource: "frontend-leaf1-ethernet-1-2"
+      type: interSwitch
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-spine1-leaf2
+  namespace: dc1-frontend
+spec:
+  links:
+    - local:
+        node: frontend-spine1
+        interface: ethernet-1-2
+        interfaceResource: "frontend-spine1-ethernet-1-2"
+      remote:
+        node: frontend-leaf2
+        interface: ethernet-1-1
+        interfaceResource: "frontend-leaf2-ethernet-1-1"
+      type: interSwitch
+---
+apiVersion: core.eda.nokia.com/v1
+kind: TopoLink
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-spine2-leaf2
+  namespace: dc1-frontend
+spec:
+  links:
+    - local:
+        node: frontend-spine2
+        interface: ethernet-1-2
+        interfaceResource: "frontend-spine2-ethernet-1-2"
+      remote:
+        node: frontend-leaf2
+        interface: ethernet-1-2
+        interfaceResource: "frontend-leaf2-ethernet-1-2"
       type: interSwitch
 ---

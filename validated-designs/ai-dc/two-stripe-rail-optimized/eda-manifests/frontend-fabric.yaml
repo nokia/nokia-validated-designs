@@ -1,0 +1,36 @@
+# © 2025 Nokia  
+# Licensed under the BSD 3-Clause License  
+# SPDX-License-Identifier: BSD-3-Clause  
+
+apiVersion: fabrics.eda.nokia.com/v1alpha1
+kind: Fabric
+metadata:
+  name: dc1
+  namespace: dc1-frontend
+spec:
+  systemPoolIPV4: systemipv4-pool
+  leafs:
+    leafNodeSelector:
+      - eda.nokia.com/role=leaf
+    asnPool: asn-pool
+  spines:
+    spineNodeSelector:
+      - eda.nokia.com/role=spine
+    asnPool: asn-pool
+  interSwitchLinks:
+    unnumbered: IPV6
+    linkSelector:
+      - eda.nokia.com/role=interSwitch
+  underlayProtocol:
+    protocol:
+      - EBGP
+    bfd:
+      enabled: true
+      detectionMultiplier: 3
+      minEchoReceiveInterval: 1000000
+      desiredMinTransmitInt: 1000000
+      requiredMinReceive: 1000000
+    bgp:
+      asnPool: asn-pool
+  overlayProtocol:
+    protocol: EBGP

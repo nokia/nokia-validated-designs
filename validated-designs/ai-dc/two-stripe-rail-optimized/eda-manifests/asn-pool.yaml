@@ -7,3 +7,13 @@ spec:
   segments:
   - size: 3000
     start: 100
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: asn-pool
+  namespace: dc1-frontend
+spec:
+  segments:
+  - size: 3000
+    start: 100

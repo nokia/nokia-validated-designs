@@ -16,3 +16,17 @@ spec:
         - ""
   password: NokiaSrl1!
   username: admin
+---
+apiVersion: core.eda.nokia.com/v1
+kind: NodeUser
+metadata:
+  name: admin
+  namespace: dc1-frontend
+spec:
+  groupBindings:
+    - groups:
+        - sudo
+      nodeSelector:
+        - ""
+  password: NokiaSrl1!
+  username: admin

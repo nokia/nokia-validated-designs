@@ -1,0 +1,29 @@
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: tunnel-index-pool
+  namespace: dc1-frontend
+spec:
+  segments:
+    - size: 4000
+      start: 500
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: lag-admin-key-pool
+  namespace: dc1-frontend
+spec:
+  segments:
+    - size: 65535
+      start: 1
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: vni-pool
+  namespace: dc1-frontend
+spec:
+  segments:
+    - size: 4000
+      start: 200

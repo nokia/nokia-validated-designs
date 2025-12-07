@@ -87,3 +87,35 @@ spec:
   versionMatch: v25\.10\.1.*
   versionPath: .system.information.version
   yang: https://eda-asvr.eda-system.svc/eda-system/schemaprofiles/srlinux-ghcr-25.10.1/srlinux-25.10.1.zip
+---
+apiVersion: core.eda.nokia.com/v1
+kind: NodeProfile
+metadata:
+  labels:
+    eda.nokia.com/bootstrap: "true"
+  name: clab-ghcr-25.10.1
+  namespace: dc1-frontend
+spec:
+  annotate: true
+  containerImage: ghcr.io/nokia/srlinux:25.10.1
+  dhcp:
+    dhcp4Options:
+      - option: 6-DomainNameServer
+        value:
+          - 128.251.10.125
+    managementPoolv4: ipv4-mgmt-pool
+  imagePullSecret: core
+  images:
+    - image: not-needed
+      imageMd5: not-needed
+  license: not-needed # the mismatch is not so relevant until 7250 is used
+  llmDb: https://eda-asvr.eda-system.svc/eda-system/llm-dbs/llm-db-srlinux-ghcr-25.10.1/llm-embeddings-srl-25-10-1.tar.gz
+  nodeUser: admin
+  onboardingPassword: NokiaSrl1!
+  onboardingUsername: admin
+  operatingSystem: srl
+  port: 57410
+  version: 25.10.1
+  versionMatch: v25\.10\.1.*
+  versionPath: .system.information.version
+  yang: https://eda-asvr.eda-system.svc/eda-system/schemaprofiles/srlinux-ghcr-25.10.1/srlinux-25.10.1.zip

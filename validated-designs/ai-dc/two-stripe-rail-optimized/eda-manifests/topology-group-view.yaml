@@ -12,7 +12,7 @@ spec:
     - eda.nokia.com/stripe=stripe2
     group: stripe2
   - nodeSelector:
-    - eda.nokia.com/role=spine
+    - eda.nokia.com/stripe-role=inter-stripe-connector
     group: stripe-conn
   tierSelectors:
   - nodeSelector:

@@ -73,6 +73,15 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# create index pools for tunnels, VNIs and LAGs
+print_separator
+echo "Creating index pools for tunnels, VNIs and LAGs"
+kubectl apply -f eda-manifests/tunnel-vni-lag-index-pool.yaml
+if [ $? -ne 0 ]; then
+    echo "Failed to apply tunnel-vni-lag-index-pool.yaml. Exiting."
+    exit 1
+fi
+
 # onboard Containerlab nodes
 print_separator
 echo "Onboarding Containerlab nodes into EDA"
@@ -210,6 +219,24 @@ echo "Configuring QOS configlet"
 kubectl apply -f eda-manifests/configlet-qos.yaml
 if [ $? -ne 0 ]; then
     echo "Failed to apply configlet-qos.yaml. Exiting."
+    exit 1
+fi
+
+# deploy frontend fabric
+print_separator
+echo "Configuring frontend/storage fabric"
+kubectl apply -f eda-manifests/frontend-fabric.yaml
+if [ $? -ne 0 ]; then
+    echo "Failed to apply frontend-fabric.yaml. Exiting."
+    exit 1
+fi
+
+# deploy frontend VNETs
+print_separator
+echo "Configuring frontend/storage VNETs"
+kubectl apply -f eda-manifests/frontend-vnets.yaml
+if [ $? -ne 0 ]; then
+    echo "Failed to apply frontend-vnets.yaml. Exiting."
     exit 1
 fi
 

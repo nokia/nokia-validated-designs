@@ -1666,3 +1666,1063 @@ spec:
       node: stripe2-leaf8
   type: interface
 ---
+# frontend-spine1
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-spine1-ethernet-1-1
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: frontend-spine1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-spine1-ethernet-1-2
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: frontend-spine1
+  type: interface
+---
+# frontend-spine2
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-spine2-ethernet-1-1
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: frontend-spine2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-spine2-ethernet-1-2
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: frontend-spine2
+  type: interface
+---
+# frontend-leaf1
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf1-ethernet-1-1
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: frontend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf1-ethernet-1-2
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: frontend-leaf1
+  type: interface
+---
+# frontend-leaf2
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf2-ethernet-1-1
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-1
+    node: frontend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf2-ethernet-1-2
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  encapType: "null"
+  lldp: true
+  members:
+  - enabled: true
+    interface: ethernet-1-2
+    node: frontend-leaf2
+  type: interface
+---
+# frontend leafs to GPU storage NICs
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf1-ethernet-1-3
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: frontend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf1-ethernet-1-4
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: frontend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf1-ethernet-1-5
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-5
+      node: frontend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf1-ethernet-1-6
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-6
+      node: frontend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf2-ethernet-1-3
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: frontend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf2-ethernet-1-4
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: frontend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf2-ethernet-1-5
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-5
+      node: frontend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf2-ethernet-1-6
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-6
+      node: frontend-leaf2
+  type: interface
+---
+# frontend to storage interfaces
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf1-ethernet-1-7
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-7
+      node: frontend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf1-ethernet-1-8
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-8
+      node: frontend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf1-ethernet-1-9
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-9
+      node: frontend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf1-ethernet-1-10
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-10
+      node: frontend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf1-ethernet-1-11
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-11
+      node: frontend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf1-ethernet-1-12
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-12
+      node: frontend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf1-ethernet-1-13
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-13
+      node: frontend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf1-ethernet-1-14
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-14
+      node: frontend-leaf1
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf2-ethernet-1-7
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-7
+      node: frontend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf2-ethernet-1-8
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-8
+      node: frontend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf2-ethernet-1-9
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-9
+      node: frontend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf2-ethernet-1-10
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-10
+      node: frontend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf2-ethernet-1-11
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-11
+      node: frontend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf2-ethernet-1-12
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-12
+      node: frontend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf2-ethernet-1-13
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-13
+      node: frontend-leaf2
+  type: interface
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  labels:
+    eda.nokia.com/role: interSwitch
+  name: frontend-leaf2-ethernet-1-14
+  namespace: dc1-frontend
+spec:
+  enabled: true
+  lldp: true
+  members:
+    - enabled: true
+      interface: ethernet-1-14
+      node: frontend-leaf2
+  type: interface
+---
+# frontend LAGs to GPU storage
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: frontend-leaf1-leaf2-s1-lag
+  namespace: dc1-frontend
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/tagged-v100: enabled
+    eda.nokia.com/tagged-v200: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  ethernet:
+    reloadDelayTimer: 100
+  members:
+    - enabled: true
+      interface: ethernet-1-3
+      node: frontend-leaf1
+      aggregateId: "1"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-3
+      node: frontend-leaf2
+      aggregateId: "1"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:00:00:00:11"
+      lacpFallback:
+        mode: static
+        timeout: 60
+    multihoming:
+      mode: all-active
+      revertive: false
+      preferredActiveNode: ""
+      reloadDelayTimer: 100
+      esi: auto
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: frontend-leaf1-leaf2-s2-lag
+  namespace: dc1-frontend
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/tagged-v100: enabled
+    eda.nokia.com/tagged-v200: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  ethernet:
+    reloadDelayTimer: 100
+  members:
+    - enabled: true
+      interface: ethernet-1-4
+      node: frontend-leaf1
+      aggregateId: "2"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-4
+      node: frontend-leaf2
+      aggregateId: "2"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:00:00:00:22"
+      lacpFallback:
+        mode: static
+        timeout: 60
+    multihoming:
+      mode: all-active
+      revertive: false
+      preferredActiveNode: ""
+      reloadDelayTimer: 100
+      esi: auto
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: frontend-leaf1-leaf2-s3-lag
+  namespace: dc1-frontend
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/tagged-v100: enabled
+    eda.nokia.com/tagged-v200: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  ethernet:
+    reloadDelayTimer: 100
+  members:
+    - enabled: true
+      interface: ethernet-1-5
+      node: frontend-leaf1
+      aggregateId: "3"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-5
+      node: frontend-leaf2
+      aggregateId: "3"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:00:00:00:33"
+      lacpFallback:
+        mode: static
+        timeout: 60
+    multihoming:
+      mode: all-active
+      revertive: false
+      preferredActiveNode: ""
+      reloadDelayTimer: 100
+      esi: auto
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: frontend-leaf1-leaf2-s4-lag
+  namespace: dc1-frontend
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/tagged-v100: enabled
+    eda.nokia.com/tagged-v200: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  ethernet:
+    reloadDelayTimer: 100
+  members:
+    - enabled: true
+      interface: ethernet-1-6
+      node: frontend-leaf1
+      aggregateId: "4"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-6
+      node: frontend-leaf2
+      aggregateId: "4"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:00:00:00:44"
+      lacpFallback:
+        mode: static
+        timeout: 60
+    multihoming:
+      mode: all-active
+      revertive: false
+      preferredActiveNode: ""
+      reloadDelayTimer: 100
+      esi: auto
+---
+# frontend LAGs to weka
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: frontend-leaf1-leaf2-weka1-lag
+  namespace: dc1-frontend
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v100: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  ethernet:
+    reloadDelayTimer: 100
+  members:
+    - enabled: true
+      interface: ethernet-1-7
+      node: frontend-leaf1
+      aggregateId: "11"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-7
+      node: frontend-leaf2
+      aggregateId: "11"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:00:00:11:01"
+      lacpFallback:
+        mode: static
+        timeout: 60
+    multihoming:
+      mode: all-active
+      revertive: false
+      preferredActiveNode: ""
+      reloadDelayTimer: 100
+      esi: auto
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: frontend-leaf1-leaf2-weka2-lag
+  namespace: dc1-frontend
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v100: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  ethernet:
+    reloadDelayTimer: 100
+  members:
+    - enabled: true
+      interface: ethernet-1-8
+      node: frontend-leaf1
+      aggregateId: "12"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-8
+      node: frontend-leaf2
+      aggregateId: "12"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:00:00:11:02"
+      lacpFallback:
+        mode: static
+        timeout: 60
+    multihoming:
+      mode: all-active
+      revertive: false
+      preferredActiveNode: ""
+      reloadDelayTimer: 100
+      esi: auto
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: frontend-leaf1-leaf2-weka3-lag
+  namespace: dc1-frontend
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v100: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  ethernet:
+    reloadDelayTimer: 100
+  members:
+    - enabled: true
+      interface: ethernet-1-9
+      node: frontend-leaf1
+      aggregateId: "13"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-9
+      node: frontend-leaf2
+      aggregateId: "13"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:00:00:11:03"
+      lacpFallback:
+        mode: static
+        timeout: 60
+    multihoming:
+      mode: all-active
+      revertive: false
+      preferredActiveNode: ""
+      reloadDelayTimer: 100
+      esi: auto
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: frontend-leaf1-leaf2-weka4-lag
+  namespace: dc1-frontend
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v100: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  ethernet:
+    reloadDelayTimer: 100
+  members:
+    - enabled: true
+      interface: ethernet-1-10
+      node: frontend-leaf1
+      aggregateId: "14"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-10
+      node: frontend-leaf2
+      aggregateId: "14"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:00:00:11:04"
+      lacpFallback:
+        mode: static
+        timeout: 60
+    multihoming:
+      mode: all-active
+      revertive: false
+      preferredActiveNode: ""
+      reloadDelayTimer: 100
+      esi: auto
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: frontend-leaf1-leaf2-weka5-lag
+  namespace: dc1-frontend
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v100: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  ethernet:
+    reloadDelayTimer: 100
+  members:
+    - enabled: true
+      interface: ethernet-1-11
+      node: frontend-leaf1
+      aggregateId: "15"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-11
+      node: frontend-leaf2
+      aggregateId: "15"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:00:00:11:05"
+      lacpFallback:
+        mode: static
+        timeout: 60
+    multihoming:
+      mode: all-active
+      revertive: false
+      preferredActiveNode: ""
+      reloadDelayTimer: 100
+      esi: auto
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: frontend-leaf1-leaf2-weka6-lag
+  namespace: dc1-frontend
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v100: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  ethernet:
+    reloadDelayTimer: 100
+  members:
+    - enabled: true
+      interface: ethernet-1-12
+      node: frontend-leaf1
+      aggregateId: "16"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-12
+      node: frontend-leaf2
+      aggregateId: "16"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:00:00:11:06"
+      lacpFallback:
+        mode: static
+        timeout: 60
+    multihoming:
+      mode: all-active
+      revertive: false
+      preferredActiveNode: ""
+      reloadDelayTimer: 100
+      esi: auto
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: frontend-leaf1-leaf2-weka7-lag
+  namespace: dc1-frontend
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v100: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  ethernet:
+    reloadDelayTimer: 100
+  members:
+    - enabled: true
+      interface: ethernet-1-13
+      node: frontend-leaf1
+      aggregateId: "17"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-13
+      node: frontend-leaf2
+      aggregateId: "17"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:00:00:11:07"
+      lacpFallback:
+        mode: static
+        timeout: 60
+    multihoming:
+      mode: all-active
+      revertive: false
+      preferredActiveNode: ""
+      reloadDelayTimer: 100
+      esi: auto
+---
+apiVersion: interfaces.eda.nokia.com/v1alpha1
+kind: Interface
+metadata:
+  name: frontend-leaf1-leaf2-weka8-lag
+  namespace: dc1-frontend
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v100: enabled
+spec:
+  enabled: true
+  type: lag
+  encapType: dot1q
+  lldp: true
+  ethernet:
+    reloadDelayTimer: 100
+  members:
+    - enabled: true
+      interface: ethernet-1-14
+      node: frontend-leaf1
+      aggregateId: "18"
+      lacpPortPriority: 32768
+    - enabled: true
+      interface: ethernet-1-14
+      node: frontend-leaf2
+      aggregateId: "18"
+      lacpPortPriority: 32768
+  lag:
+    type: lacp
+    minLinks: 1
+    lacp:
+      mode: active
+      interval: fast
+      systemPriority: 32768
+      systemIdMac: "00:00:00:00:11:08"
+      lacpFallback:
+        mode: static
+        timeout: 60
+    multihoming:
+      mode: all-active
+      revertive: false
+      preferredActiveNode: ""
+      reloadDelayTimer: 100
+      esi: auto
+---
