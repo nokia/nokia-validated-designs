@@ -1,0 +1,372 @@
+### System Metrics Exports (ClusterExport) ###
+
+apiVersion: remotewrite.eda.nokia.com/v1alpha1
+kind: ClusterExport
+metadata:
+  name: apps
+  namespace: eda-system
+spec:
+  exports:
+    - interval: 10s
+      mode: periodic
+      path: .namespace.node.srl.system.app-management.application
+      metricName:
+        regex: namespace_(.+)
+        replacement: $1
+  destinations:
+    - dest1
+---
+apiVersion: remotewrite.eda.nokia.com/v1alpha1
+kind: ClusterExport
+metadata:
+  name: cpu
+  namespace: eda-system
+spec:
+  exports:
+    - interval: 10s
+      mode: periodic
+      path: .namespace.node.srl.platform.control.cpu.total
+      metricName:
+        regex: namespace_(.+)
+        replacement: $1
+  destinations:
+    - dest1
+---
+apiVersion: remotewrite.eda.nokia.com/v1alpha1
+kind: ClusterExport
+metadata:
+  name: memory
+  namespace: eda-system
+spec:
+  exports:
+    - interval: 10s
+      mode: periodic
+      path: .namespace.node.srl.platform.control.memory
+      metricName:
+        regex: namespace_(.+)
+        replacement: $1
+  destinations:
+    - dest1
+---
+apiVersion: remotewrite.eda.nokia.com/v1alpha1
+kind: ClusterExport
+metadata:
+  name: power-supply
+  namespace: eda-system
+spec:
+  exports:
+    - interval: 10s
+      mode: periodic
+      path: .namespace.node.srl.platform.chassis.power.total
+      metricName:
+        regex: namespace_(.+)
+        replacement: $1
+  destinations:
+    - dest1
+---
+apiVersion: remotewrite.eda.nokia.com/v1alpha1
+kind: ClusterExport
+metadata:
+  name: fan-tray
+  namespace: eda-system
+spec:
+  exports:
+    - interval: 10s
+      mode: periodic
+      path: .namespace.node.srl.platform.fan-tray
+      metricName:
+        regex: namespace_(.+)
+        replacement: $1
+  destinations:
+    - dest1
+---
+apiVersion: remotewrite.eda.nokia.com/v1alpha1
+kind: ClusterExport
+metadata:
+  name: chassis-details
+  namespace: eda-system
+spec:
+  exports:
+    - interval: 10s
+      mode: periodic
+      path: .namespace.node.srl.platform.chassis
+      metricName:
+        regex: namespace_(.+)
+        replacement: $1
+  destinations:
+    - dest1
+---
+apiVersion: remotewrite.eda.nokia.com/v1alpha1
+kind: ClusterExport
+metadata:
+  name: fabric-status
+  namespace: eda-system
+spec:
+  exports:
+    - interval: 10s
+      mode: periodic
+      path: .namespace.resources.cr.fabrics_eda_nokia_com.v1alpha1.fabric
+      fields:
+        - status.health
+        - status.operationalState
+      metricName:
+        regex: namespace_(.+)
+        replacement: $1
+      mappings:
+        - source: up
+          destination: "1"
+        - source: down
+          destination: "0"
+        - source: degraded
+          destination: "2"
+  destinations:
+    - dest1
+
+### Interface / Traffic / Routing Metrics (ClusterExport) ###
+
+---
+apiVersion: remotewrite.eda.nokia.com/v1alpha1
+kind: ClusterExport
+metadata:
+  name: bgp-stats
+  namespace: eda-system
+spec:
+  exports:
+    - interval: 10s
+      mode: periodic
+      path: .namespace.node.srl.network-instance.protocols.bgp.statistics
+      metricName:
+        regex: namespace_(.+)
+        replacement: $1
+  destinations:
+    - dest1
+---
+apiVersion: remotewrite.eda.nokia.com/v1alpha1
+kind: ClusterExport
+metadata:
+  name: default-bgp-group-status
+  namespace: eda-system
+spec:
+  exports:
+    - interval: 10s
+      mode: periodic
+      path: .namespace.resources.cr.protocols_eda_nokia_com.v1.defaultbgpgroup
+      fields:
+        - status.operationalState
+        - status.numPeers
+        - status.numPeersOperDown
+      metricName:
+        regex: namespace_(.+)
+        replacement: $1
+  destinations:
+    - dest1
+---
+apiVersion: remotewrite.eda.nokia.com/v1alpha1
+kind: ClusterExport
+metadata:
+  name: default-router-status
+  namespace: eda-system
+spec:
+  exports:
+    - interval: 10s
+      mode: periodic
+      path: .namespace.resources.cr.routing_eda_nokia_com.v1alpha1.defaultrouter
+      fields:
+        - status.health
+        - status.operationalState
+      metricName:
+        regex: namespace_(.+)
+        replacement: $1
+  destinations:
+    - dest1
+---
+apiVersion: remotewrite.eda.nokia.com/v1alpha1
+kind: ClusterExport
+metadata:
+  name: interface
+  namespace: eda-system
+spec:
+  exports:
+    - interval: 10s
+      mode: periodic
+      path: .namespace.node.srl.interface
+      mappings:
+        - source: enable
+          destination: "1"
+        - source: disable
+          destination: "0"
+        - source: up
+          destination: "1"
+        - source: down
+          destination: "0"
+      metricName:
+        regex: namespace_(.+)
+        replacement: $1
+  destinations:
+    - dest1
+---
+apiVersion: remotewrite.eda.nokia.com/v1alpha1
+kind: ClusterExport
+metadata:
+  name: interface-traffic-rate
+  namespace: eda-system
+spec:
+  exports:
+    - interval: 10s
+      mode: periodic
+      path: .namespace.node.srl.interface.traffic-rate
+      metricName:
+        regex: namespace_(.+)
+        replacement: $1
+  destinations:
+    - dest1
+---
+apiVersion: remotewrite.eda.nokia.com/v1alpha1
+kind: ClusterExport
+metadata:
+  name: network-instance
+  namespace: eda-system
+spec:
+  exports:
+    - interval: 10s
+      mode: periodic
+      path: .namespace.node.srl.network-instance
+      mappings:
+        - destination: "1"
+          source: up
+        - destination: "0"
+          source: down
+      metricName:
+        regex: namespace_(.+)
+        replacement: $1
+  destinations:
+    - dest1
+---
+apiVersion: remotewrite.eda.nokia.com/v1alpha1
+kind: ClusterExport
+metadata:
+  name: ipv4-statistics
+  namespace: eda-system
+spec:
+  exports:
+    - interval: 10s
+      mode: periodic
+      path: .namespace.node.srl.network-instance.route-table.ipv4-unicast.statistics
+      metricName:
+        regex: namespace_(.+)
+        replacement: $1
+  destinations:
+    - dest1
+---
+apiVersion: remotewrite.eda.nokia.com/v1alpha1
+kind: ClusterExport
+metadata:
+  name: subinterface-pkts-statistics
+  namespace: eda-system
+spec:
+  exports:
+    - interval: 10s
+      mode: periodic
+      path: .namespace.node.srl.interface.subinterface.statistics
+      fields:
+        - in-discarded-packets
+        - out-discarded-packets
+        - in-forwarded-packets
+        - out-forwarded-packets
+      metricName:
+        regex: namespace_(.+)
+        replacement: $1
+  destinations:
+    - dest1
+---
+apiVersion: remotewrite.eda.nokia.com/v1alpha1
+kind: ClusterExport
+metadata:
+  name: vnet-status
+  namespace: eda-system
+spec:
+  exports:
+    - interval: 10s
+      mode: periodic
+      path: .namespace.resources.cr.services_eda_nokia_com.v1.virtualnetwork
+      fields:
+        - status.operationalState
+      metricName:
+        regex: namespace_(.+)
+        replacement: $1
+      mappings:
+        - source: up
+          destination: "1"
+        - source: down
+          destination: "0"
+        - source: degraded
+          destination: "2"
+        - source: unknown
+          destination: "3"
+  destinations:
+    - dest1
+
+### Backend PFC / ECN Metrics (ClusterExport) ###
+
+---
+apiVersion: remotewrite.eda.nokia.com/v1alpha1
+kind: ClusterExport
+metadata:
+  name: qos-interface-output-queue
+  namespace: eda-system
+spec:
+  destinations:
+    - dest1
+  exports:
+    - interval: 10s
+      labels: {}
+      metricName:
+        regex: namespace_(.+)
+        replacement: $1
+      mode: periodic
+      path: >-
+        .namespace.node.srl.qos.interfaces.interface.output.queues.queue.queue-statistics.aggregate-statistics
+      resource: {}
+---
+apiVersion: remotewrite.eda.nokia.com/v1alpha1
+kind: ClusterExport
+metadata:
+  name: qos-interface-pfc-queue
+  namespace: eda-system
+spec:
+  destinations:
+    - dest1
+  exports:
+    - interval: 10s
+      labels: {}
+      metricName:
+        regex: namespace_(.+)
+        replacement: $1
+      mode: periodic
+      path: .namespace.node.srl.qos.interfaces.interface.pfc.statistics
+      resource: {}
+---
+apiVersion: remotewrite.eda.nokia.com/v1alpha1
+kind: ClusterExport
+metadata:
+  name: subinterface-pkts-statistics
+  namespace: eda-system
+spec:
+  destinations:
+    - dest1
+  exports:
+    - fields:
+        - in-discarded-packets
+        - out-discarded-packets
+        - in-forwarded-packets
+        - out-forwarded-packets
+      interval: 10s
+      labels: {}
+      metricName:
+        regex: namespace_(.+)
+        replacement: $1
+      mode: periodic
+      path: .namespace.node.srl.interface.subinterface.statistics
+      resource: {}
+---
+

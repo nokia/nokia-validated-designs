@@ -1,0 +1,15 @@
+replicaCount: 1
+imagePullPolicy: IfNotPresent
+
+# Proxy settings, MAKE SURE TO UPDATE no_proxy TO FIT YOUR ENVIRONMENT"
+# https_proxy: "http://squid.ncse.io:3128"
+# no_proxy: "localhost,127.0.0.1,10.0.0.0/8,192.168.0.0/16,.ncse.io"
+
+# Grafana persistence configuration
+grafana:
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 6Gi
+    annotations: {}
