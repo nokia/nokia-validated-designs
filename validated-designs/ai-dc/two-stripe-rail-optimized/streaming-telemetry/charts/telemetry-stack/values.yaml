@@ -1,0 +1,11 @@
+replicaCount: 1
+imagePullPolicy: IfNotPresent
+
+# Grafana persistence configuration
+grafana:
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 6Gi
+    annotations: {}

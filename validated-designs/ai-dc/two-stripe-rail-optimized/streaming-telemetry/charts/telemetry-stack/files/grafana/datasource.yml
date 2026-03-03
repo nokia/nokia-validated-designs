@@ -1,0 +1,11 @@
+# config file version
+apiVersion: 1
+
+datasources:
+  - name: victoriametrics
+    type: prometheus
+    url: http://victoria-metrics.eda-telemetry.svc:8428
+  - name: Loki
+    type: loki
+    url: http://loki.eda-telemetry.svc:3100
+

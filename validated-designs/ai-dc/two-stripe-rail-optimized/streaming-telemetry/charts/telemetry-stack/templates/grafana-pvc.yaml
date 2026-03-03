@@ -1,0 +1,26 @@
+{{- if .Values.grafana.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "telemetry-stack.fullname" . }}-grafana
+  labels:
+    {{- include "telemetry-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+  {{- if .Values.grafana.persistence.annotations }}
+  annotations:
+    {{- toYaml .Values.grafana.persistence.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    - {{ .Values.grafana.persistence.accessMode }}
+  {{- if .Values.grafana.persistence.storageClass }}
+  {{- if (eq "-" .Values.grafana.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.grafana.persistence.storageClass }}
+  {{- end }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.grafana.persistence.size }}
+{{- end }}

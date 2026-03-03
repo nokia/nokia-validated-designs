@@ -1,0 +1,16 @@
+apiVersion: core.eda.nokia.com/v1
+kind: Workflow
+metadata:
+  name: remote-write-app
+  namespace: eda-system
+spec:
+  type: app-installer
+  input:
+    operation: install
+    apps:
+      - app: remote-write
+        catalog: eda-catalog-builtin-apps
+        vendor: nokia
+        version:
+          type: semver
+          value: v2.1.0
