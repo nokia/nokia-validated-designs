@@ -1,0 +1,140 @@
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+loki.write "alerts" {
+  endpoint {
+    url = "http://loki.eda-telemetry.svc:3100/loki/api/v1/push"
+  }
+}
+
+loki.write "syslog" {
+  endpoint {
+    url = "http://loki.eda-telemetry.svc:3100/loki/api/v1/push"
+  }
+}
+
+loki.source.kafka "alarms" {
+  brokers    = ["kafka.eda-telemetry.svc:9092"]
+  topics     = ["alarms"]
+  version    = "2.8.0"
+  group_id   = "alarms-processor"
+  labels     = { component = "kafka-alarms" }
+  forward_to = [loki.process.alarm_mapper.receiver]
+}
+
+loki.process "alarm_mapper" {
+  // Extract alarm data from Kafka JSON
+  stage.json {
+    expressions = {
+      alarm_name     = "entries[0].keys.alarm_name",
+      namespace_name = "entries[0].keys.namespace_name",
+      fields_content = "entries[0].fields",
+    }
+  }
+
+  // Add labels
+  stage.labels {
+    values = {
+      alarm_name = "alarm_name",
+      namespace_name = "namespace_name",
+    }
+  }
+
+  // Output the alarm message
+  stage.output {
+    source = "fields_content"
+  }
+
+  forward_to = [loki.write.alerts.receiver]
+}
+
+loki.source.kafka "deviations" {
+  brokers    = ["kafka.eda-telemetry.svc:9092"]
+  topics     = ["deviations"]
+  version    = "2.8.0"
+  group_id   = "deviations-processor"
+  labels     = { component = "kafka-deviations" }
+  forward_to = [loki.process.deviations_mapper.receiver]
+}
+
+loki.process "deviations_mapper" {
+  // Extract deviation data from Kafka JSON
+  stage.json {
+    expressions = {
+      deviation_name = "entries[0].keys.deviation_name",
+      namespace_name = "entries[0].keys.namespace_name",
+      fields_content = "entries[0].fields",
+    }
+  }
+
+  // Add labels
+  stage.labels {
+    values = {
+      deviation_name = "deviation_name",
+      namespace_name = "namespace_name",
+    }
+  }
+
+  // Output the deviation message
+  stage.output {
+    source = "fields_content"
+  }
+
+  forward_to = [loki.write.alerts.receiver]
+}
+
+// Syslog receiver
+loki.source.syslog "main" {
+  listener {
+    address  = "0.0.0.0:1514"
+    protocol = "udp"
+    idle_timeout = "5m"
+    label_structured_data = true
+    labels = { 
+      job = "syslog",
+    }
+  }
+  
+  relabel_rules = loki.relabel.syslog_labels.rules
+  forward_to = [loki.process.syslog_parser.receiver]
+}
+
+// Extract syslog fields as labels
+loki.relabel "syslog_labels" {
+  rule {
+    source_labels = ["__syslog_message_hostname"]
+    target_label  = "source"
+  }
+  
+  rule {
+    source_labels = ["__syslog_message_severity"]
+    target_label  = "level"
+  }
+  
+  rule {
+    source_labels = ["__syslog_message_app_name"]
+    target_label  = "application"
+  }
+  
+  rule {
+    source_labels = ["__syslog_message_facility"]
+    target_label  = "facility"
+  }
+  
+  rule {
+    source_labels = ["__syslog_message_proc_id"]
+    target_label  = "procid"
+  }
+  
+  forward_to = []
+}
+
+loki.process "syslog_parser" {
+  forward_to = [loki.write.syslog.receiver]
+}
+
+livedebugging {
+  enabled = true
+}

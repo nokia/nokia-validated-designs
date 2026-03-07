@@ -1,0 +1,85 @@
+apiVersion: v1
+items:
+- apiVersion: qos.eda.nokia.com/v1
+  kind: ForwardingClass
+  metadata:
+    name: af
+    namespace: dc1-backend
+- apiVersion: qos.eda.nokia.com/v1
+  kind: ForwardingClass
+  metadata:
+    name: be
+    namespace: dc1-backend
+- apiVersion: qos.eda.nokia.com/v1
+  kind: ForwardingClass
+  metadata:
+    name: ef
+    namespace: dc1-backend
+- apiVersion: qos.eda.nokia.com/v1
+  kind: ForwardingClass
+  metadata:
+    name: fc0
+    namespace: dc1-backend
+- apiVersion: qos.eda.nokia.com/v1
+  kind: ForwardingClass
+  metadata:
+    name: fc1
+    namespace: dc1-backend
+- apiVersion: qos.eda.nokia.com/v1
+  kind: ForwardingClass
+  metadata:
+    name: fc2
+    namespace: dc1-backend
+- apiVersion: qos.eda.nokia.com/v1
+  kind: ForwardingClass
+  metadata:
+    name: fc3
+    namespace: dc1-backend
+- apiVersion: qos.eda.nokia.com/v1
+  kind: ForwardingClass
+  metadata:
+    name: fc4
+    namespace: dc1-backend
+- apiVersion: qos.eda.nokia.com/v1
+  kind: ForwardingClass
+  metadata:
+    name: fc5
+    namespace: dc1-backend
+- apiVersion: qos.eda.nokia.com/v1
+  kind: ForwardingClass
+  metadata:
+    name: fc6
+    namespace: dc1-backend
+- apiVersion: qos.eda.nokia.com/v1
+  kind: ForwardingClass
+  metadata:
+    name: fc7
+    namespace: dc1-backend
+- apiVersion: qos.eda.nokia.com/v1
+  kind: ForwardingClass
+  metadata:
+    name: h1
+    namespace: dc1-backend
+- apiVersion: qos.eda.nokia.com/v1
+  kind: ForwardingClass
+  metadata:
+    name: h2
+    namespace: dc1-backend
+- apiVersion: qos.eda.nokia.com/v1
+  kind: ForwardingClass
+  metadata:
+    name: l1
+    namespace: dc1-backend
+- apiVersion: qos.eda.nokia.com/v1
+  kind: ForwardingClass
+  metadata:
+    name: l2
+    namespace: dc1-backend
+- apiVersion: qos.eda.nokia.com/v1
+  kind: ForwardingClass
+  metadata:
+    name: nc
+    namespace: dc1-backend
+kind: List
+metadata:
+  resourceVersion: ""

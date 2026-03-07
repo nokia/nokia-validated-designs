@@ -1,0 +1,19 @@
+apiVersion: remotewrite.eda.nokia.com/v1alpha1
+kind: ClusterDestination
+metadata:
+  name: dest1
+  namespace: eda-system
+spec:
+  authentication: {}
+  authorization:
+    type: Bearer
+  metadata:
+    interval: 0s
+    maxEntriesPerWrite: 500
+  url: http://victoria-metrics.eda-telemetry.svc.cluster.local:8428/api/v1/write
+  writeOptions:
+    bufferSize: 100
+    flushInterval: 1m0s
+    maxRetries: 3
+    maxTimeSeriesPerWrite: 500
+    timeout: 10s
