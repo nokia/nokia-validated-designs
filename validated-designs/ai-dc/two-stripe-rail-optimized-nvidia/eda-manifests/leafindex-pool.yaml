@@ -1,0 +1,42 @@
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: leafindex-pool
+  namespace: dc1-backend
+spec:
+  segments:
+    - allocations:
+      - name: stripe1-leaf1
+        value: 1
+      - name: stripe1-leaf2
+        value: 2
+      - name: stripe1-leaf3
+        value: 3
+      - name: stripe1-leaf4
+        value: 4
+      - name: stripe1-leaf5
+        value: 5
+      - name: stripe1-leaf6
+        value: 6
+      - name: stripe1-leaf7
+        value: 7
+      - name: stripe1-leaf8
+        value: 8
+      - name: stripe2-leaf1
+        value: 9
+      - name: stripe2-leaf2
+        value: 10
+      - name: stripe2-leaf3
+        value: 11
+      - name: stripe2-leaf4
+        value: 12
+      - name: stripe2-leaf5
+        value: 13
+      - name: stripe2-leaf6
+        value: 14
+      - name: stripe2-leaf7
+        value: 15
+      - name: stripe2-leaf8
+        value: 16
+      size: 4000
+      start: 1

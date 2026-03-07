@@ -1,0 +1,43 @@
+apiVersion: services.eda.nokia.com/v1
+kind: VirtualNetwork
+metadata:
+  name: storage
+  namespace: dc1-frontend
+spec:
+  bridgeDomains:
+  - name: mac-vrf-storage
+    spec:
+      evi: 100
+      eviPool: evi-pool
+      l2proxyARPND:
+        dynamicLearning:
+          ageTime: 2000
+          enabled: true
+          sendRefresh: 2000
+        ipDuplication:
+          enabled: true
+          holdDownTime: 10
+          monitoringWindow: 10
+          numMoves: 4
+        proxyARP: true
+        proxyND: false
+        tableSize: 250
+      macAging: 300
+      macLearning: true
+      tunnelIndexPool: tunnel-index-pool
+      type: EVPNVXLAN
+      vni: 100
+      vniPool: vni-pool
+  vlans:
+  - name: storage
+    spec:
+      bridgeDomain: mac-vrf-storage
+      interfaceSelector:
+      - eda.nokia.com/untagged-v100=enabled
+      vlanID: untagged
+  - name: gpu
+    spec:
+      bridgeDomain: mac-vrf-storage
+      interfaceSelector:
+      - eda.nokia.com/tagged-v100=enabled
+      vlanID: "100"

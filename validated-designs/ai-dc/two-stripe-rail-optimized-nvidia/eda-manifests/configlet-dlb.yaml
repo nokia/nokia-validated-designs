@@ -1,0 +1,55 @@
+apiVersion: config.eda.nokia.com/v1alpha1
+kind: Configlet
+metadata:
+  name: dlb
+  namespace: dc1-backend
+spec:
+  endpointSelector:
+    - eda.nokia.com/role=leaf
+  operatingSystem: srl
+  priority: 100
+  configs:
+    - path: .system
+      operation: Create
+      config: |-
+        {
+            "load-balancing": {
+            "dynamic": {
+              "flowset-size": "256",
+              "inactivity-timer": 50,
+              "mode": "flow-dynamic",
+              "link-quality-sampling-interval": 5,
+              "weighting-factor": {
+                "port-utilization": 70,
+                "queue-utilization": 20,
+                "itm-utilization": 10
+              }
+            }
+          }
+        }
+---
+apiVersion: config.eda.nokia.com/v1alpha1
+kind: Configlet
+metadata:
+  name: ip-load-balance-network-instance
+  namespace: dc1-backend
+spec:
+  endpointSelector:
+    - eda.nokia.com/role=leaf
+  operatingSystem: srl
+  priority: 100
+  configs:
+    - path: .network-instance{.name=="default"}
+      operation: Create
+      config: |-
+        {
+            "ip-load-balancing": {
+            "dynamic-load-balancing": {
+              "prefix": [
+                {
+                  "ip-prefix": "::/0"
+                }
+              ]
+            }
+          }
+        }

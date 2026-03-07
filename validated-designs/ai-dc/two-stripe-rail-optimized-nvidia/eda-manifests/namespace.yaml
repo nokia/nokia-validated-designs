@@ -1,0 +1,15 @@
+apiVersion: core.eda.nokia.com/v1
+kind: Namespace
+metadata:
+  name: dc1-backend
+  namespace: "eda-system"
+spec:
+  description: 'namespace for AI backend'
+---
+apiVersion: core.eda.nokia.com/v1
+kind: Namespace
+metadata:
+  name: dc1-frontend
+  namespace: "eda-system"
+spec:
+  description: 'namespace for AI frontend/storage'

@@ -1,0 +1,19 @@
+apiVersion: bootstrap.eda.nokia.com/v1alpha1
+kind: Init
+metadata:
+  name: init-base
+  namespace: dc1-backend
+spec:
+  commitSave: true
+  nodeSelector:
+    - ""
+---
+apiVersion: bootstrap.eda.nokia.com/v1alpha1
+kind: Init
+metadata:
+  name: init-base
+  namespace: dc1-frontend
+spec:
+  commitSave: true
+  nodeSelector:
+    - ""
