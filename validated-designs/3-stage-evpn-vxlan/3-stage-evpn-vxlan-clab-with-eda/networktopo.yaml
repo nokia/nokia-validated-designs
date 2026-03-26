@@ -1,0 +1,61 @@
+apiVersion: topologies.eda.nokia.com/v1alpha1
+kind: NetworkTopology
+metadata:
+  name: network-topology
+  namespace: eda
+spec:
+  operation: replaceAll
+  nodeTemplates:
+    - name: leaf
+      nodeProfile: clab-srlinux-24.10.2
+      platform: 7220 IXR-D3L
+      labels:
+        eda.nokia.com/role: leaf
+        eda.nokia.com/security-profile: managed
+    - name: spine
+      nodeProfile: clab-srlinux-24.10.2
+      platform: 7220 IXR-D3L
+      labels:
+        eda.nokia.com/role: spine
+        eda.nokia.com/security-profile: managed
+  nodes:
+    - name: leaf1
+      template: leaf
+      productionAddress:
+        ipv4: 172.21.21.11
+        ipv6: ""
+    - name: leaf2
+      template: leaf
+      productionAddress:
+        ipv4: 172.21.21.12
+        ipv6: ""
+    - name: leaf3
+      template: leaf
+      productionAddress:
+        ipv4: 172.21.21.13
+        ipv6: ""
+    - name: leaf4
+      template: leaf
+      productionAddress:
+        ipv4: 172.21.21.14
+        ipv6: ""
+    - name: leaf5
+      template: leaf
+      productionAddress:
+        ipv4: 172.21.21.15
+        ipv6: ""
+    - name: leaf6
+      template: leaf
+      productionAddress:
+        ipv4: 172.21.21.16
+        ipv6: ""
+    - name: spine1
+      template: spine
+      productionAddress:
+        ipv4: 172.21.21.101
+        ipv6: ""
+    - name: spine2
+      template: spine
+      productionAddress:
+        ipv4: 172.21.21.102
+        ipv6: ""

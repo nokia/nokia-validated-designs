@@ -5,17 +5,18 @@
 # bridge domains
 # if needed, export/import RTs can be manually defined using exportTarget and importTarget options
 # EDA makes life easier by just generating it for you
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: BridgeDomain
 metadata:
   name: macvrf-v10
   namespace: eda
 spec:
   type: EVPNVXLAN
+  tunnelIndexPool: tunnel-index-pool
+  macLearning: true
+  macAging: 300
   vni: 10010
   evi: 10
-  tunnelIndexPool: tunnel-index-pool
-  macAging: 300
   macDuplicationDetection:
     enabled: true
     holdDownTime: 9
@@ -23,17 +24,18 @@ spec:
     action: StopLearning
     numMoves: 5
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: BridgeDomain
 metadata:
   name: macvrf-v20
   namespace: eda
 spec:
   type: EVPNVXLAN
+  tunnelIndexPool: tunnel-index-pool
+  macLearning: true
+  macAging: 300
   vni: 10020
   evi: 20
-  tunnelIndexPool: tunnel-index-pool
-  macAging: 300
   macDuplicationDetection:
     enabled: true
     holdDownTime: 9
@@ -41,17 +43,18 @@ spec:
     action: StopLearning
     numMoves: 5
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: BridgeDomain
 metadata:
   name: macvrf-v30
   namespace: eda
 spec:
   type: EVPNVXLAN
+  tunnelIndexPool: tunnel-index-pool
+  macLearning: true
+  macAging: 300
   vni: 10030
   evi: 30
-  tunnelIndexPool: tunnel-index-pool
-  macAging: 300
   macDuplicationDetection:
     enabled: true
     holdDownTime: 9
@@ -59,17 +62,18 @@ spec:
     action: StopLearning
     numMoves: 5
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: BridgeDomain
 metadata:
   name: macvrf-v40
   namespace: eda
 spec:
   type: EVPNVXLAN
+  tunnelIndexPool: tunnel-index-pool
+  macLearning: true
+  macAging: 300
   vni: 10040
   evi: 40
-  tunnelIndexPool: tunnel-index-pool
-  macAging: 300
   macDuplicationDetection:
     enabled: true
     holdDownTime: 9
@@ -77,17 +81,18 @@ spec:
     action: StopLearning
     numMoves: 5
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: BridgeDomain
 metadata:
   name: macvrf-v50
   namespace: eda
 spec:
   type: EVPNVXLAN
+  tunnelIndexPool: tunnel-index-pool
+  macLearning: true
+  macAging: 300
   vni: 10050
   evi: 50
-  tunnelIndexPool: tunnel-index-pool
-  macAging: 300
   macDuplicationDetection:
     enabled: true
     holdDownTime: 9
@@ -95,17 +100,18 @@ spec:
     action: StopLearning
     numMoves: 5
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: BridgeDomain
 metadata:
   name: macvrf-v60
   namespace: eda
 spec:
   type: EVPNVXLAN
+  tunnelIndexPool: tunnel-index-pool
+  macLearning: true
+  macAging: 300
   vni: 10060
   evi: 60
-  tunnelIndexPool: tunnel-index-pool
-  macAging: 300
   macDuplicationDetection:
     enabled: true
     holdDownTime: 9
@@ -114,165 +120,195 @@ spec:
     numMoves: 5
 ---
 # IRB interfaces
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: IRBInterface
 metadata:
   name: irb-v10
   namespace: eda
 spec:
+  ipMTU: 1500
+  learnUnsolicited: NONE
+  arpTimeout: 280
   bridgeDomain: macvrf-v10
   router: vrf1
-  ipMTU: 1500
   ipAddresses:
     - ipv4Address:
         ipPrefix: 172.16.10.254/24
         primary: true
-  arpTimeout: 14400
   evpnRouteAdvertisementType:
+    rfc9135SymmetricMode: false
     arpDynamic: true
-  hostRoutePopulate:
-    dynamic: false
-    evpn: false
-    static: false
+    arpStatic: true
+    ndDynamic: false
+    ndStatic: false
   l3ProxyARPND:
     proxyARP: true
     proxyND: false
+  hostRoutePopulate:
+    dynamic: true
+    evpn: false
+    static: true
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: IRBInterface
 metadata:
   name: irb-v20
   namespace: eda
 spec:
+  ipMTU: 1500
+  learnUnsolicited: NONE
+  arpTimeout: 280
   bridgeDomain: macvrf-v20
   router: vrf1
-  ipMTU: 1500
   ipAddresses:
     - ipv4Address:
         ipPrefix: 172.16.20.254/24
         primary: true
-  arpTimeout: 14400
   evpnRouteAdvertisementType:
+    rfc9135SymmetricMode: false
     arpDynamic: true
+    arpStatic: true
+    ndDynamic: false
+    ndStatic: false
   hostRoutePopulate:
-    dynamic: false
+    dynamic: true
     evpn: false
-    static: false
+    static: true
   l3ProxyARPND:
     proxyARP: true
     proxyND: false
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: IRBInterface
 metadata:
   name: irb-v30
   namespace: eda
 spec:
+  ipMTU: 1500
+  learnUnsolicited: NONE
+  arpTimeout: 280
   bridgeDomain: macvrf-v30
   router: vrf1
-  ipMTU: 1500
   ipAddresses:
     - ipv4Address:
         ipPrefix: 172.16.30.254/24
         primary: true
-  arpTimeout: 14400
   evpnRouteAdvertisementType:
+    rfc9135SymmetricMode: false
     arpDynamic: true
+    arpStatic: true
+    ndDynamic: false
+    ndStatic: false
   hostRoutePopulate:
-    dynamic: false
+    dynamic: true
     evpn: false
-    static: false
+    static: true
   l3ProxyARPND:
     proxyARP: true
     proxyND: false
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: IRBInterface
 metadata:
   name: irb-v40
   namespace: eda
 spec:
+  ipMTU: 1500
+  learnUnsolicited: NONE
+  arpTimeout: 280
   bridgeDomain: macvrf-v40
   router: vrf2
-  ipMTU: 1500
   ipAddresses:
     - ipv4Address:
         ipPrefix: 172.16.40.254/24
         primary: true
-  arpTimeout: 14400
   evpnRouteAdvertisementType:
+    rfc9135SymmetricMode: false
     arpDynamic: true
+    arpStatic: true
+    ndDynamic: false
+    ndStatic: false
   hostRoutePopulate:
-    dynamic: false
+    dynamic: true
     evpn: false
-    static: false
+    static: true
   l3ProxyARPND:
     proxyARP: true
     proxyND: false
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: IRBInterface
 metadata:
   name: irb-v50
   namespace: eda
 spec:
+  ipMTU: 1500
+  learnUnsolicited: NONE
+  arpTimeout: 280
   bridgeDomain: macvrf-v50
   router: vrf2
-  ipMTU: 1500
   ipAddresses:
     - ipv4Address:
         ipPrefix: 172.16.50.254/24
         primary: true
-  arpTimeout: 14400
   evpnRouteAdvertisementType:
+    rfc9135SymmetricMode: false
     arpDynamic: true
+    arpStatic: true
+    ndDynamic: false
+    ndStatic: false
   hostRoutePopulate:
-    dynamic: false
+    dynamic: true
     evpn: false
-    static: false
+    static: true
   l3ProxyARPND:
     proxyARP: true
     proxyND: false
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: IRBInterface
 metadata:
   name: irb-v60
   namespace: eda
 spec:
+  ipMTU: 1500
+  learnUnsolicited: NONE
+  arpTimeout: 280
   bridgeDomain: macvrf-v60
   router: vrf2
-  ipMTU: 1500
   ipAddresses:
     - ipv4Address:
         ipPrefix: 172.16.60.254/24
         primary: true
-  arpTimeout: 14400
   evpnRouteAdvertisementType:
+    rfc9135SymmetricMode: false
     arpDynamic: true
+    arpStatic: true
+    ndDynamic: false
+    ndStatic: false
   hostRoutePopulate:
-    dynamic: false
+    dynamic: true
     evpn: false
-    static: false
+    static: true
   l3ProxyARPND:
     proxyARP: true
     proxyND: false
 ---
 # VRFs
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: Router
 metadata:
   name: vrf1
   namespace: eda
 spec:
   type: EVPNVXLAN
+  tunnelIndexPool: tunnel-index-pool
   vni: 10500
   evi: 500
-  tunnelIndexPool: tunnel-index-pool
   nodeSelector:
     - eda.nokia.com/role=leaf
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: Router
 metadata:
   name: vrf2
@@ -286,18 +322,18 @@ spec:
     - eda.nokia.com/role=leaf
 ---
 # VLANs
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: VLAN
 metadata:
   name: untagged-v10
   namespace: eda
 spec:
+  vlanID: untagged
   bridgeDomain: macvrf-v10
   interfaceSelector:
     - eda.nokia.com/untagged-v10=enabled
-  vlanID: untagged
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: VLAN
 metadata:
   name: tagged-v10
@@ -308,7 +344,7 @@ spec:
     - eda.nokia.com/tagged-v10=enabled
   vlanID: "10"
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: VLAN
 metadata:
   name: untagged-v20
@@ -319,7 +355,7 @@ spec:
     - eda.nokia.com/untagged-v20=enabled
   vlanID: untagged
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: VLAN
 metadata:
   name: untagged-v30
@@ -330,7 +366,7 @@ spec:
     - eda.nokia.com/untagged-v30=enabled
   vlanID: untagged
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: VLAN
 metadata:
   name: untagged-v40
@@ -341,7 +377,7 @@ spec:
     - eda.nokia.com/untagged-v40=enabled
   vlanID: untagged
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: VLAN
 metadata:
   name: untagged-v50
@@ -352,7 +388,7 @@ spec:
     - eda.nokia.com/untagged-v50=enabled
   vlanID: untagged
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: VLAN
 metadata:
   name: untagged-v60
