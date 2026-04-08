@@ -1,6 +1,55 @@
-# ignore clab lab dir
+# ---------- Containerlab ----------
 clab-*
-
-# ignore clab bak files
 **/*.yaml.bak
 **/*.yml.bak
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+*.whl
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Type checkers / linters
+.mypy_cache/
+.pytype/
+.ruff_cache/
+
+# Pytest / coverage
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ---------- Ansible ----------
+*.retry
+
+# ---------- IDE / Editor ----------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ---------- Environment / Secrets ----------
+.env
+.env.*
+!.env.example
