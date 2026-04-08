@@ -1,0 +1,281 @@
+---
+# yaml-language-server: $schema=../schemas/topology_schema.json
+# Unconstrained 3-Stage Fabric — Topology Input
+# Full coverage of EDA API resources for a 3-stage Clos fabric.
+
+design: unconstrained-3-stage
+fabric_name: dc1
+environment: containerlab
+
+# ---------------------------------------------------------------------------
+# Underlay
+# ---------------------------------------------------------------------------
+underlay:
+  spine_asn: 65500
+  spine_asn_pool_size: 10
+  leaf_asn_start: 65001
+  leaf_asn_pool_size: 20
+  system0_prefix: 10.0.0.0/24
+
+# ---------------------------------------------------------------------------
+# Fabric (eBGP underlay + overlay)
+# ---------------------------------------------------------------------------
+fabric:
+  underlay_protocol: EBGP
+  overlay_protocol: EBGP
+  isl_unnumbered: IPV6
+  bfd:
+    enabled: true
+    desired_min_transmit_int: 1000000
+    required_min_receive: 1000000
+    detection_multiplier: 3
+    min_echo_receive_interval: 1000000
+
+# ---------------------------------------------------------------------------
+# Nodes
+# ---------------------------------------------------------------------------
+nodes:
+  - name: spine1
+    role: spine
+    platform: "7220 IXR-D3L"
+    version: "24.10.2"
+    asn: 65500
+    system0_ipv4: 10.0.0.101/32
+    mgmt_ipv4: "172.21.21.101"
+    labels:
+      eda.nokia.com/role: spine
+
+  - name: spine2
+    role: spine
+    platform: "7220 IXR-D3L"
+    version: "24.10.2"
+    asn: 65500
+    system0_ipv4: 10.0.0.102/32
+    mgmt_ipv4: "172.21.21.102"
+    labels:
+      eda.nokia.com/role: spine
+
+  - name: leaf1
+    role: leaf
+    platform: "7220 IXR-D3L"
+    version: "24.10.2"
+    asn: 65001
+    system0_ipv4: 10.0.0.1/32
+    mgmt_ipv4: "172.21.21.1"
+    labels:
+      eda.nokia.com/role: leaf
+
+  - name: leaf2
+    role: leaf
+    platform: "7220 IXR-D3L"
+    version: "24.10.2"
+    asn: 65002
+    system0_ipv4: 10.0.0.2/32
+    mgmt_ipv4: "172.21.21.2"
+    labels:
+      eda.nokia.com/role: leaf
+
+  - name: leaf3
+    role: leaf
+    platform: "7220 IXR-D3L"
+    version: "24.10.2"
+    asn: 65003
+    system0_ipv4: 10.0.0.3/32
+    mgmt_ipv4: "172.21.21.3"
+    labels:
+      eda.nokia.com/role: leaf
+
+  - name: leaf4
+    role: leaf
+    platform: "7220 IXR-D3L"
+    version: "24.10.2"
+    asn: 65004
+    system0_ipv4: 10.0.0.4/32
+    mgmt_ipv4: "172.21.21.4"
+    labels:
+      eda.nokia.com/role: leaf
+
+  - name: leaf5
+    role: leaf
+    platform: "7220 IXR-D3L"
+    version: "24.10.2"
+    asn: 65005
+    system0_ipv4: 10.0.0.5/32
+    mgmt_ipv4: "172.21.21.5"
+    labels:
+      eda.nokia.com/role: leaf
+
+  - name: leaf6
+    role: leaf
+    platform: "7220 IXR-D3L"
+    version: "24.10.2"
+    asn: 65006
+    system0_ipv4: 10.0.0.6/32
+    mgmt_ipv4: "172.21.21.6"
+    labels:
+      eda.nokia.com/role: leaf
+
+# ---------------------------------------------------------------------------
+# Inter-switch links (ISLs)
+# ---------------------------------------------------------------------------
+links:
+  - name: leaf1-spine1
+    local_node: leaf1
+    local_interface: ethernet-1-32
+    remote_node: spine1
+    remote_interface: ethernet-1-1
+
+  - name: leaf1-spine2
+    local_node: leaf1
+    local_interface: ethernet-1-31
+    remote_node: spine2
+    remote_interface: ethernet-1-1
+
+  - name: leaf2-spine1
+    local_node: leaf2
+    local_interface: ethernet-1-32
+    remote_node: spine1
+    remote_interface: ethernet-1-2
+
+  - name: leaf2-spine2
+    local_node: leaf2
+    local_interface: ethernet-1-31
+    remote_node: spine2
+    remote_interface: ethernet-1-2
+
+  - name: leaf3-spine1
+    local_node: leaf3
+    local_interface: ethernet-1-32
+    remote_node: spine1
+    remote_interface: ethernet-1-3
+
+  - name: leaf3-spine2
+    local_node: leaf3
+    local_interface: ethernet-1-31
+    remote_node: spine2
+    remote_interface: ethernet-1-3
+
+  - name: leaf4-spine1
+    local_node: leaf4
+    local_interface: ethernet-1-32
+    remote_node: spine1
+    remote_interface: ethernet-1-4
+
+  - name: leaf4-spine2
+    local_node: leaf4
+    local_interface: ethernet-1-31
+    remote_node: spine2
+    remote_interface: ethernet-1-4
+
+  - name: leaf5-spine1
+    local_node: leaf5
+    local_interface: ethernet-1-32
+    remote_node: spine1
+    remote_interface: ethernet-1-5
+
+  - name: leaf5-spine2
+    local_node: leaf5
+    local_interface: ethernet-1-31
+    remote_node: spine2
+    remote_interface: ethernet-1-5
+
+  - name: leaf6-spine1
+    local_node: leaf6
+    local_interface: ethernet-1-32
+    remote_node: spine1
+    remote_interface: ethernet-1-6
+
+  - name: leaf6-spine2
+    local_node: leaf6
+    local_interface: ethernet-1-31
+    remote_node: spine2
+    remote_interface: ethernet-1-6
+
+# ---------------------------------------------------------------------------
+# Edge interfaces (server-facing ports)
+# ---------------------------------------------------------------------------
+edge_interfaces:
+  - name: leaf1-ethernet-1-1
+    node: leaf1
+    interface: ethernet-1-1
+    encap: dot1q
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/tagged-v10: enabled
+
+  - name: leaf2-ethernet-1-1
+    node: leaf2
+    interface: ethernet-1-1
+    encap: dot1q
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v10: enabled
+
+  - name: leaf3-ethernet-1-1
+    node: leaf3
+    interface: ethernet-1-1
+    encap: dot1q
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v20: enabled
+
+  - name: leaf4-ethernet-1-1
+    node: leaf4
+    interface: ethernet-1-1
+    encap: "null"
+    labels:
+      eda.nokia.com/role: routed
+
+# ---------------------------------------------------------------------------
+# LAG interfaces
+# ---------------------------------------------------------------------------
+lags:
+  - name: leaf5-leaf6-lag1
+    type: lacp
+    mode: all-active
+    min_links: 1
+    lacp:
+      interval: fast
+      system_id_mac: "00:00:00:00:56:01"
+      system_priority: 32768
+      fallback:
+        mode: static
+        timeout: 60
+    members:
+      - { node: leaf5, interface: ethernet-1-1, aggregate_id: "1" }
+      - { node: leaf6, interface: ethernet-1-1, aggregate_id: "1" }
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v30: enabled
+    reload_delay_timer: 100
+
+# ---------------------------------------------------------------------------
+# Configlets (raw SR Linux config patches)
+# ---------------------------------------------------------------------------
+configlets:
+  - name: bgp-evpn-rapid
+    endpoint_selector:
+      - eda.nokia.com/role=leaf
+      - eda.nokia.com/role=spine
+    priority: 100
+    configs:
+      - path: '.network-instance{.name=="default"}.protocols.bgp.afi-safi{.afi-safi-name=="evpn"}.evpn'
+        operation: Update
+        config: '{ "rapid-update": "true" }'
+
+  - name: bgp-rapid-route-withdraw
+    endpoint_selector:
+      - eda.nokia.com/role=leaf
+      - eda.nokia.com/role=spine
+    priority: 100
+    configs:
+      - path: '.network-instance{.name=="default"}.protocols.bgp.route-advertisement'
+        operation: Update
+        config: '{ "rapid-withdrawal": "true" }'
+
+# ---------------------------------------------------------------------------
+# EDA-specific settings
+# ---------------------------------------------------------------------------
+eda:
+  node_profile: "clab-srlinux-24.10.2"
+  namespace: eda

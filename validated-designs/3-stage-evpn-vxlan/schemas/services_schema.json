@@ -1,0 +1,283 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "3-stage-evpn-vxlan/services",
+  "title": "3-Stage EVPN VXLAN Services Input",
+  "description": "Defines overlay services for a 3-stage EVPN VXLAN fabric: bridge domains, routers, IRBs, VLANs, routed interfaces, and static routes.",
+  "type": "object",
+  "required": ["bridge_domains", "routers"],
+  "additionalProperties": false,
+  "properties": {
+    "bridge_domains": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/bridgeDomain" },
+      "description": "MAC-VRF bridge domains."
+    },
+    "routers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/router" },
+      "description": "IP-VRF routers."
+    },
+    "irb_interfaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/irbInterface" },
+      "description": "IRB interfaces binding bridge domains to routers."
+    },
+    "vlans": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/vlan" },
+      "description": "VLAN services attaching bridge domains to interfaces."
+    },
+    "routed_interfaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/routedInterface" },
+      "description": "L3 routed interfaces."
+    },
+    "static_routes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/staticRoute" },
+      "description": "Static route entries."
+    }
+  },
+  "$defs": {
+    "bridgeDomain": {
+      "type": "object",
+      "required": ["name", "vni", "evi"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Bridge domain resource name."
+        },
+        "vni": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777215,
+          "description": "VXLAN Network Identifier."
+        },
+        "evi": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "EVPN Instance identifier."
+        }
+      }
+    },
+    "router": {
+      "type": "object",
+      "required": ["name", "vni", "evi", "node_selector"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Router (IP-VRF) resource name."
+        },
+        "vni": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777215,
+          "description": "VXLAN Network Identifier."
+        },
+        "evi": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "EVPN Instance identifier."
+        },
+        "node_selector": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_./-]+=.+$"
+          },
+          "minItems": 1,
+          "description": "Label selectors to match nodes for this router (e.g. 'eda.nokia.com/role=leaf')."
+        }
+      }
+    },
+    "irbInterface": {
+      "type": "object",
+      "required": ["name", "bridge_domain", "router", "ipv4"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "IRB interface resource name."
+        },
+        "bridge_domain": {
+          "type": "string",
+          "description": "Bridge domain this IRB is bound to (must exist in bridge_domains)."
+        },
+        "router": {
+          "type": "string",
+          "description": "Router (IP-VRF) this IRB is bound to (must exist in routers)."
+        },
+        "ipv4": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$",
+          "description": "IPv4 gateway address with prefix length (e.g. '172.16.10.254/24')."
+        },
+        "proxy_arp": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable proxy ARP on this IRB."
+        },
+        "arp_timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "ARP timeout in seconds."
+        }
+      }
+    },
+    "vlan": {
+      "type": "object",
+      "required": ["name", "bridge_domain", "vlan_id", "interface_selector"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "VLAN service resource name."
+        },
+        "bridge_domain": {
+          "type": "string",
+          "description": "Bridge domain this VLAN belongs to (must exist in bridge_domains)."
+        },
+        "vlan_id": {
+          "type": "string",
+          "pattern": "^(untagged|[0-9]+)$",
+          "description": "VLAN ID ('untagged' or numeric string like '10')."
+        },
+        "interface_selector": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_./-]+=.+$"
+          },
+          "minItems": 1,
+          "description": "Label selectors to match interfaces for this VLAN."
+        }
+      }
+    },
+    "routedInterface": {
+      "type": "object",
+      "required": ["name", "interface", "router", "vlan_id", "ipv4_addresses"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Routed interface resource name."
+        },
+        "interface": {
+          "type": "string",
+          "description": "Interface resource name this routed interface is attached to."
+        },
+        "router": {
+          "type": "string",
+          "description": "Router (IP-VRF) this routed interface belongs to."
+        },
+        "vlan_id": {
+          "type": "string",
+          "description": "VLAN ID for the sub-interface ('null' for untagged)."
+        },
+        "ip_mtu": {
+          "type": "integer",
+          "minimum": 1280,
+          "maximum": 9500,
+          "description": "IP MTU for the routed interface."
+        },
+        "arp_timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "ARP timeout in seconds."
+        },
+        "ipv4_addresses": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["ipPrefix"],
+            "additionalProperties": false,
+            "properties": {
+              "ipPrefix": {
+                "type": "string",
+                "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$",
+                "description": "IPv4 prefix (e.g. '172.16.100.0/31')."
+              },
+              "primary": {
+                "type": "boolean",
+                "description": "Whether this is the primary address."
+              }
+            }
+          },
+          "description": "IPv4 addresses for this routed interface."
+        }
+      }
+    },
+    "staticRoute": {
+      "type": "object",
+      "required": ["name", "router", "nodes", "prefixes", "nexthop_group"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Static route resource name."
+        },
+        "router": {
+          "type": "string",
+          "description": "Router (IP-VRF) this static route belongs to."
+        },
+        "nodes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "Nodes where this static route is applied."
+        },
+        "prefixes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$"
+          },
+          "minItems": 1,
+          "description": "Destination prefixes for this static route."
+        },
+        "nexthop_group": {
+          "type": "object",
+          "required": ["nexthops"],
+          "additionalProperties": false,
+          "properties": {
+            "blackhole": {
+              "type": "boolean",
+              "default": false,
+              "description": "Whether this is a blackhole route."
+            },
+            "resolve": {
+              "type": "boolean",
+              "default": false,
+              "description": "Enable recursive resolution."
+            },
+            "nexthops": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["ipPrefix"],
+                "additionalProperties": false,
+                "properties": {
+                  "ipPrefix": {
+                    "type": "string",
+                    "description": "Next-hop IP address."
+                  },
+                  "resolve": {
+                    "type": "boolean",
+                    "description": "Enable recursive resolution for this next-hop."
+                  }
+                }
+              },
+              "description": "Next-hop entries."
+            }
+          }
+        }
+      }
+    }
+  }
+}

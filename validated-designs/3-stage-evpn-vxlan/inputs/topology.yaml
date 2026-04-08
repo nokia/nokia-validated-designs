@@ -1,0 +1,169 @@
+---
+# yaml-language-server: $schema=../schemas/topology_schema.json
+# 3-Stage EVPN VXLAN — Topology Input
+# This design-specific simple input is expanded by the 3-stage builder
+# into a full FabricIntent.
+
+design: 3-stage-evpn-vxlan
+fabric_name: dc1
+environment: containerlab
+
+underlay:
+  spine_asn: 65500
+  leaf_asn_start: 65411
+  system0_prefix: 192.0.2.0/24
+  # Leafs get IPs from .11 upward
+  # Spines get IPs from .101 upward
+
+spines:
+  count: 2
+  platform: "7220 IXR-D3L"
+  version: "24.10.2"
+  mgmt_base_ipv4: "172.21.21.101"
+  labels:
+    eda.nokia.com/role: spine
+  breakouts: []
+
+leafs:
+  count: 6
+  platform: "7220 IXR-D3L"
+  version: "24.10.2"
+  mgmt_base_ipv4: "172.21.21.11"
+  labels:
+    eda.nokia.com/role: leaf
+
+# Edge interfaces (server-facing ports)
+edge_interfaces:
+  # leaf1 - server s1 (tagged vlan 10)
+  - name: leaf1-ethernet-1-3
+    node: leaf1
+    interface: ethernet-1-3
+    encap: dot1q
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/tagged-v10: enabled
+
+  # leaf1 - server s5 (routed, no VLAN)
+  - name: leaf1-ethernet-1-4
+    node: leaf1
+    interface: ethernet-1-4
+    encap: "null"
+    labels:
+      eda.nokia.com/role: routed-s5
+
+  # leaf1 - server s7 (untagged vlan 40)
+  - name: leaf1-ethernet-1-5
+    node: leaf1
+    interface: ethernet-1-5
+    encap: dot1q
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v40: enabled
+
+  # leaf2 - server s2 (untagged vlan 10)
+  - name: leaf2-ethernet-1-3
+    node: leaf2
+    interface: ethernet-1-3
+    encap: dot1q
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v10: enabled
+
+  # leaf3 - server s2 (untagged vlan 10)
+  - name: leaf3-ethernet-1-3
+    node: leaf3
+    interface: ethernet-1-3
+    encap: dot1q
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v10: enabled
+
+  # leaf4 - server s3 (untagged vlan 20)
+  - name: leaf4-ethernet-1-3
+    node: leaf4
+    interface: ethernet-1-3
+    encap: dot1q
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v20: enabled
+
+  # leaf6 - server s9 (untagged vlan 60)
+  - name: leaf6-ethernet-1-6
+    node: leaf6
+    interface: ethernet-1-6
+    encap: dot1q
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v60: enabled
+
+# LAG interfaces
+lags:
+  # LAG1: leaf4+leaf5 → server s4 (all-active, untagged vlan 30)
+  - name: leaf4-leaf5-lag1
+    type: lacp
+    mode: all-active
+    min_links: 1
+    lacp:
+      interval: fast
+      system_id_mac: "00:00:00:00:44:55"
+      system_priority: 32768
+      fallback:
+        mode: static
+        timeout: 60
+    members:
+      - {node: leaf4, interface: ethernet-1-4, aggregate_id: "1"}
+      - {node: leaf5, interface: ethernet-1-4, aggregate_id: "1"}
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v30: enabled
+    reload_delay_timer: 100
+
+  # LAG2: leaf2+leaf3+leaf4+leaf5 → server s8 (all-active, untagged vlan 50)
+  - name: leaf2-leaf3-leaf4-leaf5-lag2
+    type: lacp
+    mode: all-active
+    min_links: 1
+    lacp:
+      interval: fast
+      system_id_mac: "00:00:22:33:44:55"
+      system_priority: 32768
+      fallback:
+        mode: static
+        timeout: 60
+    members:
+      - {node: leaf2, interface: ethernet-1-6, aggregate_id: "2"}
+      - {node: leaf3, interface: ethernet-1-6, aggregate_id: "2"}
+      - {node: leaf4, interface: ethernet-1-6, aggregate_id: "2"}
+      - {node: leaf5, interface: ethernet-1-6, aggregate_id: "2"}
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v50: enabled
+    reload_delay_timer: 100
+
+  # LAG3: leaf5+leaf6 → server s6 (port-active/single-active, untagged vlan 30)
+  - name: leaf5-leaf6-lag3
+    type: lacp
+    mode: port-active
+    min_links: 1
+    revertive: true
+    preferred_active_node: leaf5
+    standby_signaling: lacp
+    lacp:
+      interval: fast
+      system_id_mac: "00:00:00:00:55:66"
+      system_priority: 32768
+      fallback:
+        mode: static
+        timeout: 60
+    members:
+      - {node: leaf5, interface: ethernet-1-5, aggregate_id: "3"}
+      - {node: leaf6, interface: ethernet-1-5, aggregate_id: "3"}
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v30: enabled
+    reload_delay_timer: 100
+
+# EDA-specific settings
+eda:
+  node_profile: "clab-srlinux-24.10.2"
+  namespace: eda

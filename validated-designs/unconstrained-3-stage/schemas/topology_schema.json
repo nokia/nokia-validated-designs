@@ -1,0 +1,327 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "unconstrained-3-stage/topology",
+  "title": "Unconstrained 3-Stage Fabric — Topology Schema",
+  "description": "Full-coverage topology schema for a 3-stage Clos fabric. Every EDA API resource field is directly configurable.",
+  "type": "object",
+  "required": ["design", "fabric_name", "underlay", "nodes", "links"],
+  "additionalProperties": false,
+  "properties": {
+    "design": {
+      "type": "string",
+      "const": "unconstrained-3-stage",
+      "description": "Design identifier."
+    },
+    "fabric_name": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Fabric resource name."
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["containerlab", "physical"],
+      "default": "containerlab"
+    },
+    "underlay": {
+      "type": "object",
+      "required": ["spine_asn", "leaf_asn_start", "system0_prefix"],
+      "additionalProperties": false,
+      "properties": {
+        "spine_asn": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295,
+          "description": "BGP AS number for spines."
+        },
+        "spine_asn_pool_size": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 10,
+          "description": "Spine ASN allocation pool size."
+        },
+        "leaf_asn_start": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295,
+          "description": "Starting BGP AS number for leafs."
+        },
+        "leaf_asn_pool_size": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 20,
+          "description": "Leaf ASN allocation pool size."
+        },
+        "system0_prefix": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$",
+          "description": "IPv4 prefix for system0 loopback allocation."
+        }
+      }
+    },
+    "fabric": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "underlay_protocol": {
+          "type": "string",
+          "enum": ["EBGP"],
+          "default": "EBGP"
+        },
+        "overlay_protocol": {
+          "type": "string",
+          "enum": ["EBGP"],
+          "default": "EBGP"
+        },
+        "isl_unnumbered": {
+          "type": "string",
+          "enum": ["IPV6", "IPV4"],
+          "default": "IPV6"
+        },
+        "bfd": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean", "default": true },
+            "desired_min_transmit_int": { "type": "integer", "minimum": 0 },
+            "required_min_receive": { "type": "integer", "minimum": 0 },
+            "detection_multiplier": { "type": "integer", "minimum": 1 },
+            "min_echo_receive_interval": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/node" },
+      "description": "Individual node definitions."
+    },
+    "links": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/link" },
+      "description": "Inter-switch links."
+    },
+    "edge_interfaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/edgeInterface" },
+      "description": "Server-facing edge interfaces."
+    },
+    "lags": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/lag" },
+      "description": "LAG interfaces."
+    },
+    "configlets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/configlet" },
+      "description": "Raw SR Linux configlet patches."
+    },
+    "eda": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "node_profile": { "type": "string" },
+        "namespace": { "type": "string", "default": "eda" }
+      }
+    }
+  },
+  "$defs": {
+    "labels": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z0-9_./-]+$": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "node": {
+      "type": "object",
+      "required": ["name", "role", "platform", "version", "asn", "system0_ipv4", "mgmt_ipv4"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "description": "Node name (must be unique)."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["leaf", "spine"],
+          "description": "Node role."
+        },
+        "platform": {
+          "type": "string",
+          "description": "Nokia SR Linux platform model."
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "SR Linux software version."
+        },
+        "asn": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295,
+          "description": "BGP AS number for this node."
+        },
+        "system0_ipv4": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$",
+          "description": "System0 loopback IPv4 address with prefix."
+        },
+        "mgmt_ipv4": {
+          "type": "string",
+          "format": "ipv4",
+          "description": "Management IPv4 address."
+        },
+        "labels": { "$ref": "#/$defs/labels" },
+        "uplink_interfaces": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Uplink interface names (informational)."
+        }
+      }
+    },
+    "link": {
+      "type": "object",
+      "required": ["name", "local_node", "local_interface", "remote_node", "remote_interface"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "description": "Link resource name." },
+        "local_node": { "type": "string" },
+        "local_interface": {
+          "type": "string",
+          "pattern": "^ethernet-[0-9]+-[0-9]+(-[0-9]+)?$",
+          "description": "Local interface (supports breakout syntax)."
+        },
+        "remote_node": { "type": "string" },
+        "remote_interface": {
+          "type": "string",
+          "pattern": "^ethernet-[0-9]+-[0-9]+(-[0-9]+)?$",
+          "description": "Remote interface (supports breakout syntax)."
+        }
+      }
+    },
+    "edgeInterface": {
+      "type": "object",
+      "required": ["name", "node", "interface", "encap"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "node": { "type": "string" },
+        "interface": {
+          "type": "string",
+          "pattern": "^ethernet-[0-9]+-[0-9]+$"
+        },
+        "encap": {
+          "type": "string",
+          "enum": ["dot1q", "null"]
+        },
+        "labels": { "$ref": "#/$defs/labels" }
+      }
+    },
+    "lag": {
+      "type": "object",
+      "required": ["name", "type", "mode", "min_links", "lacp", "members"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["lacp"] },
+        "mode": { "type": "string", "enum": ["all-active", "port-active"] },
+        "min_links": { "type": "integer", "minimum": 1 },
+        "revertive": { "type": "boolean" },
+        "preferred_active_node": { "type": "string" },
+        "standby_signaling": { "type": "string", "enum": ["lacp"] },
+        "lacp": {
+          "type": "object",
+          "required": ["interval", "system_id_mac", "system_priority"],
+          "additionalProperties": false,
+          "properties": {
+            "interval": { "type": "string", "enum": ["fast", "slow"] },
+            "system_id_mac": {
+              "type": "string",
+              "pattern": "^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$"
+            },
+            "system_priority": { "type": "integer", "minimum": 0, "maximum": 65535 },
+            "fallback": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "mode": { "type": "string", "enum": ["static"] },
+                "timeout": { "type": "integer", "minimum": 1 }
+              }
+            }
+          }
+        },
+        "members": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["node", "interface", "aggregate_id"],
+            "additionalProperties": false,
+            "properties": {
+              "node": { "type": "string" },
+              "interface": { "type": "string" },
+              "aggregate_id": { "type": "string" }
+            }
+          }
+        },
+        "labels": { "$ref": "#/$defs/labels" },
+        "reload_delay_timer": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "configlet": {
+      "type": "object",
+      "required": ["name", "configs"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Configlet resource name."
+        },
+        "endpoint_selector": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Label selectors to match target nodes."
+        },
+        "endpoints": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Explicit list of target node names."
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000,
+          "default": 100,
+          "description": "Configlet priority (higher = applied later)."
+        },
+        "configs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["path", "operation", "config"],
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "JSON path in the SR Linux YANG model."
+              },
+              "operation": {
+                "type": "string",
+                "enum": ["Create", "Update", "Delete"],
+                "description": "Config operation type."
+              },
+              "config": {
+                "type": "string",
+                "description": "JSON config payload as a string."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

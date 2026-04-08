@@ -1,0 +1,330 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "unconstrained-3-stage/services",
+  "title": "Unconstrained 3-Stage Fabric — Services Schema",
+  "description": "Full-coverage services schema. Every EDA service resource field is directly configurable.",
+  "type": "object",
+  "required": ["bridge_domains", "routers"],
+  "additionalProperties": false,
+  "properties": {
+    "bridge_domains": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/bridgeDomain" }
+    },
+    "routers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/router" }
+    },
+    "irb_interfaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/irbInterface" }
+    },
+    "vlans": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/vlan" }
+    },
+    "routed_interfaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/routedInterface" }
+    },
+    "static_routes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/staticRoute" }
+    }
+  },
+  "$defs": {
+    "bridgeDomain": {
+      "type": "object",
+      "required": ["name", "vni", "evi"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "vni": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777215,
+          "description": "VXLAN Network Identifier."
+        },
+        "evi": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "EVPN Instance identifier."
+        },
+        "mac_learning": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable MAC learning."
+        },
+        "mac_aging": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 300,
+          "description": "MAC aging timeout in seconds (0 = disabled)."
+        },
+        "mac_duplication": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean", "default": true },
+            "hold_down_time": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Hold-down time in minutes."
+            },
+            "monitoring_window": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Monitoring window in minutes."
+            },
+            "action": {
+              "type": "string",
+              "enum": ["StopLearning", "Blackhole", "UseNetInstanceAction"],
+              "description": "Action on duplicate detection."
+            },
+            "num_moves": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Number of moves before triggering action."
+            }
+          }
+        }
+      }
+    },
+    "router": {
+      "type": "object",
+      "required": ["name", "vni", "evi", "node_selector"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "vni": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777215
+        },
+        "evi": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "node_selector": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_./-]+=.+$"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "irbInterface": {
+      "type": "object",
+      "required": ["name", "bridge_domain", "router", "ip_addresses"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "IRB interface resource name."
+        },
+        "bridge_domain": {
+          "type": "string",
+          "description": "Bridge domain this IRB is bound to."
+        },
+        "router": {
+          "type": "string",
+          "description": "Router (IP-VRF) this IRB is bound to."
+        },
+        "ip_addresses": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "anyOf": [
+              { "required": ["ipv4"] },
+              { "required": ["ipv6"] }
+            ],
+            "properties": {
+              "ipv4": {
+                "type": "object",
+                "required": ["ip_prefix"],
+                "additionalProperties": false,
+                "properties": {
+                  "ip_prefix": {
+                    "type": "string",
+                    "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$",
+                    "description": "IPv4 address with prefix length."
+                  },
+                  "primary": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Whether this is the primary IPv4 address."
+                  }
+                }
+              },
+              "ipv6": {
+                "type": "object",
+                "required": ["ip_prefix"],
+                "additionalProperties": false,
+                "properties": {
+                  "ip_prefix": {
+                    "type": "string",
+                    "description": "IPv6 address with prefix length (e.g. '2001:db8::1/64')."
+                  },
+                  "primary": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Whether this is the primary IPv6 address."
+                  }
+                }
+              }
+            }
+          },
+          "description": "IP addresses — supports dual-stack with independent IPv4 and IPv6 entries."
+        },
+        "ip_mtu": {
+          "type": "integer",
+          "minimum": 1280,
+          "maximum": 9500,
+          "default": 1500,
+          "description": "IP MTU for the IRB interface."
+        },
+        "arp_timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 280,
+          "description": "ARP timeout in seconds."
+        },
+        "learn_unsolicited": {
+          "type": "string",
+          "enum": ["NONE", "GLOBAL"],
+          "default": "NONE",
+          "description": "Unsolicited ARP/ND learning mode."
+        },
+        "proxy_arp": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable L3 proxy ARP."
+        },
+        "proxy_nd": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable L3 proxy Neighbor Discovery (IPv6)."
+        },
+        "evpn_route_advertisement_type": {
+          "type": "string",
+          "enum": ["type5Only", "type2Only", "type2WithType5"],
+          "description": "EVPN route advertisement type. type5Only = IP prefix routes only, type2Only = MAC/IP routes only, type2WithType5 = both."
+        },
+        "host_route_populate": {
+          "type": "boolean",
+          "default": false,
+          "description": "Populate host routes from ARP/ND entries into the IP-VRF routing table."
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description for the IRB interface."
+        }
+      }
+    },
+    "vlan": {
+      "type": "object",
+      "required": ["name", "bridge_domain", "vlan_id", "interface_selector"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "bridge_domain": { "type": "string" },
+        "vlan_id": {
+          "type": "string",
+          "pattern": "^(untagged|[0-9]+)$"
+        },
+        "interface_selector": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_./-]+=.+$"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "routedInterface": {
+      "type": "object",
+      "required": ["name", "interface", "router", "vlan_id", "ipv4_addresses"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "interface": { "type": "string" },
+        "router": { "type": "string" },
+        "vlan_id": { "type": "string" },
+        "ip_mtu": {
+          "type": "integer",
+          "minimum": 1280,
+          "maximum": 9500,
+          "default": 1500
+        },
+        "arp_timeout": { "type": "integer", "minimum": 1 },
+        "ipv4_addresses": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["ipPrefix"],
+            "additionalProperties": false,
+            "properties": {
+              "ipPrefix": {
+                "type": "string",
+                "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$"
+              },
+              "primary": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "staticRoute": {
+      "type": "object",
+      "required": ["name", "router", "nodes", "prefixes", "nexthop_group"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "router": { "type": "string" },
+        "nodes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "prefixes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$"
+          },
+          "minItems": 1
+        },
+        "nexthop_group": {
+          "type": "object",
+          "required": ["nexthops"],
+          "additionalProperties": false,
+          "properties": {
+            "blackhole": { "type": "boolean", "default": false },
+            "resolve": { "type": "boolean", "default": false },
+            "nexthops": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["ipPrefix"],
+                "additionalProperties": false,
+                "properties": {
+                  "ipPrefix": { "type": "string" },
+                  "resolve": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
