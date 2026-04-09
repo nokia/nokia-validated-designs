@@ -23,6 +23,7 @@ from pydantic import BaseModel
 from automation.core.models import (
     BridgeDomainIntent,
     BreakoutIntent,
+    ConfigletIntent,
     EdgeInterfaceIntent,
     FabricIntent,
     IrbInterfaceIntent,
@@ -200,8 +201,9 @@ def generate(intent: FabricIntent, output_dir: Path | None = None) -> list[dict]
     for sr in intent.static_routes:
         resources.append(_cr_static_route(sr, ns))
 
-    # 19. Configlets (BGP rapid, node isolation, ESI DF timers)
-    resources.extend(_cr_configlets(intent, ns))
+    # 19. Configlets
+    for cfglet in intent.configlets:
+        resources.append(_cr_configlet(cfglet, ns))
 
     # De-duplicate ISL interfaces (each endpoint appears once)
     resources = _deduplicate(resources)
@@ -643,105 +645,23 @@ def _cr_static_route(sr: StaticRouteIntent, ns: str) -> dict:
     return _wrap_cr("protocols.eda.nokia.com/v1", "StaticRoute", sr.name, ns, spec)
 
 
-# ---------------------------------------------------------------------------
-# Configlets — still using raw dicts (complex SR Linux JSON config blobs)
-# ---------------------------------------------------------------------------
-
-
-def _cr_configlets(intent: FabricIntent, ns: str) -> list[dict]:
-    """
-    Generate configlets for design-specific node configuration.
-
-    - BGP EVPN rapid update + rapid withdrawal (all nodes)
-    - Node isolation (leafs with LAG members)
-    - ESI DF election activation timer (LAG pairs)
-    """
-    configlets: list[dict] = []
-
-    # BGP rapid update (all nodes)
+def _cr_configlet(cfglet: ConfigletIntent, ns: str) -> dict:
+    """Generate a Configlet CR from a ConfigletIntent."""
     spec = ConfigletSpec(
-        endpoint_selector=["eda.nokia.com/role=leaf", "eda.nokia.com/role=spine"],
-        operating_system="srl",
-        priority=100,
-        configs=[ConfigletConfigurations(
-            path='.network-instance{.name=="default"}.protocols.bgp.afi-safi{.afi-safi-name=="evpn"}.evpn',
-            operation="Update",
-            config='{\n  "rapid-update": "true"\n}',
-        )],
+        endpoint_selector=cfglet.endpoint_selector or None,
+        endpoints=cfglet.endpoints or None,
+        operating_system=cfglet.operating_system,
+        priority=cfglet.priority,
+        configs=[
+            ConfigletConfigurations(
+                path=c.path,
+                operation=c.operation,
+                config=c.config,
+            )
+            for c in cfglet.configs
+        ],
     )
-    configlets.append(_wrap_cr("config.eda.nokia.com/v1alpha1", "Configlet", "bgp-evpn-rapid", ns, spec))
-
-    # BGP rapid withdrawal (all nodes)
-    spec = ConfigletSpec(
-        endpoint_selector=["eda.nokia.com/role=leaf", "eda.nokia.com/role=spine"],
-        operating_system="srl",
-        priority=100,
-        configs=[ConfigletConfigurations(
-            path='.network-instance{.name=="default"}.protocols.bgp.route-advertisement',
-            operation="Update",
-            config='{\n  "rapid-withdrawal": "true"\n}',
-        )],
-    )
-    configlets.append(_wrap_cr("config.eda.nokia.com/v1alpha1", "Configlet", "bgp-rapid-route-withdraw", ns, spec))
-
-    # Node isolation configlets — for each leaf that has LAG members
-    leaf_lag_interfaces: dict[str, list[str]] = {}
-    for lag in intent.lags:
-        for member in lag.members:
-            leaf_lag_interfaces.setdefault(member.node, []).append(member.interface)
-
-    for node_name, down_links in leaf_lag_interfaces.items():
-        config_json = json.dumps(
-            {
-                "event-handler": {
-                    "instance": [
-                        {
-                            "name": "overlay-bgp",
-                            "admin-state": "enable",
-                            "upython-script": "node-isolation.py",
-                            "paths": [
-                                "network-instance default protocols bgp neighbor * session-state"
-                            ],
-                            "options": {
-                                "object": [
-                                    {"name": "down-links", "values": sorted(set(down_links))},
-                                    {"name": "hold-down-time", "value": "20000"},
-                                    {"name": "required-bgp-sessions-established", "value": "1"},
-                                ]
-                            },
-                        }
-                    ]
-                }
-            },
-            indent=4,
-        )
-        spec = ConfigletSpec(
-            endpoints=[node_name],
-            operating_system="srl",
-            priority=50,
-            configs=[ConfigletConfigurations(path=".system", operation="Create", config=config_json)],
-        )
-        configlets.append(_wrap_cr(
-            "config.eda.nokia.com/v1alpha1", "Configlet",
-            f"node-isolation-{node_name}-lag", ns, spec,
-        ))
-
-    # ESI DF election activation timer configlets — one per LAG
-    for lag in intent.lags:
-        endpoints = sorted(set(m.node for m in lag.members))
-        spec = ConfigletSpec(
-            endpoints=endpoints,
-            operating_system="srl",
-            priority=100,
-            configs=[ConfigletConfigurations(
-                path=f'.system.network-instance.protocols.evpn.ethernet-segments.bgp-instance{{.id==1}}.ethernet-segment{{.name=="{lag.name}"}}.df-election.timers',
-                operation="Update",
-                config='{\n  "activation-timer": 0\n}',
-            )],
-        )
-        configlets.append(_wrap_cr("config.eda.nokia.com/v1alpha1", "Configlet", lag.name, ns, spec))
-
-    return configlets
+    return _wrap_cr("config.eda.nokia.com/v1alpha1", "Configlet", cfglet.name, ns, spec)
 
 
 # ---------------------------------------------------------------------------

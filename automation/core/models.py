@@ -202,6 +202,27 @@ class StaticRouteIntent(BaseModel):
     nexthop_group: dict = Field(default_factory=dict)
 
 
+class ConfigletConfigEntry(BaseModel):
+    """A single configuration entry within a configlet."""
+
+    path: str  # jspath notation, e.g. '.system.information'
+    operation: str = "Update"  # "Create" | "Update" | "Delete"
+    config: str  # JSON-formatted string
+
+
+class ConfigletIntent(BaseModel):
+    """A configlet applying raw device configuration to one or more nodes."""
+
+    name: str  # EDA resource name, e.g. "bgp-evpn-rapid"
+    configs: list[ConfigletConfigEntry] = Field(default_factory=list)
+    # Target by label selector (e.g. ["eda.nokia.com/role=leaf"])
+    endpoint_selector: list[str] = Field(default_factory=list)
+    # Target by explicit node names (e.g. ["leaf4", "leaf5"])
+    endpoints: list[str] = Field(default_factory=list)
+    operating_system: str = "srl"
+    priority: int = 0
+
+
 # ---------------------------------------------------------------------------
 # EDA-specific settings
 # ---------------------------------------------------------------------------
@@ -254,6 +275,7 @@ class FabricIntent(BaseModel):
     vlans: list[VlanIntent] = Field(default_factory=list)
     routed_interfaces: list[RoutedInterfaceIntent] = Field(default_factory=list)
     static_routes: list[StaticRouteIntent] = Field(default_factory=list)
+    configlets: list[ConfigletIntent] = Field(default_factory=list)
 
     # EDA settings
     eda: EdaSettings = Field(default_factory=EdaSettings)

@@ -19,6 +19,8 @@ import logging
 from automation.core.models import (
     BridgeDomainIntent,
     BreakoutIntent,
+    ConfigletConfigEntry,
+    ConfigletIntent,
     EdgeInterfaceIntent,
     EdaSettings,
     FabricIntent,
@@ -118,6 +120,11 @@ def build(topology: dict, services: dict) -> FabricIntent:
     static_routes = _build_static_routes(services.get("static_routes", []))
 
     # -----------------------------------------------------------------------
+    # Configlets (design-specific device configuration)
+    # -----------------------------------------------------------------------
+    configlets = _build_configlets(lags)
+
+    # -----------------------------------------------------------------------
     # EDA settings
     # -----------------------------------------------------------------------
     eda_cfg = topology.get("eda", {})
@@ -144,6 +151,7 @@ def build(topology: dict, services: dict) -> FabricIntent:
         vlans=vlans,
         routed_interfaces=routed_interfaces,
         static_routes=static_routes,
+        configlets=configlets,
         eda=eda_settings,
     )
 
@@ -490,6 +498,121 @@ def _build_static_routes(raw: list[dict]) -> list[StaticRouteIntent]:
         for sr in raw
     ]
 
+
+# ---------------------------------------------------------------------------
+# Configlets (design-specific device configuration)
+# ---------------------------------------------------------------------------
+
+
+def _build_configlets(lags: list[LagIntent]) -> list[ConfigletIntent]:
+    """
+    Build design-specific configlets for the 3-stage EVPN-VXLAN design.
+
+    - BGP EVPN rapid update + rapid withdrawal (all nodes)
+    - Node isolation event-handler (leafs with LAG members)
+    - ESI DF election activation timer (per LAG)
+    """
+    import json
+
+    configlets: list[ConfigletIntent] = []
+
+    # BGP rapid update (all nodes)
+    configlets.append(
+        ConfigletIntent(
+            name="bgp-evpn-rapid",
+            endpoint_selector=["eda.nokia.com/role=leaf", "eda.nokia.com/role=spine"],
+            operating_system="srl",
+            priority=100,
+            configs=[
+                ConfigletConfigEntry(
+                    path='.network-instance{.name=="default"}.protocols.bgp.afi-safi{.afi-safi-name=="evpn"}.evpn',
+                    operation="Update",
+                    config='{\n  "rapid-update": "true"\n}',
+                )
+            ],
+        )
+    )
+
+    # BGP rapid withdrawal (all nodes)
+    configlets.append(
+        ConfigletIntent(
+            name="bgp-rapid-route-withdraw",
+            endpoint_selector=["eda.nokia.com/role=leaf", "eda.nokia.com/role=spine"],
+            operating_system="srl",
+            priority=100,
+            configs=[
+                ConfigletConfigEntry(
+                    path='.network-instance{.name=="default"}.protocols.bgp.route-advertisement',
+                    operation="Update",
+                    config='{\n  "rapid-withdrawal": "true"\n}',
+                )
+            ],
+        )
+    )
+
+    # Node isolation configlets — for each leaf that has LAG members
+    leaf_lag_interfaces: dict[str, list[str]] = {}
+    for lag in lags:
+        for member in lag.members:
+            leaf_lag_interfaces.setdefault(member.node, []).append(member.interface)
+
+    for node_name, down_links in leaf_lag_interfaces.items():
+        config_json = json.dumps(
+            {
+                "event-handler": {
+                    "instance": [
+                        {
+                            "name": "overlay-bgp",
+                            "admin-state": "enable",
+                            "upython-script": "node-isolation.py",
+                            "paths": [
+                                "network-instance default protocols bgp neighbor * session-state"
+                            ],
+                            "options": {
+                                "object": [
+                                    {"name": "down-links", "values": sorted(set(down_links))},
+                                    {"name": "hold-down-time", "value": "20000"},
+                                    {"name": "required-bgp-sessions-established", "value": "1"},
+                                ]
+                            },
+                        }
+                    ]
+                }
+            },
+            indent=4,
+        )
+        configlets.append(
+            ConfigletIntent(
+                name=f"node-isolation-{node_name}-lag",
+                endpoints=[node_name],
+                operating_system="srl",
+                priority=50,
+                configs=[
+                    ConfigletConfigEntry(path=".system", operation="Create", config=config_json)
+                ],
+            )
+        )
+
+    # ESI DF election activation timer configlets — one per LAG
+    for lag in lags:
+        endpoints = sorted(set(m.node for m in lag.members))
+        configlets.append(
+            ConfigletIntent(
+                name=lag.name,
+                endpoints=endpoints,
+                operating_system="srl",
+                priority=100,
+                configs=[
+                    ConfigletConfigEntry(
+                        path=f'.system.network-instance.protocols.evpn.ethernet-segments.bgp-instance{{.id==1}}.ethernet-segment{{.name=="{lag.name}"}}.df-election.timers',
+                        operation="Update",
+                        config='{\n  "activation-timer": 0\n}',
+                    )
+                ],
+            )
+        )
+
+    return configlets
 
 # ---------------------------------------------------------------------------
 # Utilities
