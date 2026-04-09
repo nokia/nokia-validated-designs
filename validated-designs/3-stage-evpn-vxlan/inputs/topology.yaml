@@ -25,7 +25,7 @@ spines:
   breakouts: []
 
 leafs:
-  count: 6
+  count: 8
   platform: "7220 IXR-D3L"
   version: "24.10.2"
   mgmt_base_ipv4: "172.21.21.11"

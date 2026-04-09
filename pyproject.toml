@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nokia-validated-designs"
+version = "0.1.0"
+description = "Nokia Validated Designs automation engine"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0,<3.0",
+    "pyyaml>=6.0",
+    "jsonschema>=4.0",
+    "requests>=2.31",
+    "urllib3>=2.0",
+]
+
+[project.scripts]
+nvd = "automation.deploy:main"
+
+[tool.setuptools.packages.find]
+include = ["automation*"]

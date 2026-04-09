@@ -6,6 +6,9 @@ Usage:
     --design validated-designs/3-stage-evpn-vxlan \\
     --mode eda \\
     [--generate-only]
+    [--generate-clab]
+    [--phase {topology,fabric,services}]
+    [--destroy]
     [--dry-run]
     [--prune]
     [--yes]
@@ -47,6 +50,22 @@ def main() -> int:
         "--generate-only",
         action="store_true",
         help="Generate output files without deploying",
+    )
+    parser.add_argument(
+        "--generate-clab",
+        action="store_true",
+        help="Generate containerlab topology file with Linux clients",
+    )
+    parser.add_argument(
+        "--phase",
+        choices=["topology", "fabric", "services"],
+        action="append",
+        help="Run only a specific deployment phase (repeatable, e.g. --phase topology --phase fabric)",
+    )
+    parser.add_argument(
+        "--destroy",
+        action="store_true",
+        help="Remove all managed resources in reverse dependency order",
     )
     parser.add_argument(
         "--dry-run",
@@ -125,7 +144,58 @@ def main() -> int:
     # ---------------------------------------------------------------
     build_dir = design_dir / "build"
 
+    # ---------------------------------------------------------------
+    # Optional: Generate containerlab topology
+    # ---------------------------------------------------------------
+    if args.generate_clab:
+        from automation.generators.clab_generator import generate as clab_generate
+
+        logging.info("Generating containerlab topology...")
+        clab_path = clab_generate(intent, output_dir=build_dir)
+        print(f"\n✅ Generated containerlab topology: {clab_path}")
+        print(f"   Client configs: {build_dir}/client-configs/")
+        if not args.generate_only and args.mode != "eda":
+            return 0
+
     if args.mode == "eda":
+        # -----------------------------------------------------------
+        # Destroy mode — no intent/generation needed
+        # -----------------------------------------------------------
+        if args.destroy:
+            from automation.executors.eda import EdaClient
+
+            try:
+                client = EdaClient(
+                    url=args.eda_url,
+                    username=args.eda_user,
+                    password=args.eda_password,
+                )
+            except ValueError as e:
+                logging.error(str(e))
+                return 1
+
+            logging.info("Destroying managed resources at %s...", client.url)
+            result = client.destroy(
+                phases=args.phase,
+                dry_run=args.dry_run,
+                auto_confirm=args.yes,
+            )
+
+            if result.success:
+                label = "Dry-run" if args.dry_run else "Destroy"
+                print(f"\n✅ {label} successful: {result.message}")
+                if result.transaction_id:
+                    print(f"   Transaction ID: {result.transaction_id}")
+                _print_transaction_details(result.details)
+                return 0
+            else:
+                print(f"\n❌ Destroy failed: {result.message}")
+                _print_transaction_details(result.details)
+                return 1
+
+        # -----------------------------------------------------------
+        # Normal deploy flow — generate + apply
+        # -----------------------------------------------------------
         logging.info("Generating EDA CRs...")
         resources = eda_generate(intent, output_dir=build_dir)
         logging.info("Generated %d EDA CRs → %s", len(resources), build_dir)
@@ -136,7 +206,7 @@ def main() -> int:
             return 0
 
         # -----------------------------------------------------------
-        # Phase 4: Deploy to EDA
+        # Deploy to EDA
         # -----------------------------------------------------------
         from automation.executors.eda import EdaClient
 
@@ -150,9 +220,11 @@ def main() -> int:
             logging.error(str(e))
             return 1
 
-        logging.info("Deploying to EDA at %s...", client.url)
+        phases_label = f" (phases: {', '.join(args.phase)})" if args.phase else ""
+        logging.info("Deploying to EDA at %s%s...", client.url, phases_label)
         result = client.apply(
             resources=resources,
+            phases=args.phase,
             prune=args.prune,
             dry_run=args.dry_run,
             auto_confirm=args.yes,

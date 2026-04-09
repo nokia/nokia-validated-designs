@@ -80,6 +80,7 @@ from automation.eda_models.core import (
 from automation.eda_models.interfaces import (
     InterfaceSpec,
     InterfaceMembers,
+    InterfaceFallback,
     InterfaceLag,
     InterfaceLacp,
     InterfaceMultiHoming,
@@ -298,6 +299,7 @@ def _cr_node_profile(ns: str, profile_name: str, version: str) -> dict:
                 image_md5=f"srlimages/srlinux-{version}-md5/srlinux.md5",
             )
         ],
+        llm_db=f"https://eda-asvr.eda-system.svc/eda-system/llm-dbs/llm-db-srlinux-ghcr-{version}/llm-embeddings-srl-{version.replace('.', '-')}.tar.gz",
         node_user="admin",
         onboarding_username="admin",
         onboarding_password="NokiaSrl1!",
@@ -306,8 +308,8 @@ def _cr_node_profile(ns: str, profile_name: str, version: str) -> dict:
         version=version,
         version_match=f"v{ver_escaped}.*",
         version_path=".system.information.version",
-        yang=f"https://eda-asvr.eda-system/eda-system/schemaprofiles/srlinux-ghcr-{version}/srlinux-{version}.zip",
-        annotate=False,
+        yang=f"https://eda-asvr.eda-system.svc/eda-system/schemaprofiles/srlinux-ghcr-{version}/srlinux-{version}.zip",
+        annotate=True,
     )
     return _wrap_cr("core.eda.nokia.com/v1", "NodeProfile", profile_name, ns, spec)
 
@@ -399,10 +401,10 @@ def _cr_interface_lag(lag: LagIntent, ns: str) -> dict:
         system_id_mac=lag.lacp.system_id_mac,
     )
     if lag.lacp.fallback:
-        lacp.lacp_fallback = {
-            "mode": lag.lacp.fallback.get("mode", "static"),
-            "timeout": lag.lacp.fallback.get("timeout", 60),
-        }
+        lacp.lacp_fallback = InterfaceFallback(
+            mode=lag.lacp.fallback.get("mode", "static"),
+            timeout=lag.lacp.fallback.get("timeout", 60),
+        )
 
     lag_config = InterfaceLag(
         type="lacp",

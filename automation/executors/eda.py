@@ -35,6 +35,75 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Deployment phases
+# ---------------------------------------------------------------------------
+
+PHASE_TOPOLOGY = "topology"
+PHASE_FABRIC = "fabric"
+PHASE_SERVICES = "services"
+ALL_PHASES = [PHASE_TOPOLOGY, PHASE_FABRIC, PHASE_SERVICES]
+
+# CR kind → phase mapping (for deploy)
+# Note: Interface CRs are split by role label in _split_by_phase(),
+# not by this mapping. ISL Interface CRs (role=interSwitch) go to
+# topology phase; all others go to services.
+PHASE_KINDS: dict[str, set[str]] = {
+    PHASE_TOPOLOGY: {
+        "Init", "NodeUser", "NodeProfile",
+        "IndexAllocationPool", "IPAllocationPool",
+        "TopoNode", "TopoLink",
+    },
+    PHASE_FABRIC: {"Fabric"},
+    PHASE_SERVICES: {
+        "BridgeDomain", "Router", "IRBInterface",
+        "VLAN", "RoutedInterface", "StaticRoute", "Configlet",
+    },
+}
+
+# CR kind → phase mapping (for destroy)
+# Interface is grouped with topology because EDA ISLs (auto-created from
+# TopoLinks) reference Interface CRs — you can't delete Interfaces while
+# TopoLinks still exist.
+DESTROY_PHASE_KINDS: dict[str, set[str]] = {
+    PHASE_SERVICES: {
+        "BridgeDomain", "Router", "IRBInterface",
+        "VLAN", "RoutedInterface", "StaticRoute", "Configlet",
+    },
+    PHASE_FABRIC: {"Fabric"},
+    PHASE_TOPOLOGY: {
+        "Interface",  # must be deleted with/after TopoLinks
+        "TopoLink", "TopoNode",
+        "IPAllocationPool", "IndexAllocationPool",
+        "NodeProfile", "NodeUser", "Init",
+    },
+}
+
+# Resource types in correct destroy order (services first, topo last).
+# Interface appears AFTER TopoLink because ISLs reference Interfaces.
+DESTROY_ORDER: list[tuple[str, str, str]] = [
+    # (apiVersion, kind, plural)
+    # --- services ---
+    ("config.eda.nokia.com/v1alpha1", "Configlet", "configlets"),
+    ("protocols.eda.nokia.com/v1", "StaticRoute", "staticroutes"),
+    ("services.eda.nokia.com/v1", "RoutedInterface", "routedinterfaces"),
+    ("services.eda.nokia.com/v1", "VLAN", "vlans"),
+    ("services.eda.nokia.com/v1", "IRBInterface", "irbinterfaces"),
+    ("services.eda.nokia.com/v1", "Router", "routers"),
+    ("services.eda.nokia.com/v1", "BridgeDomain", "bridgedomains"),
+    # --- fabric ---
+    ("fabrics.eda.nokia.com/v1alpha1", "Fabric", "fabrics"),
+    # --- topology (Interface after TopoLink!) ---
+    ("core.eda.nokia.com/v1", "TopoLink", "topolinks"),
+    ("interfaces.eda.nokia.com/v1alpha1", "Interface", "interfaces"),
+    ("core.eda.nokia.com/v1", "TopoNode", "toponodes"),
+    ("core.eda.nokia.com/v1", "IPAllocationPool", "ipallocationpools"),
+    ("core.eda.nokia.com/v1", "IndexAllocationPool", "indexallocationpools"),
+    ("core.eda.nokia.com/v1", "NodeProfile", "nodeprofiles"),
+    ("core.eda.nokia.com/v1", "NodeUser", "nodeusers"),
+    ("bootstrap.eda.nokia.com/v1alpha1", "Init", "inits"),
+]
+
 
 @dataclass
 class TransactionPlan:
@@ -259,34 +328,33 @@ class EdaClient:
     # Resource queries (for prune support)
     # ------------------------------------------------------------------
 
-    def get_managed_resources(self, namespace: str = "eda") -> list[dict]:
+    def get_managed_resources(
+        self, namespace: str = "eda", phases: list[str] | None = None,
+    ) -> list[dict]:
         """
         Query EDA for all resources carrying the managed-by label.
 
-        This is used by the prune logic to find resources that
-        were previously created by the automation but are no longer
-        in the desired state.
+        Args:
+            namespace: EDA namespace to query
+            phases: Optional list of phases to filter by. If None, return all.
+
+        Returns:
+            List of managed resource dicts with _kind and _apiVersion injected.
         """
         self._ensure_auth()
 
-        # Query each resource type that we manage
+        # Determine which kinds to query based on phase filter
+        if phases:
+            target_kinds: set[str] = set()
+            for p in phases:
+                target_kinds |= DESTROY_PHASE_KINDS.get(p, set())
+        else:
+            target_kinds = None  # query all
+
         resource_types = [
-            ("bootstrap.eda.nokia.com/v1alpha1", "Init", "inits"),
-            ("core.eda.nokia.com/v1", "NodeProfile", "nodeprofiles"),
-            ("core.eda.nokia.com/v1", "NodeUser", "nodeusers"),
-            ("core.eda.nokia.com/v1", "IndexAllocationPool", "indexallocationpools"),
-            ("core.eda.nokia.com/v1", "IPAllocationPool", "ipallocationpools"),
-            ("core.eda.nokia.com/v1", "TopoNode", "toponodes"),
-            ("core.eda.nokia.com/v1", "TopoLink", "topolinks"),
-            ("fabrics.eda.nokia.com/v1alpha1", "Fabric", "fabrics"),
-            ("interfaces.eda.nokia.com/v1alpha1", "Interface", "interfaces"),
-            ("services.eda.nokia.com/v1", "BridgeDomain", "bridgedomains"),
-            ("services.eda.nokia.com/v1", "Router", "routers"),
-            ("services.eda.nokia.com/v1", "IRBInterface", "irbinterfaces"),
-            ("services.eda.nokia.com/v1", "VLAN", "vlans"),
-            ("services.eda.nokia.com/v1", "RoutedInterface", "routedinterfaces"),
-            ("protocols.eda.nokia.com/v1", "StaticRoute", "staticroutes"),
-            ("config.eda.nokia.com/v1alpha1", "Configlet", "configlets"),
+            (av, kind, plural)
+            for av, kind, plural in DESTROY_ORDER
+            if target_kinds is None or kind in target_kinds
         ]
 
         managed: list[dict] = []
@@ -510,73 +578,53 @@ class EdaClient:
         )
 
     # ------------------------------------------------------------------
-    # High-level apply
+    # High-level apply (phased deployment)
     # ------------------------------------------------------------------
 
     def apply(
         self,
         resources: list[dict],
+        phases: list[str] | None = None,
         prune: bool = False,
         dry_run: bool = False,
         auto_confirm: bool = False,
     ) -> TransactionResult:
         """
-        Full deployment workflow: authenticate → wrap CRs → [diff if prune] → submit → poll.
+        Phased deployment workflow.
+
+        Splits resources into three phases and executes them in order:
+          Phase 1 (topology): Init, NodeProfile, NodeUser, pools, TopoNodes, TopoLinks
+          Phase 2 (fabric):   Fabric CR
+          Phase 3 (services): Interfaces, BridgeDomains, Routers, IRBs, VLANs, etc.
+
+        If `phases` is provided, only the specified phases are executed.
+        Between Phase 1 and Phase 2, waits for TopoNodes to sync.
 
         Args:
             resources: List of desired-state CRs (k8s-style dicts)
+            phases: Which phases to run (default: all)
             prune: If True, delete resources not in desired state
             dry_run: If True, validate only
             auto_confirm: If True, skip prune confirmation
 
         Returns:
-            TransactionResult
+            TransactionResult (from the last executed phase)
         """
         self.authenticate()
+        run_phases = phases or ALL_PHASES
 
+        # Optional prune diff
+        delete_crs: list[dict] = []
         if prune:
-            # Get current managed resources
-            current = self.get_managed_resources()
+            current = self.get_managed_resources(phases=run_phases)
             plan = self.compute_diff(resources, current)
             logger.info(plan.summary())
-
-            # Combine creates + updates (all use replace for idempotency)
             all_desired = plan.creates + plan.updates
 
-            # Split into REST-API-only and transaction-safe
-            rest_crs, tx_resources = self._split_resources(all_desired)
-
-            # Apply REST-API resources first (TopoNode, TopoLink)
-            if rest_crs:
-                logger.info(
-                    "Applying %d resources via EDA REST API", len(rest_crs)
-                )
-                rest_errors = self._rest_apply(rest_crs, dry_run=dry_run)
-                if rest_errors:
-                    logger.warning(
-                        "%d REST API errors occurred", len(rest_errors)
-                    )
-
-                # Wait for TopoNodes to be registered
-                if not dry_run:
-                    topo_nodes = [
-                        cr for cr in rest_crs
-                        if cr.get("kind") == "TopoNode"
-                    ]
-                    if topo_nodes:
-                        self._wait_for_nodes(topo_nodes)
-
-            # Build transaction CRs using replace (idempotent)
-            tx_crs: list[dict] = []
-            for cr in tx_resources:
-                tx_crs.append(self._wrap_cr_replace(cr))
-
-            # Deletes
             if plan.deletes and not dry_run:
                 print(f"\n⚠️  Prune will DELETE {len(plan.deletes)} resources:")
                 for d in plan.deletes:
                     print(f"   - {d['kind']}: {d['name']}")
-
                 if not auto_confirm:
                     confirm = input("\nProceed? [y/N]: ")
                     if confirm.lower() != "y":
@@ -584,163 +632,282 @@ class EdaClient:
                             success=False,
                             message="Prune cancelled by user",
                         )
-
-            for d in plan.deletes:
-                tx_crs.append(
-                    self._wrap_cr_delete(
-                        d["apiVersion"], d["kind"], d["name"], d.get("namespace", "eda")
-                    )
-                )
-
+            delete_crs = plan.deletes
         else:
-            # Simple create/replace for all resources
-            # Split into REST-API-only and transaction-safe
-            rest_crs, tx_resources = self._split_resources(resources)
+            all_desired = resources
 
-            # Apply REST-API resources first (TopoNode, TopoLink)
-            # Uses PUT (update) with POST fallback (create) — idempotent
-            if rest_crs:
-                logger.info(
-                    "Applying %d resources via EDA REST API", len(rest_crs)
+        # Split CRs into phases
+        phased = self._split_by_phase(all_desired)
+
+        last_result = TransactionResult(success=True, message="No changes to apply")
+
+        # Phase 1: Topology
+        if PHASE_TOPOLOGY in run_phases and phased.get(PHASE_TOPOLOGY):
+            result = self._submit_phase(
+                crs=phased[PHASE_TOPOLOGY],
+                description="NVD topology",
+                dry_run=dry_run,
+                phase_label="Phase 1 (topology)",
+            )
+            if not result.success:
+                return result
+            last_result = result
+
+            # Wait for TopoNodes to sync before downstream phases
+            if not dry_run:
+                topo_nodes = [
+                    cr for cr in phased[PHASE_TOPOLOGY]
+                    if cr.get("kind") == "TopoNode"
+                ]
+                if topo_nodes:
+                    self._wait_for_nodes_sync(topo_nodes)
+
+        # Phase 2: Fabric
+        if PHASE_FABRIC in run_phases and phased.get(PHASE_FABRIC):
+            result = self._submit_phase(
+                crs=phased[PHASE_FABRIC],
+                description="NVD fabric",
+                dry_run=dry_run,
+                phase_label="Phase 2 (fabric)",
+            )
+            if not result.success:
+                return result
+            last_result = result
+
+        # Phase 3: Services (+ any prune deletes)
+        if PHASE_SERVICES in run_phases:
+            svc_crs = phased.get(PHASE_SERVICES, [])
+            if svc_crs or delete_crs:
+                result = self._submit_phase(
+                    crs=svc_crs,
+                    delete_crs=delete_crs,
+                    description="NVD services",
+                    dry_run=dry_run,
+                    phase_label="Phase 3 (services)",
                 )
-                rest_errors = self._rest_apply(rest_crs, dry_run=dry_run)
-                if rest_errors:
-                    logger.warning(
-                        "%d REST API errors occurred", len(rest_errors)
-                    )
+                if not result.success:
+                    return result
+                last_result = result
 
-                # Wait for TopoNodes to be registered in EDA before
-                # submitting the transaction (Configlets reference nodes)
-                if not dry_run:
-                    topo_nodes = [
-                        cr for cr in rest_crs
-                        if cr.get("kind") == "TopoNode"
-                    ]
-                    if topo_nodes:
-                        self._wait_for_nodes(topo_nodes)
+        return last_result
 
-            # Use 'replace' for transaction CRs — EDA's replace is idempotent
-            # (creates if missing, updates if existing)
-            logger.info("Wrapping %d resources for transaction", len(tx_resources))
-            tx_crs = [self._wrap_cr_replace(cr) for cr in tx_resources]
+    # ------------------------------------------------------------------
+    # Destroy (reverse-order deletion of managed resources)
+    # ------------------------------------------------------------------
+
+    def destroy(
+        self,
+        phases: list[str] | None = None,
+        dry_run: bool = False,
+        auto_confirm: bool = False,
+        namespace: str = "eda",
+    ) -> TransactionResult:
+        """
+        Remove all managed resources in reverse dependency order.
+
+        Queries EDA for resources with the managed-by label, then
+        deletes them in a single atomic transaction ordered by
+        DESTROY_ORDER (services → fabric → topology, with Interfaces
+        placed after TopoLinks).
+
+        If `phases` is provided, only destroy resources in those phases
+        (using DESTROY_PHASE_KINDS for grouping: Interface is in topology,
+        not services).
+
+        Args:
+            phases: Which phases to destroy (default: all)
+            dry_run: If True, validate only
+            auto_confirm: If True, skip confirmation
+            namespace: EDA namespace
+
+        Returns:
+            TransactionResult
+        """
+        self.authenticate()
+        destroy_phases = phases or ALL_PHASES
+
+        # Query managed resources, scoped to requested phases
+        managed = self.get_managed_resources(
+            namespace=namespace, phases=destroy_phases,
+        )
+
+        if not managed:
+            print("\n✅ No managed resources found to destroy.")
+            return TransactionResult(
+                success=True, message="No resources to destroy",
+            )
+
+        # Group by kind for display
+        by_kind: dict[str, list[str]] = {}
+        for cr in managed:
+            kind = cr.get("_kind", "?")
+            name = cr.get("metadata", {}).get("name", "?")
+            by_kind.setdefault(kind, []).append(name)
+
+        print(f"\n⚠️  Will DESTROY {len(managed)} managed resources:")
+        for kind, names in by_kind.items():
+            print(f"   {kind}: {', '.join(sorted(names))}")
+
+        if not auto_confirm and not dry_run:
+            confirm = input("\nType 'destroy' to confirm: ")
+            if confirm.strip() != "destroy":
+                return TransactionResult(
+                    success=False, message="Destroy cancelled by user",
+                )
+
+        # Build ordered delete list following DESTROY_ORDER
+        # (correct dependency order within a single transaction)
+        managed_by_kind: dict[str, list[dict]] = {}
+        for cr in managed:
+            kind = cr.get("_kind", "")
+            managed_by_kind.setdefault(kind, []).append(cr)
+
+        tx_crs: list[dict] = []
+        for api_version, kind, plural in DESTROY_ORDER:
+            for cr in managed_by_kind.get(kind, []):
+                name = cr.get("metadata", {}).get("name", "")
+                tx_crs.append(
+                    self._wrap_cr_delete(api_version, kind, name, namespace)
+                )
 
         if not tx_crs:
             return TransactionResult(
-                success=True,
-                message="No changes to apply",
+                success=True, message="No resources to destroy",
             )
 
-        description = "NVD automation"
+        desc = "NVD destroy"
+        if phases:
+            desc += f" ({', '.join(phases)})"
+        if dry_run:
+            desc += " (dry-run)"
+
+        logger.info(
+            "Destroying %d resources in a single transaction%s",
+            len(tx_crs),
+            " (dry-run)" if dry_run else "",
+        )
+
+        tx_id = self.submit_transaction(
+            tx_crs, dry_run=dry_run, description=desc,
+        )
+        result = self.poll_transaction(tx_id)
+
+        if result.success:
+            logger.info("Destroy transaction %s succeeded", tx_id)
+        else:
+            logger.error(
+                "Destroy transaction %s failed: %s", tx_id, result.message,
+            )
+
+        return result
+
+    # ------------------------------------------------------------------
+    # Internal: phase submission
+    # ------------------------------------------------------------------
+
+    def _submit_phase(
+        self,
+        *,
+        crs: list[dict],
+        delete_crs: list[dict] | None = None,
+        description: str,
+        dry_run: bool,
+        phase_label: str,
+    ) -> TransactionResult:
+        """Submit a transaction for a set of CRs and poll for result."""
+        tx_crs: list[dict] = [self._wrap_cr_replace(cr) for cr in crs]
+        for d in (delete_crs or []):
+            tx_crs.append(
+                self._wrap_cr_delete(
+                    d["apiVersion"], d["kind"], d["name"],
+                    d.get("namespace", "eda"),
+                )
+            )
+
+        if not tx_crs:
+            return TransactionResult(success=True, message="No changes")
+
         if dry_run:
             description += " (dry-run)"
 
-        tx_id = self.submit_transaction(
-            tx_crs, dry_run=dry_run, description=description
+        logger.info(
+            "%s: submitting %d CRs%s",
+            phase_label, len(tx_crs),
+            " (dry-run)" if dry_run else "",
         )
 
-        return self.poll_transaction(tx_id)
+        tx_id = self.submit_transaction(
+            tx_crs, dry_run=dry_run, description=description,
+        )
+
+        result = self.poll_transaction(tx_id)
+
+        if result.success:
+            logger.info("%s: transaction %s succeeded", phase_label, tx_id)
+        else:
+            logger.error(
+                "%s: transaction %s failed: %s",
+                phase_label, tx_id, result.message,
+            )
+
+        return result
 
     # ------------------------------------------------------------------
-    # Resource splitting
+    # Resource splitting by phase
     # ------------------------------------------------------------------
 
-    # Mapping of Kind → REST API plural name for non-transaction resources
-    REST_API_KINDS: dict[str, str] = {
-        "TopoNode": "toponodes",
-        "TopoLink": "topolinks",
-    }
+    @staticmethod
+    def _split_by_phase(resources: list[dict]) -> dict[str, list[dict]]:
+        """
+        Split resources into phase buckets.
 
-    @classmethod
-    def _split_resources(cls, resources: list[dict]) -> tuple[list[dict], list[dict]]:
-        """Split resources into REST-API and transaction groups."""
-        rest_crs: list[dict] = []
-        tx_crs: list[dict] = []
+        Interface CRs are special-cased: ISL interfaces
+        (eda.nokia.com/role=interSwitch) must deploy in the topology
+        phase alongside TopoLink/TopoNode because TopoLinks reference
+        them via interfaceResource. All other Interface CRs (edge, LAG)
+        go into the services phase.
+        """
+        result: dict[str, list[dict]] = {}
+        kind_to_phase: dict[str, str] = {}
+        for phase, kinds in PHASE_KINDS.items():
+            for kind in kinds:
+                kind_to_phase[kind] = phase
+
         for cr in resources:
-            if cr.get("kind", "") in cls.REST_API_KINDS:
-                rest_crs.append(cr)
+            kind = cr.get("kind", "")
+            if kind == "Interface":
+                # ISL interfaces must be in the topology phase so that
+                # TopoLink CRs can reference them
+                role = cr.get("metadata", {}).get("labels", {}).get(
+                    "eda.nokia.com/role", ""
+                )
+                phase = (
+                    PHASE_TOPOLOGY if role == "interSwitch"
+                    else PHASE_SERVICES
+                )
             else:
-                tx_crs.append(cr)
-        return rest_crs, tx_crs
+                phase = kind_to_phase.get(kind, PHASE_SERVICES)
+            result.setdefault(phase, []).append(cr)
 
-    def _rest_apply(
-        self, resources: list[dict], dry_run: bool = False
-    ) -> list[str]:
-        """
-        Apply resources via the EDA REST API (PUT).
+        return result
 
-        Uses PUT /apps/{apiVersion}/namespaces/{ns}/{plural}/{name}
-        which creates or replaces the resource idempotently.
+    # ------------------------------------------------------------------
+    # Node sync waiting
+    # ------------------------------------------------------------------
 
-        Args:
-            resources: List of k8s-style CR dicts
-            dry_run: If True, pass dryRun=true query param
-
-        Returns:
-            List of error messages (empty on success)
-        """
-        self._ensure_auth()
-        errors: list[str] = []
-
-        for cr in resources:
-            kind = cr.get("kind", "Unknown")
-            name = cr.get("metadata", {}).get("name", "unknown")
-            ns = cr.get("metadata", {}).get("namespace", "eda")
-            api_version = cr.get("apiVersion", "")
-
-            plural = self.REST_API_KINDS.get(kind)
-            if not plural:
-                errors.append(f"Unknown REST API kind: {kind}")
-                continue
-
-            base_url = f"{self.url}/apps/{api_version}/namespaces/{ns}/{plural}"
-            item_url = f"{base_url}/{name}"
-
-            params = {}
-            if dry_run:
-                params["dryRun"] = "true"
-
-            try:
-                # Try PUT first (update existing)
-                resp = self._session.put(item_url, json=cr, params=params)
-
-                if resp.status_code == 404:
-                    # Resource doesn't exist — create via POST
-                    resp = self._session.post(base_url, json=cr, params=params)
-
-                if resp.status_code in (200, 201):
-                    action = "created" if resp.status_code == 201 else "configured"
-                    dry_label = " (dry run)" if dry_run else ""
-                    logger.info(
-                        "REST %s/%s: %s%s",
-                        kind, name, action, dry_label,
-                    )
-                else:
-                    err_body = resp.text[:200]
-                    logger.error(
-                        "REST %s/%s failed (%d): %s",
-                        kind, name, resp.status_code, err_body,
-                    )
-                    errors.append(f"{kind}/{name}: {resp.status_code} {err_body}")
-            except Exception as e:
-                logger.error("REST %s/%s error: %s", kind, name, e)
-                errors.append(f"{kind}/{name}: {e}")
-
-        return errors
-
-    def _wait_for_nodes(
-        self, topo_nodes: list[dict], timeout: int = 120, interval: int = 5
+    def _wait_for_nodes_sync(
+        self,
+        topo_nodes: list[dict],
+        timeout: int = 120,
+        interval: int = 5,
     ) -> None:
         """
-        Wait for TopoNodes to be registered in EDA.
+        Wait for TopoNodes to be fully registered and synced in EDA.
 
-        After creating TopoNodes via REST API, the EDA system needs time
-        to process them. Subsequent transaction CRs (Configlets, etc.)
-        will fail with 'Node not found' if submitted too early.
-
-        Args:
-            topo_nodes: List of TopoNode CR dicts that were just created
-            timeout: Maximum wait time in seconds
-            interval: Polling interval in seconds
+        After a topology transaction, EDA needs time to process the
+        nodes before downstream resources (Configlets, Interfaces, etc.)
+        can reference them. This polls the TopoNode REST API and checks
+        for a 'ready' condition.
         """
         node_names = [
             cr.get("metadata", {}).get("name", "")
@@ -750,12 +917,13 @@ class EdaClient:
         api_version = topo_nodes[0].get("apiVersion", "core.eda.nokia.com/v1")
 
         logger.info(
-            "Waiting for %d TopoNodes to be registered...", len(node_names)
+            "Waiting for %d TopoNodes to be synced...", len(node_names)
         )
 
         start = time.time()
         while time.time() - start < timeout:
             all_ready = True
+            pending = []
             for name in node_names:
                 url = (
                     f"{self.url}/apps/{api_version}"
@@ -765,22 +933,43 @@ class EdaClient:
                     resp = self._session.get(url)
                     if resp.status_code != 200:
                         all_ready = False
-                        break
+                        pending.append(name)
+                        continue
+                    data = resp.json()
+                    status = data.get("status", {})
+                    conditions = status.get("conditions", [])
+                    ready = any(
+                        c.get("type") == "Ready"
+                        and c.get("status") == "True"
+                        for c in conditions
+                    )
+                    if not ready and conditions:
+                        all_ready = False
+                        pending.append(name)
                 except Exception:
                     all_ready = False
-                    break
+                    pending.append(name)
 
             if all_ready:
-                logger.info("All %d TopoNodes are registered", len(node_names))
+                elapsed = int(time.time() - start)
+                logger.info(
+                    "All %d TopoNodes are synced (%ds)", len(node_names), elapsed
+                )
                 return
 
             elapsed = int(time.time() - start)
-            logger.debug(
-                "Waiting for TopoNodes... (%ds/%ds)", elapsed, timeout
+            logger.info(
+                "Waiting for TopoNodes: %d/%d ready (%ds/%ds) — pending: %s",
+                len(node_names) - len(pending),
+                len(node_names),
+                elapsed,
+                timeout,
+                ", ".join(pending[:5]),
             )
             time.sleep(interval)
 
         logger.warning(
-            "Timed out waiting for TopoNodes after %ds, proceeding anyway",
+            "Timed out waiting for TopoNodes after %ds, proceeding",
             timeout,
         )
+
