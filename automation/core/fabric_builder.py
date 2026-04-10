@@ -27,6 +27,7 @@ class DesignBuilder(Protocol):
 # Each module must expose a `build(topology, services) -> FabricIntent` function.
 DESIGN_BUILDERS: dict[str, str] = {
     "3-stage-evpn-vxlan": "automation.designs.three_stage_evpn_vxlan",
+    "unconstrained-3-stage": "automation.designs.unconstrained_3_stage",
 }
 
 
