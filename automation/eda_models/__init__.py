@@ -124,3 +124,8 @@ from .bootstrap import (  # noqa: F401
     InitMgmt,
     InitSpec,
 )
+from .siteinfo import (  # noqa: F401
+    _EDABase,
+    DefaultMTUSpec,
+    BannerSpec,
+)

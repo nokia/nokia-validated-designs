@@ -65,6 +65,16 @@
       "items": { "$ref": "#/$defs/lag" },
       "description": "LAG (Link Aggregation Group) interfaces."
     },
+    "default_mtu": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/defaultMtu" },
+      "description": "Default MTU settings for fabric nodes."
+    },
+    "banners": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/banner" },
+      "description": "Login and MOTD banner settings for fabric nodes."
+    },
     "eda": {
       "type": "object",
       "additionalProperties": false,
@@ -273,6 +283,74 @@
           "type": "integer",
           "minimum": 0,
           "description": "Reload delay timer in seconds."
+        }
+      }
+    },
+    "defaultMtu": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique DefaultMTU resource name."
+        },
+        "interface_mtu": {
+          "type": "integer",
+          "minimum": 1500,
+          "maximum": 11000,
+          "description": "Default MTU for Ethernet interfaces (includes Ethernet headers, excludes 4-byte FCS trailer)."
+        },
+        "layer2_subif_mtu": {
+          "type": "integer",
+          "minimum": 1500,
+          "maximum": 11000,
+          "description": "Default MTU for Layer 2 (bridged) sub-interfaces."
+        },
+        "layer3_mtu": {
+          "type": "integer",
+          "minimum": 1280,
+          "maximum": 11000,
+          "description": "Default IP MTU for Layer 3 interfaces."
+        },
+        "node_selector": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Label selector to select nodes on which to configure the defaults."
+        },
+        "nodes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Explicit list of nodes on which to configure the defaults."
+        }
+      }
+    },
+    "banner": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique Banner resource name."
+        },
+        "login_banner": {
+          "type": "string",
+          "description": "Login banner displayed before a user has logged into the node."
+        },
+        "motd": {
+          "type": "string",
+          "description": "Message of the Day displayed after a user has logged into the node."
+        },
+        "node_selector": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Label selector to select nodes on which to configure the banners."
+        },
+        "nodes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Explicit list of nodes on which to configure the banners."
         }
       }
     }

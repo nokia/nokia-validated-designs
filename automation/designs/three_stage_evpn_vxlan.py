@@ -17,10 +17,12 @@ import ipaddress
 import logging
 
 from automation.core.models import (
+    BannerIntent,
     BridgeDomainIntent,
     BreakoutIntent,
     ConfigletConfigEntry,
     ConfigletIntent,
+    DefaultMtuIntent,
     EdgeInterfaceIntent,
     EdaSettings,
     FabricIntent,
@@ -110,11 +112,23 @@ def build(topology: dict, services: dict) -> FabricIntent:
     lags = _build_lags(topology.get("lags", []))
 
     # -----------------------------------------------------------------------
+    # Default MTUs (built before services so ip_mtu can be derived)
+    # -----------------------------------------------------------------------
+    default_mtus = _build_default_mtus(topology.get("default_mtu", []))
+
+    # Derive the default IP MTU from the first DefaultMTU entry (if present)
+    default_ip_mtu = 1500
+    for mtu in default_mtus:
+        if mtu.layer3_mtu is not None:
+            default_ip_mtu = mtu.layer3_mtu
+            break
+
+    # -----------------------------------------------------------------------
     # Services (pass through from input)
     # -----------------------------------------------------------------------
     bridge_domains = _build_bridge_domains(services.get("bridge_domains", []))
     routers = _build_routers(services.get("routers", []))
-    irb_interfaces = _build_irb_interfaces(services.get("irb_interfaces", []))
+    irb_interfaces = _build_irb_interfaces(services.get("irb_interfaces", []), default_ip_mtu)
     vlans = _build_vlans(services.get("vlans", []))
     routed_interfaces = _build_routed_interfaces(services.get("routed_interfaces", []))
     static_routes = _build_static_routes(services.get("static_routes", []))
@@ -123,6 +137,11 @@ def build(topology: dict, services: dict) -> FabricIntent:
     # Configlets (design-specific device configuration)
     # -----------------------------------------------------------------------
     configlets = _build_configlets(lags)
+
+    # -----------------------------------------------------------------------
+    # Banners (optional)
+    # -----------------------------------------------------------------------
+    banners = _build_banners(topology.get("banners", []))
 
     # -----------------------------------------------------------------------
     # EDA settings
@@ -152,6 +171,8 @@ def build(topology: dict, services: dict) -> FabricIntent:
         routed_interfaces=routed_interfaces,
         static_routes=static_routes,
         configlets=configlets,
+        default_mtus=default_mtus,
+        banners=banners,
         eda=eda_settings,
     )
 
@@ -443,7 +464,8 @@ def _build_routers(raw: list[dict]) -> list[RouterIntent]:
     ]
 
 
-def _build_irb_interfaces(raw: list[dict]) -> list[IrbInterfaceIntent]:
+def _build_irb_interfaces(raw: list[dict], default_ip_mtu: int = 1500) -> list[IrbInterfaceIntent]:
+    """Build IRB interface intents, using default_ip_mtu when ip_mtu is not explicitly set."""
     return [
         IrbInterfaceIntent(
             name=irb["name"],
@@ -453,7 +475,7 @@ def _build_irb_interfaces(raw: list[dict]) -> list[IrbInterfaceIntent]:
             proxy_arp=irb.get("proxy_arp", True),
             proxy_nd=irb.get("proxy_nd", False),
             arp_timeout=irb.get("arp_timeout", 280),
-            ip_mtu=irb.get("ip_mtu", 1500),
+            ip_mtu=irb.get("ip_mtu", default_ip_mtu),
         )
         for irb in raw
     ]
@@ -613,6 +635,46 @@ def _build_configlets(lags: list[LagIntent]) -> list[ConfigletIntent]:
         )
 
     return configlets
+
+
+# ---------------------------------------------------------------------------
+# Default MTU
+# ---------------------------------------------------------------------------
+
+
+def _build_default_mtus(raw: list[dict]) -> list[DefaultMtuIntent]:
+    """Build default MTU intents from raw input."""
+    return [
+        DefaultMtuIntent(
+            name=mtu["name"],
+            interface_mtu=mtu.get("interface_mtu"),
+            layer2_subif_mtu=mtu.get("layer2_subif_mtu"),
+            layer3_mtu=mtu.get("layer3_mtu"),
+            node_selector=mtu.get("node_selector", []),
+            nodes=mtu.get("nodes", []),
+        )
+        for mtu in raw
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Banners
+# ---------------------------------------------------------------------------
+
+
+def _build_banners(raw: list[dict]) -> list[BannerIntent]:
+    """Build banner intents from raw input."""
+    return [
+        BannerIntent(
+            name=b["name"],
+            login_banner=b.get("login_banner", ""),
+            motd=b.get("motd", ""),
+            node_selector=b.get("node_selector", []),
+            nodes=b.get("nodes", []),
+        )
+        for b in raw
+    ]
+
 
 # ---------------------------------------------------------------------------
 # Utilities

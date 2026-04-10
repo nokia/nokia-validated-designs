@@ -52,7 +52,7 @@ PHASE_KINDS: dict[str, set[str]] = {
     PHASE_TOPOLOGY: {
         "Init", "NodeUser", "NodeProfile",
         "IndexAllocationPool", "IPAllocationPool",
-        "TopoNode", "TopoLink",
+        "TopoNode", "TopoLink", "DefaultMTU", "Banner",
     },
     PHASE_FABRIC: {"Fabric"},
     PHASE_SERVICES: {
@@ -73,7 +73,7 @@ DESTROY_PHASE_KINDS: dict[str, set[str]] = {
     PHASE_FABRIC: {"Fabric"},
     PHASE_TOPOLOGY: {
         "Interface",  # must be deleted with/after TopoLinks
-        "TopoLink", "TopoNode",
+        "TopoLink", "TopoNode", "DefaultMTU", "Banner",
         "IPAllocationPool", "IndexAllocationPool",
         "NodeProfile", "NodeUser", "Init",
     },
@@ -96,6 +96,8 @@ DESTROY_ORDER: list[tuple[str, str, str]] = [
     # --- topology (Interface after TopoLink!) ---
     ("core.eda.nokia.com/v1", "TopoLink", "topolinks"),
     ("interfaces.eda.nokia.com/v1alpha1", "Interface", "interfaces"),
+    ("siteinfo.eda.nokia.com/v1alpha1", "DefaultMTU", "defaultmtus"),
+    ("siteinfo.eda.nokia.com/v1alpha1", "Banner", "banners"),
     ("core.eda.nokia.com/v1", "TopoNode", "toponodes"),
     ("core.eda.nokia.com/v1", "IPAllocationPool", "ipallocationpools"),
     ("core.eda.nokia.com/v1", "IndexAllocationPool", "indexallocationpools"),

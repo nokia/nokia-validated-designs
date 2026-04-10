@@ -21,9 +21,11 @@ from typing import Any
 from pydantic import BaseModel
 
 from automation.core.models import (
+    BannerIntent,
     BridgeDomainIntent,
     BreakoutIntent,
     ConfigletIntent,
+    DefaultMtuIntent,
     EdgeInterfaceIntent,
     FabricIntent,
     IrbInterfaceIntent,
@@ -89,6 +91,7 @@ from automation.eda_models.interfaces import (
 )
 from automation.eda_models.bootstrap import InitSpec, InitMgmt
 from automation.eda_models.config import ConfigletSpec, ConfigletConfigurations
+from automation.eda_models.siteinfo import DefaultMTUSpec, BannerSpec
 
 logger = logging.getLogger(__name__)
 
@@ -204,6 +207,14 @@ def generate(intent: FabricIntent, output_dir: Path | None = None) -> list[dict]
     # 19. Configlets
     for cfglet in intent.configlets:
         resources.append(_cr_configlet(cfglet, ns))
+
+    # 20. Default MTUs
+    for mtu in intent.default_mtus:
+        resources.append(_cr_default_mtu(mtu, ns))
+
+    # 21. Banners
+    for banner in intent.banners:
+        resources.append(_cr_banner(banner, ns))
 
     # De-duplicate ISL interfaces (each endpoint appears once)
     resources = _deduplicate(resources)
@@ -662,6 +673,29 @@ def _cr_configlet(cfglet: ConfigletIntent, ns: str) -> dict:
         ],
     )
     return _wrap_cr("config.eda.nokia.com/v1alpha1", "Configlet", cfglet.name, ns, spec)
+
+
+def _cr_default_mtu(mtu: DefaultMtuIntent, ns: str) -> dict:
+    """Generate a DefaultMTU CR."""
+    spec = DefaultMTUSpec(
+        interface_mtu=mtu.interface_mtu,
+        layer2_subif_mtu=mtu.layer2_subif_mtu,
+        layer3_mtu=mtu.layer3_mtu,
+        node_selector=mtu.node_selector or None,
+        nodes=mtu.nodes or None,
+    )
+    return _wrap_cr("siteinfo.eda.nokia.com/v1alpha1", "DefaultMTU", mtu.name, ns, spec)
+
+
+def _cr_banner(banner: BannerIntent, ns: str) -> dict:
+    """Generate a Banner CR."""
+    spec = BannerSpec(
+        login_banner=banner.login_banner or None,
+        motd=banner.motd or None,
+        node_selector=banner.node_selector or None,
+        nodes=banner.nodes or None,
+    )
+    return _wrap_cr("siteinfo.eda.nokia.com/v1alpha1", "Banner", banner.name, ns, spec)
 
 
 # ---------------------------------------------------------------------------

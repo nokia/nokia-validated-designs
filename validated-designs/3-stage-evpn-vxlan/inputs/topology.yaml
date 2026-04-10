@@ -163,6 +163,24 @@ lags:
       eda.nokia.com/untagged-v30: enabled
     reload_delay_timer: 100
 
+# Default MTU settings (jumbo frames)
+default_mtu:
+  - name: default-port-mtu
+    interface_mtu: 9232
+    layer2_subif_mtu: 9198
+    layer3_mtu: 9198
+    node_selector:
+      - "eda.nokia.com/role=leaf"
+      - "eda.nokia.com/role = spine"
+
+# Banners (login / MOTD)
+banners:
+  - name: nvd-banner
+    login_banner: "NVD: 3-stage-evpn-vxlan"
+    node_selector:
+      - "eda.nokia.com/role=leaf"
+      - "eda.nokia.com/role=spine"
+
 # EDA-specific settings
 eda:
   node_profile: "clab-srlinux-24.10.2"

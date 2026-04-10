@@ -224,6 +224,32 @@ class ConfigletIntent(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Default MTU
+# ---------------------------------------------------------------------------
+
+
+class DefaultMtuIntent(BaseModel):
+    """Default MTU settings applied to fabric nodes via EDA DefaultMTU resource."""
+
+    name: str  # EDA resource name, e.g. "default-port-mtu"
+    interface_mtu: int | None = None  # e.g. 9232
+    layer2_subif_mtu: int | None = None  # e.g. 9198
+    layer3_mtu: int | None = None  # e.g. 9198
+    node_selector: list[str] = Field(default_factory=list)  # e.g. ["eda.nokia.com/role=leaf"]
+    nodes: list[str] = Field(default_factory=list)  # explicit node names
+
+
+class BannerIntent(BaseModel):
+    """Login and MOTD banner settings applied to fabric nodes via EDA Banner resource."""
+
+    name: str  # EDA resource name, e.g. "nvd-banner"
+    login_banner: str = ""  # displayed before login
+    motd: str = ""  # displayed after login
+    node_selector: list[str] = Field(default_factory=list)  # e.g. ["eda.nokia.com/role=leaf"]
+    nodes: list[str] = Field(default_factory=list)  # explicit node names
+
+
+# ---------------------------------------------------------------------------
 # EDA-specific settings
 # ---------------------------------------------------------------------------
 
@@ -276,6 +302,8 @@ class FabricIntent(BaseModel):
     routed_interfaces: list[RoutedInterfaceIntent] = Field(default_factory=list)
     static_routes: list[StaticRouteIntent] = Field(default_factory=list)
     configlets: list[ConfigletIntent] = Field(default_factory=list)
+    default_mtus: list[DefaultMtuIntent] = Field(default_factory=list)
+    banners: list[BannerIntent] = Field(default_factory=list)
 
     # EDA settings
     eda: EdaSettings = Field(default_factory=EdaSettings)
