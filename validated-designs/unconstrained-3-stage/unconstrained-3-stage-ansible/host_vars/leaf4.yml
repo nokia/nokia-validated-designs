@@ -1,0 +1,58 @@
+node:
+  hostname: leaf4
+  role: leaf
+  router_id: 10.0.0.4
+  asn: 65004
+bridge_domains:
+- name: macvrf-v10
+  vni: 100101
+  evi: 10
+  irb:
+    anycast_gw: true
+    ipv4: 172.16.10.254/24
+    arp_timeout: 300
+    proxy_arp: true
+    ip_mtu: 9000
+  router: vrf1
+- name: macvrf-v20
+  vni: 10020
+  evi: 20
+  irb:
+    anycast_gw: true
+    ipv4: 172.16.20.254/24
+    arp_timeout: 280
+    proxy_arp: true
+  router: vrf1
+- name: macvrf-v30
+  vni: 10030
+  evi: 30
+  irb:
+    anycast_gw: true
+    ipv4: 172.16.30.254/24
+    arp_timeout: 280
+    proxy_arp: true
+  router: vrf1
+routers:
+- name: vrf1
+  vni: 10500
+  evi: 500
+routed_interfaces:
+- name: leaf4-routed-1
+  interface: ethernet-1/1
+  router: vrf1
+  vlan_id: 'null'
+  ip_mtu: 1500
+  arp_timeout: 14400
+  ipv4_addresses:
+  - ip_prefix: 172.16.100.0/31
+    primary: true
+static_routes:
+- name: static-default
+  router: vrf1
+  prefixes:
+  - 172.16.200.0/24
+  nexthop_group:
+    name: static-default
+    nexthops:
+    - ip_address: 172.16.100.1
+      resolve: false

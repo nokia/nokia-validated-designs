@@ -1,0 +1,11 @@
+- name: Build fabric payloads
+  ansible.builtin.set_fact:
+    phase_config: |-
+      {{ hostvars[inventory_hostname] | srl_config(sw_version, 'fabric') }}
+  delegate_to: localhost
+  no_log: true
+- name: Accumulate fabric updates
+  ansible.builtin.set_fact:
+    config_update: '{{ config_update + phase_config[''update''] }}'
+    config_replace: '{{ config_replace + phase_config[''replace''] }}'
+  no_log: true

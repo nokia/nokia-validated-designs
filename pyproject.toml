@@ -13,6 +13,7 @@ dependencies = [
     "jsonschema>=4.0",
     "requests>=2.31",
     "urllib3>=2.0",
+    "ansible-core>=2.19.8",
 ]
 
 [project.scripts]

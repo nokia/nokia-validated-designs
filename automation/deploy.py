@@ -243,8 +243,17 @@ def main() -> int:
             return 1
 
     elif args.mode == "ansible":
-        logging.error("Ansible mode is not yet implemented. Use --mode eda.")
-        return 1
+        from automation.generators.ansible_generator import generate as ansible_generate
+
+        ansible_dir = design_dir / f"{design_dir.name}-ansible"
+        logging.info("Generating Ansible project...")
+        output_path = ansible_generate(intent, output_dir=ansible_dir)
+        print(f"\n✅ Generated Ansible project to {output_path}")
+        print(f"\n   Quick start:")
+        print(f"   cd {output_path}")
+        print(f"   ansible-galaxy collection install -r requirements.yml")
+        print(f"   ansible-playbook -i inventory.yml playbook.yml")
+        return 0
 
     return 0
 

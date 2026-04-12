@@ -1,0 +1,46 @@
+node:
+  hostname: leaf3
+  role: leaf
+  router_id: 10.0.0.3
+  asn: 65003
+edge_interfaces:
+- name: ethernet-1/1
+  encap: dot1q
+  labels:
+    untagged-v20: true
+bridge_domains:
+- name: macvrf-v10
+  vni: 100101
+  evi: 10
+  irb:
+    anycast_gw: true
+    ipv4: 172.16.10.254/24
+    arp_timeout: 300
+    proxy_arp: true
+    ip_mtu: 9000
+  router: vrf1
+- name: macvrf-v20
+  vni: 10020
+  evi: 20
+  access:
+  - interface: ethernet-1/1
+    vlan: untagged
+  irb:
+    anycast_gw: true
+    ipv4: 172.16.20.254/24
+    arp_timeout: 280
+    proxy_arp: true
+  router: vrf1
+- name: macvrf-v30
+  vni: 10030
+  evi: 30
+  irb:
+    anycast_gw: true
+    ipv4: 172.16.30.254/24
+    arp_timeout: 280
+    proxy_arp: true
+  router: vrf1
+routers:
+- name: vrf1
+  vni: 10500
+  evi: 500

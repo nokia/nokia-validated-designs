@@ -1,0 +1,20 @@
+- name: Fetch device config for pruning
+  nokia.srlinux.get:
+    paths:
+    - path: /network-instance
+      datastore: running
+    - path: /tunnel-interface[name=vxlan0]/vxlan-interface
+      datastore: running
+    - path: /interface
+      datastore: running
+  register: state_result
+- name: Normalize device state
+  ansible.builtin.set_fact:
+    device_state: '{{ state_result.result | srl_normalize_state }}'
+  when: state_result is defined and state_result.result is defined
+- name: Build prune deletes
+  ansible.builtin.set_fact:
+    config_delete: |-
+      {{ config_delete + (hostvars[inventory_hostname] | srl_config_deletes(device_state | default({}), sw_version)) }}
+  delegate_to: localhost
+  when: device_state is defined

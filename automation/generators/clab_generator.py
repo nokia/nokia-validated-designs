@@ -384,10 +384,14 @@ def _build_clab_topology(
         node_def["type"] = platform_type
         nodes[node.name] = node_def
 
+    # Allocate static mgmt IPs for clients to avoid overlap with SR Linux nodes
+    client_ips = _allocate_client_mgmt_ips(intent, len(clients), mgmt_subnet)
+
     # Linux client nodes
-    for client in sorted(clients, key=lambda c: c.name):
+    for idx, client in enumerate(sorted(clients, key=lambda c: c.name)):
         nodes[client.name] = {
             "kind": "linux",
+            "mgmt-ipv4": client_ips[idx],
             "exec": [f"bash /client-configs/{client.name}.sh"],
         }
 
@@ -625,6 +629,45 @@ def _extract_leaf_number(node_name: str) -> str | None:
     """Extract the numeric suffix from a leaf name (e.g., 'leaf4' → '4')."""
     m = re.search(r"(\d+)$", node_name)
     return m.group(1) if m else None
+
+
+def _allocate_client_mgmt_ips(
+    intent: FabricIntent, count: int, mgmt_subnet: str
+) -> list[str]:
+    """Allocate static mgmt IPs for Linux clients that don't overlap with SR Linux nodes.
+
+    Containerlab assigns dynamic IPs without considering static allocations,
+    so every node must have a static IP to prevent collisions.  Client IPs
+    are allocated from the top of the subnet (.254, .253, ...) downward,
+    skipping the network/broadcast addresses and any IPs already used by
+    SR Linux nodes.
+    """
+    net = ipaddress.ip_network(mgmt_subnet, strict=False)
+    reserved = {
+        ipaddress.ip_address(n.mgmt_ipv4)
+        for n in intent.nodes
+        if n.mgmt_ipv4
+    }
+    reserved.add(net.network_address)
+    reserved.add(net.broadcast_address)
+    # .1 is typically the Docker bridge gateway
+    reserved.add(net.network_address + 1)
+
+    allocated: list[str] = []
+    candidate = int(net.broadcast_address) - 1  # start at .254
+    while len(allocated) < count and candidate > int(net.network_address):
+        ip = ipaddress.ip_address(candidate)
+        if ip not in reserved:
+            allocated.append(str(ip))
+            reserved.add(ip)
+        candidate -= 1
+
+    if len(allocated) < count:
+        raise ValueError(
+            f"Cannot allocate {count} client mgmt IPs in {mgmt_subnet} "
+            f"(only {len(allocated)} available)"
+        )
+    return allocated
 
 
 def _derive_mgmt_subnet(intent: FabricIntent) -> str:

@@ -1,0 +1,13 @@
+- name: Pause for validation
+  ansible.builtin.pause:
+    seconds: '{{ [confirm_timeout | int - 5, 10] | max }}'
+    prompt: Validating changes... will auto-confirm after timeout
+  run_once: true
+  when: confirm_timeout | default(0) | int > 0
+- name: Confirm pending commits
+  nokia.srlinux.config:
+    datastore: tools
+    update:
+    - path: /system/configuration/confirmed-accept
+      value: {}
+  when: confirm_timeout | default(0) | int > 0

@@ -1,0 +1,33 @@
+bgp:
+  preference:
+    ebgp: 170
+    ibgp: 170
+  route_advertisement:
+    rapid_withdrawal: true
+    wait_for_fib_install: false
+  afi_safi:
+    evpn:
+      multipath_max_paths: 64
+      inter_as_vpn: true
+      rapid_update: true
+    ipv4_unicast:
+      multipath_max_paths: 2
+      advertise_ipv6_next_hops: true
+      receive_ipv6_next_hops: true
+      rapid_update: true
+    ipv6_unicast:
+      multipath_max_paths: 2
+      rapid_update: true
+  group_name: bgpgroup-ebgp-dc1
+  ebgp_default_policy:
+    import_reject_all: true
+    export_reject_all: true
+bfd:
+  desired_min_transmit_interval: 1000000
+  required_min_receive: 1000000
+  detection_multiplier: 3
+  min_echo_receive_interval: 1000000
+routing_policy:
+  prefix_set: prefixset-dc1
+  export_policy: ebgp-isl-export-policy-dc1
+  import_policy: ebgp-isl-import-policy-dc1

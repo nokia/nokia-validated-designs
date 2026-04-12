@@ -1,0 +1,66 @@
+node:
+  hostname: leaf6
+  role: leaf
+  router_id: 10.0.0.6
+  asn: 65006
+lags:
+- name: lag1
+  description: leaf5-leaf6-lag1
+  aggregate_id: '1'
+  mode: all-active
+  min_links: 1
+  lacp:
+    interval: fast
+    system_id_mac: 00:00:00:00:56:01
+    system_priority: 32768
+    admin_key: 1
+  fallback:
+    mode: static
+    timeout: 60
+  reload_delay_timer: 100
+  labels:
+    untagged-v30: true
+  members:
+  - interface: ethernet-1/1
+bridge_domains:
+- name: macvrf-v10
+  vni: 100101
+  evi: 10
+  irb:
+    anycast_gw: true
+    ipv4: 172.16.10.254/24
+    arp_timeout: 300
+    proxy_arp: true
+    ip_mtu: 9000
+  router: vrf1
+- name: macvrf-v20
+  vni: 10020
+  evi: 20
+  irb:
+    anycast_gw: true
+    ipv4: 172.16.20.254/24
+    arp_timeout: 280
+    proxy_arp: true
+  router: vrf1
+- name: macvrf-v30
+  vni: 10030
+  evi: 30
+  access:
+  - interface: lag1
+    vlan: untagged
+  irb:
+    anycast_gw: true
+    ipv4: 172.16.30.254/24
+    arp_timeout: 280
+    proxy_arp: true
+  router: vrf1
+routers:
+- name: vrf1
+  vni: 10500
+  evi: 500
+event_handler:
+  node_isolation:
+    down_links:
+    - ethernet-1/1
+    hold_down_time: 20000
+    required_bgp_sessions: 1

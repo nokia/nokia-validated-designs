@@ -1,0 +1,13 @@
+- name: Apply configuration
+  nokia.srlinux.config:
+    update: '{{ config_update | default([]) }}'
+    replace: '{{ config_replace | default([]) }}'
+    delete: '{{ config_delete | default([]) }}'
+    confirm_timeout: '{{ confirm_timeout | default(0) | int }}'
+  register: deploy_result
+  when: (config_update | default([]) | length > 0) or (config_replace | default([]) | length > 0) or (config_delete | default([])
+    | length > 0)
+- name: Show changes
+  ansible.builtin.debug:
+    var: deploy_result.diff
+  when: deploy_result is defined and deploy_result.changed | default(false)
