@@ -25,6 +25,7 @@ from typing import Any
 import yaml
 
 from automation.core.models import (
+    ConfigletIntent,
     EdgeInterfaceIntent,
     FabricIntent,
     IrbInterfaceIntent,
@@ -40,17 +41,17 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 PLATFORM_TYPE_MAP = {
-    "7220 IXR-D3L": "ixrd3l",
-    "7220 IXR-D2L": "ixrd2l",
-    "7220 IXR-D3": "ixrd3",
-    "7220 IXR-D2": "ixrd2",
-    "7220 IXR-D5": "ixrd5",
-    "7220 IXR-H2": "ixrh2",
-    "7220 IXR-H3": "ixrh3",
-    "7250 IXR-6e": "ixr6e",
-    "7250 IXR-10e": "ixr10e",
-    "7250 IXR-6": "ixr6",
-    "7250 IXR-10": "ixr10",
+    "7220 IXR-D3L": "ixr-d3l",
+    "7220 IXR-D2L": "ixr-d2l",
+    "7220 IXR-D3": "ixr-d3",
+    "7220 IXR-D2": "ixr-d2",
+    "7220 IXR-D5": "ixr-d5",
+    "7220 IXR-H2": "ixr-h2",
+    "7220 IXR-H3": "ixr-h3",
+    "7250 IXR-6e": "ixr-6e",
+    "7250 IXR-10e": "ixr-10e",
+    "7250 IXR-6": "ixr-6",
+    "7250 IXR-10": "ixr-10",
 }
 
 CLIENT_IMAGE = "ghcr.io/srl-labs/network-multitool"
@@ -94,6 +95,8 @@ class RoutedAttachment:
     client_ip: str
     client_mask: int
     gateway: str
+    router: str = ""
+    loopback_ips: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -122,7 +125,8 @@ def generate(intent: FabricIntent, output_dir: Path) -> Path:
     _match_vlans_to_clients(clients, intent)
     _allocate_ips(clients, intent)
 
-    clab_topo = _build_clab_topology(intent, clients)
+    needs_node_isolation = _configlets_need_node_isolation(intent.configlets)
+    clab_topo = _build_clab_topology(intent, clients, needs_node_isolation)
 
     # Write clab file
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -142,6 +146,13 @@ def generate(intent: FabricIntent, output_dir: Path) -> Path:
     logger.info(
         "Wrote %d client configs to %s", len(clients), config_dir
     )
+
+    # Copy node-isolation.py to output dir if configlets require it
+    if needs_node_isolation:
+        _copy_node_isolation_script(output_dir)
+
+    # Generate overlay validation script
+    _generate_validate_overlay(clients, intent, output_dir)
 
     return clab_path
 
@@ -256,17 +267,35 @@ def _derive_clients(intent: FabricIntent) -> list[ClientNode]:
             eth_index=1,
             labels={},
         )
+        loopback_ips = _loopback_ips_for_routed_client(client_ip, intent)
         routed_att = RoutedAttachment(
             name=ri.name,
             client_ip=client_ip,
             client_mask=client_mask,
             gateway=gateway,
+            router=ri.router,
+            loopback_ips=loopback_ips,
         )
         clients.append(
             ClientNode(name=client_name, is_bonded=False, links=[link], routed=routed_att)
         )
 
     return clients
+
+
+def _loopback_ips_for_routed_client(client_ip: str, intent: FabricIntent) -> list[str]:
+    """Collect first-host IPs from static route prefixes whose nexthop matches *client_ip*."""
+    ips: list[str] = []
+    for sr in intent.static_routes:
+        nhg = sr.nexthop_group
+        nexthops = nhg.get("nexthops", [])
+        if any(nh.get("ipPrefix", "") == client_ip for nh in nexthops):
+            for prefix in sr.prefixes:
+                net = ipaddress.ip_network(prefix, strict=False)
+                first_host = next(net.hosts(), None)
+                if first_host:
+                    ips.append(str(first_host))
+    return ips
 
 
 # ---------------------------------------------------------------------------
@@ -362,7 +391,9 @@ def _allocate_ips(clients: list[ClientNode], intent: FabricIntent) -> None:
 
 
 def _build_clab_topology(
-    intent: FabricIntent, clients: list[ClientNode]
+    intent: FabricIntent,
+    clients: list[ClientNode],
+    needs_node_isolation: bool = False,
 ) -> dict:
     """Build the containerlab topology dict."""
 
@@ -378,7 +409,7 @@ def _build_clab_topology(
 
     # SR Linux nodes
     for node in sorted(intent.nodes, key=lambda n: n.name):
-        platform_type = PLATFORM_TYPE_MAP.get(node.platform, "ixrd3l")
+        platform_type = PLATFORM_TYPE_MAP.get(node.platform, "ixr-d3l")
         node_def: dict[str, Any] = {"mgmt-ipv4": node.mgmt_ipv4}
         # Only specify type if it differs from the default
         node_def["type"] = platform_type
@@ -415,6 +446,13 @@ def _build_clab_topology(
             ]
             links.append({"endpoints": endpoints})
 
+    # --- SR Linux kind definition ---
+    srl_kind: dict[str, Any] = {"image": srl_image}
+    if needs_node_isolation:
+        srl_kind["binds"] = [
+            "node-isolation.py:/etc/opt/srlinux/eventmgr/node-isolation.py"
+        ]
+
     # --- Assemble topology ---
     topo: dict[str, Any] = {
         "name": intent.fabric_name,
@@ -426,7 +464,7 @@ def _build_clab_topology(
         "topology": {
             "defaults": {"kind": "nokia_srlinux"},
             "kinds": {
-                "nokia_srlinux": {"image": srl_image},
+                "nokia_srlinux": srl_kind,
                 "linux": {
                     "image": CLIENT_IMAGE,
                     "binds": ["client-configs:/client-configs"],
@@ -450,13 +488,23 @@ def _generate_client_script(client: ClientNode) -> str:
     lines: list[str] = ["#!/bin/bash", f"# Auto-generated startup for {client.name}", ""]
 
     if client.routed:
-        # Simple routed client — direct L3 on eth1
         ra = client.routed
         lines.append("# Routed interface (direct L3)")
         lines.append(f"ip addr add {ra.client_ip}/{ra.client_mask} dev eth1")
-        lines.append(f"ip route add default via {ra.gateway} dev eth1")
         lines.append("")
-        lines.append("# Traffic")
+        if ra.loopback_ips:
+            lines.append("# Loopback IPs for static route targets")
+            for lip in ra.loopback_ips:
+                net = ipaddress.ip_interface(lip)
+                lines.append(f"ip addr add {lip}/{net.network.max_prefixlen} dev lo")
+            lines.append("")
+        lines.append("# Policy routing so source-bound traffic uses the fabric")
+        lines.append(f"ip route add default via {ra.gateway} dev eth1 table 10")
+        lines.append(f"ip rule add from {ra.client_ip} table 10")
+        for lip in ra.loopback_ips:
+            lines.append(f"ip rule add from {lip} table 10")
+        lines.append("")
+        lines.append("# Continuous traffic")
         lines.append(
             f"nohup ping -i 0.5 -I eth1 {ra.gateway} > /dev/null 2>&1 &"
         )
@@ -614,6 +662,313 @@ def _generate_bonded_script(client: ClientNode, lines: list[str]) -> str:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _configlets_need_node_isolation(configlets: list[ConfigletIntent]) -> bool:
+    """Check if any configlet references the node-isolation.py event-handler script."""
+    for configlet in configlets:
+        for entry in configlet.configs:
+            if "node-isolation.py" in entry.config:
+                return True
+    return False
+
+
+def _generate_validate_overlay(
+    clients: list[ClientNode], intent: FabricIntent, output_dir: Path
+) -> None:
+    """Generate a parallel overlay validation script from the client/intent data."""
+
+    # ── index structures ────────────────────────────────────────────────
+    # bridge_domain → router name (via IRB interfaces)
+    bd_to_router: dict[str, str] = {}
+    for irb in intent.irb_interfaces:
+        bd_to_router[irb.bridge_domain] = irb.router
+
+    # Collect (client_name, src_ip, bridge_domain, router) for every
+    # VLAN attachment across all clients.
+    @dataclass
+    class _ClientSubnet:
+        client: str
+        ip: str
+        bd: str
+        router: str
+
+    subnets: list[_ClientSubnet] = []
+    for cl in clients:
+        if cl.routed:
+            continue
+        for link in cl.links:
+            for att in link.attachments:
+                if att.client_ip:
+                    subnets.append(
+                        _ClientSubnet(
+                            client=cl.name,
+                            ip=att.client_ip,
+                            bd=att.bridge_domain,
+                            router=bd_to_router.get(att.bridge_domain, ""),
+                        )
+                    )
+
+    # Routed clients
+    routed_clients = [cl for cl in clients if cl.routed]
+
+    # ── script assembly ─────────────────────────────────────────────────
+    L = []  # output lines
+
+    L.append(_VALIDATE_HEADER)
+
+    # --- Convergence wait using first client ---
+    if subnets:
+        s0 = subnets[0]
+        gw0 = _gateway_for_subnet(s0.bd, intent)
+        L.append("if ! $NO_WAIT; then")
+        L.append(f'  wait_for_convergence "{s0.client}" "{s0.ip}" "{gw0}" 120')
+        L.append("fi")
+        L.append("")
+
+    # --- Gateway reachability (one test per client-subnet) ---
+    L.append('sec_start=$((_seq + 1))')
+    for s in subnets:
+        gw = _gateway_for_subnet(s.bd, intent)
+        L.append(
+            f'enqueue_ping "{s.client}" "{s.ip}" "{gw}" '
+            f'"{s.client} → gw {gw} ({s.bd})"'
+        )
+    for cl in routed_clients:
+        ra = cl.routed
+        assert ra is not None
+        L.append(
+            f'enqueue_ping "{cl.name}" "{ra.client_ip}" "{ra.gateway}" '
+            f'"{cl.name} → gw {ra.gateway} (routed)"'
+        )
+    L.append('flush_section "Gateway reachability" "$sec_start"')
+    L.append("")
+    L.append("if $QUICK; then")
+    L.append('  echo ""')
+    L.append('  echo "━━━ Summary (quick mode) ━━━"')
+    L.append('  echo "  Passed: $TOTAL_PASS  Failed: $TOTAL_FAIL  Skipped: 0"')
+    L.append('  [ "$TOTAL_FAIL" -eq 0 ]')
+    L.append("  exit")
+    L.append("fi")
+    L.append("")
+
+    # --- L2 intra-subnet (clients sharing the same bridge domain) ---
+    L.append('sec_start=$((_seq + 1))')
+    bd_clients: dict[str, list[_ClientSubnet]] = {}
+    for s in subnets:
+        bd_clients.setdefault(s.bd, []).append(s)
+    for bd, members in sorted(bd_clients.items()):
+        if len(members) < 2:
+            continue
+        for i, a in enumerate(members):
+            for b in members[i + 1 :]:
+                L.append(
+                    f'enqueue_bidir "{a.client}" "{a.ip}" '
+                    f'"{b.client}" "{b.ip}" "L2 {bd}"'
+                )
+    L.append('flush_section "L2 intra-subnet (same bridge domain)" "$sec_start"')
+    L.append("")
+
+    # --- L3 inter-subnet (clients in different BDs of the same router) ---
+    L.append('sec_start=$((_seq + 1))')
+    router_bds: dict[str, list[str]] = {}
+    for s in subnets:
+        if s.router:
+            router_bds.setdefault(s.router, [])
+            if s.bd not in router_bds[s.router]:
+                router_bds[s.router].append(s.bd)
+
+    for router, bds in sorted(router_bds.items()):
+        if len(bds) < 2:
+            continue
+        for i, bd_a in enumerate(bds):
+            for bd_b in bds[i + 1 :]:
+                # pick one representative client from each BD
+                a = bd_clients[bd_a][0]
+                b = bd_clients[bd_b][0]
+                L.append(
+                    f'enqueue_bidir "{a.client}" "{a.ip}" '
+                    f'"{b.client}" "{b.ip}" '
+                    f'"L3 {router} ({a.bd} ↔ {b.bd})"'
+                )
+    L.append(
+        'flush_section "L3 inter-subnet (same router, different subnet)" "$sec_start"'
+    )
+    L.append("")
+
+    # --- Routed interfaces and static routes ---
+    if routed_clients or intent.static_routes:
+        L.append('sec_start=$((_seq + 1))')
+        for cl in routed_clients:
+            ra = cl.routed
+            assert ra is not None
+            tested: set[str] = set()
+            for s in subnets:
+                if ra.router and s.router != ra.router:
+                    continue
+                key = f"{cl.name}-{s.bd}"
+                if key in tested:
+                    continue
+                tested.add(key)
+                L.append(
+                    f'enqueue_bidir "{cl.name}" "{ra.client_ip}" '
+                    f'"{s.client}" "{s.ip}" '
+                    f'"routed {ra.name} ↔ {s.bd}"'
+                )
+
+        for sr in intent.static_routes:
+            nexthops = sr.nexthop_group.get("nexthops", [])
+            nh_ip = nexthops[0].get("ipPrefix", "") if nexthops else ""
+            # find a client on a BD that has a route via the static route's router
+            src = next(
+                (s for s in subnets if s.router == sr.router), None
+            )
+            if not src:
+                continue
+            for prefix in sr.prefixes:
+                net = ipaddress.ip_network(prefix, strict=False)
+                first_host = next(net.hosts(), None)
+                if not first_host:
+                    continue
+                target_name = ""
+                for cl in routed_clients:
+                    if cl.routed and cl.routed.client_ip == nh_ip:
+                        target_name = cl.name
+                        break
+                label = f"static route {prefix} via {target_name or nh_ip} (from {src.client})"
+                L.append(
+                    f'enqueue_ping "{src.client}" "{src.ip}" '
+                    f'"{first_host}" "{label}"'
+                )
+        L.append(
+            'flush_section "Routed interfaces and static routes" "$sec_start"'
+        )
+        L.append("")
+
+    # --- Summary ---
+    L.append('echo ""')
+    L.append('echo "━━━ Summary ━━━"')
+    L.append('echo "  Passed: $TOTAL_PASS  Failed: $TOTAL_FAIL  Skipped: 0"')
+    L.append('[ "$TOTAL_FAIL" -eq 0 ]')
+
+    script_path = output_dir / "validate-overlay.sh"
+    script_path.write_text("\n".join(L) + "\n")
+    logger.info("Wrote validation script to %s", script_path)
+
+
+def _gateway_for_subnet(bridge_domain: str, intent: FabricIntent) -> str:
+    """Return the anycast-gw IP for a bridge domain."""
+    for irb in intent.irb_interfaces:
+        if irb.bridge_domain != bridge_domain:
+            continue
+        if irb.ipv4:
+            return irb.ipv4.split("/")[0]
+        if irb.ip_addresses:
+            for addr in irb.ip_addresses:
+                if addr.ipv4 and addr.ipv4.get("ip_prefix"):
+                    return addr.ipv4["ip_prefix"].split("/")[0]
+    return ""
+
+
+_VALIDATE_HEADER = r"""#!/bin/bash
+# Auto-generated overlay validation script
+# Usage: ./validate-overlay.sh [--quick] [--verbose] [--no-wait]
+
+set -euo pipefail
+
+QUICK=false
+VERBOSE=false
+NO_WAIT=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --quick) QUICK=true ;;
+    --verbose) VERBOSE=true ;;
+    --no-wait) NO_WAIT=true ;;
+  esac
+done
+
+RESULT_DIR=$(mktemp -d)
+trap 'rm -rf "$RESULT_DIR"' EXIT
+
+exec_on() {
+  local node="$1"; shift
+  docker exec "$node" "$@" 2>/dev/null
+}
+
+wait_for_convergence() {
+  local src="$1" src_ip="$2" dst_ip="$3" max_wait="${4:-120}"
+  local elapsed=0 interval=5
+  echo "Waiting for overlay convergence (${src} ${src_ip} → ${dst_ip}, timeout ${max_wait}s)..."
+  while [ "$elapsed" -lt "$max_wait" ]; do
+    if exec_on "$src" ping -c1 -W2 -I "$src_ip" "$dst_ip" > /dev/null 2>&1; then
+      echo "  Overlay reachable after ${elapsed}s"
+      return 0
+    fi
+    sleep "$interval"
+    elapsed=$((elapsed + interval))
+    echo "  ${elapsed}s — not yet reachable, retrying..."
+  done
+  echo "  ⚠️  Timed out after ${max_wait}s — proceeding anyway"
+  return 0
+}
+
+_seq=0
+enqueue_ping() {
+  local src="$1" src_ip="$2" dst_ip="$3" label="$4"
+  _seq=$((_seq + 1))
+  local id=$_seq
+  (
+    if $VERBOSE; then echo "    cmd: docker exec $src ping -c1 -W2 -I $src_ip $dst_ip"; fi
+    if exec_on "$src" ping -c1 -W2 -I "$src_ip" "$dst_ip" > /dev/null 2>&1; then
+      echo "pass" > "$RESULT_DIR/${id}.rc"
+    else
+      echo "fail" > "$RESULT_DIR/${id}.rc"
+    fi
+    echo "$label" > "$RESULT_DIR/${id}.label"
+  ) &
+}
+
+enqueue_bidir() {
+  local a="$1" a_ip="$2" b="$3" b_ip="$4" label="$5"
+  enqueue_ping "$a" "$a_ip" "$b_ip" "$label ($a → $b)"
+  enqueue_ping "$b" "$b_ip" "$a_ip" "$label ($b → $a)"
+}
+
+flush_section() {
+  local section="$1" start_id="$2"
+  wait
+  echo ""
+  echo "━━━ $section ━━━"
+  local pass=0 fail=0
+  for i in $(seq "$start_id" "$_seq"); do
+    local rc label
+    rc=$(cat "$RESULT_DIR/${i}.rc")
+    label=$(cat "$RESULT_DIR/${i}.label")
+    if [ "$rc" = "pass" ]; then
+      echo "  ✅ $label"
+      pass=$((pass + 1))
+    else
+      echo "  ❌ $label"
+      fail=$((fail + 1))
+    fi
+  done
+  TOTAL_PASS=$((TOTAL_PASS + pass))
+  TOTAL_FAIL=$((TOTAL_FAIL + fail))
+}
+
+TOTAL_PASS=0
+TOTAL_FAIL=0
+
+"""
+
+
+def _copy_node_isolation_script(output_dir: Path) -> None:
+    """Copy node-isolation.py from bundled resources to the output directory."""
+    src = Path(__file__).parent / "resources" / "node-isolation.py"
+    dst = output_dir / "node-isolation.py"
+    dst.write_text(src.read_text())
+    logger.info("Copied node-isolation.py to %s", dst)
 
 
 def _to_clab_intf(interface: str) -> str:

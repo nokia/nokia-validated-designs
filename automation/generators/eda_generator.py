@@ -55,6 +55,7 @@ from automation.eda_models.services import (
 )
 from automation.eda_models.protocols import StaticRouteSpec
 from automation.eda_models.fabrics import (
+    FabricBgp,
     FabricSpec,
     FabricUnderlayProtocol,
     FabricUnderlayProtocolBfd,
@@ -407,11 +408,15 @@ def _cr_interface_lag(lag: LagIntent, ns: str) -> dict:
         for m in lag.members
     ]
 
+    agg_id = lag.members[0].aggregate_id if lag.members else "1"
+    admin_key = lag.lacp.admin_key if lag.lacp.admin_key is not None else int(agg_id)
+
     lacp = InterfaceLacp(
         mode="active",
         interval=lag.lacp.interval,
         system_priority=lag.lacp.system_priority,
         system_id_mac=lag.lacp.system_id_mac,
+        admin_key=admin_key,
     )
     if lag.lacp.fallback:
         lacp.lacp_fallback = InterfaceFallback(
@@ -509,6 +514,7 @@ def _cr_fabric(intent: FabricIntent, ns: str) -> dict:
     spec = FabricSpec(
         underlay_protocol=FabricUnderlayProtocol(
             protocol=["EBGP"],
+            bgp=FabricBgp(asn_pool="asn-pool"),
             bfd=FabricUnderlayProtocolBfd(
                 enabled=True,
                 desired_min_transmit_int=1000000,

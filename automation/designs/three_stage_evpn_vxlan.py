@@ -476,6 +476,20 @@ def _build_irb_interfaces(raw: list[dict], default_ip_mtu: int = 1500) -> list[I
             proxy_nd=irb.get("proxy_nd", False),
             arp_timeout=irb.get("arp_timeout", 280),
             ip_mtu=irb.get("ip_mtu", default_ip_mtu),
+            evpn_route_advertisement_type=irb.get(
+                "evpn_route_advertisement_type",
+                {
+                    "rfc9135SymmetricMode": False,
+                    "arpDynamic": True,
+                    "arpStatic": True,
+                    "ndDynamic": False,
+                    "ndStatic": False,
+                },
+            ),
+            host_route_populate=irb.get(
+                "host_route_populate",
+                {"dynamic": True, "static": True, "evpn": False},
+            ),
         )
         for irb in raw
     ]

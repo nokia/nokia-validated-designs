@@ -154,7 +154,7 @@ def main() -> int:
         clab_path = clab_generate(intent, output_dir=build_dir)
         print(f"\n✅ Generated containerlab topology: {clab_path}")
         print(f"   Client configs: {build_dir}/client-configs/")
-        if not args.generate_only and args.mode != "eda":
+        if not args.generate_only:
             return 0
 
     if args.mode == "eda":

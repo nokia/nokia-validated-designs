@@ -59,6 +59,7 @@ class FabricTimers(_EDABase):
 
 
 class FabricBgp(_EDABase):
+    asn_pool: str | None = Field(None, alias="asnPool", description="Reference to an IndexAllocationPool pool to use for Autonomous System Number allocations.  Used when eBGP is configured as an underlay protocol.", title="Autonomous System Pool")
     autonomous_system: int | None = Field(None, alias="autonomousSystem", description="Autonomous System used for iBGP peering session, when protocol is set to IBGP providing an autonomousSystem is required.", title="Autonomous System")
     cluster_id: str | None = Field(None, alias="clusterID", description="Sets the cluster ID used by DefaultRouteReflectors, when protocol is set to IBGP providing a clusterID is required.", title="Cluster ID")
     export_policy: list[str] | None = Field(None, alias="exportPolicy", description="Reference to a Policy, when left empty or not specified the Fabric will automatically generate a policy for the speci...", title="Export Policy")

@@ -165,8 +165,8 @@ class IrbInterfaceIntent(BaseModel):
     learn_unsolicited: str = "NONE"  # "NONE" | "GLOBAL"
 
     # EVPN route control
-    evpn_route_advertisement_type: str = ""  # "type5Only" | "type2Only" | "type2WithType5"
-    host_route_populate: bool | None = None  # None = not set (use EDA default)
+    evpn_route_advertisement_type: dict | None = None
+    host_route_populate: dict | bool | None = None
 
 
 class VlanIntent(BaseModel):

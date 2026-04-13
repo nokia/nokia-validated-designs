@@ -61,6 +61,11 @@ PHASE_KINDS: dict[str, set[str]] = {
     },
 }
 
+# Shared/singleton resource kinds that are NOT destroyed by default.
+# These bootstrap resources (Init, NodeUser, NodeProfile) are typically
+# shared across multiple designs and should survive a destroy operation.
+SHARED_KINDS: set[str] = {"Init", "NodeUser", "NodeProfile"}
+
 # CR kind → phase mapping (for destroy)
 # Interface is grouped with topology because EDA ISLs (auto-created from
 # TopoLinks) reference Interface CRs — you can't delete Interfaces while
@@ -75,7 +80,6 @@ DESTROY_PHASE_KINDS: dict[str, set[str]] = {
         "Interface",  # must be deleted with/after TopoLinks
         "TopoLink", "TopoNode", "DefaultMTU", "Banner",
         "IPAllocationPool", "IndexAllocationPool",
-        "NodeProfile", "NodeUser", "Init",
     },
 }
 
@@ -387,6 +391,54 @@ class EdaClient:
         return managed
 
     # ------------------------------------------------------------------
+    # TopoNode existence check (avoid re-onboarding)
+    # ------------------------------------------------------------------
+
+    def _get_existing_toponode_names(self, namespace: str = "eda") -> set[str]:
+        """
+        Query EDA for TopoNodes that already exist.
+
+        TopoNode is special in EDA: re-applying via ``replace`` always
+        triggers full re-evaluation and re-onboarding, even when the
+        spec is unchanged.  By querying first we can skip existing
+        TopoNodes and only ``create`` genuinely new ones.
+        """
+        self._ensure_auth()
+        url = (
+            f"{self.url}/apps/core.eda.nokia.com/v1"
+            f"/namespaces/{namespace}/toponodes"
+        )
+        try:
+            resp = self._session.get(url)
+            if resp.status_code == 200:
+                items = resp.json().get("items", [])
+                names = {
+                    item.get("metadata", {}).get("name", "")
+                    for item in items
+                }
+                names.discard("")
+                logger.info(
+                    "Found %d existing TopoNodes in EDA: %s",
+                    len(names),
+                    ", ".join(sorted(names)) if names else "(none)",
+                )
+                return names
+            else:
+                logger.warning(
+                    "Could not query existing TopoNodes (HTTP %d), "
+                    "will use replace for all",
+                    resp.status_code,
+                )
+                return set()
+        except Exception as e:
+            logger.warning(
+                "Error querying existing TopoNodes: %s, "
+                "will use replace for all",
+                e,
+            )
+            return set()
+
+    # ------------------------------------------------------------------
     # Diff computation (for prune)
     # ------------------------------------------------------------------
 
@@ -645,8 +697,39 @@ class EdaClient:
 
         # Phase 1: Topology
         if PHASE_TOPOLOGY in run_phases and phased.get(PHASE_TOPOLOGY):
+            topo_crs = phased[PHASE_TOPOLOGY]
+
+            # TopoNodes need special handling: re-applying an existing
+            # TopoNode via replace triggers full re-onboarding. Query
+            # EDA first and only create genuinely new ones.
+            existing_nodes = self._get_existing_toponode_names()
+            new_topo_nodes: list[dict] = []
+            skipped_nodes: list[str] = []
+            other_crs: list[dict] = []
+
+            for cr in topo_crs:
+                if cr.get("kind") == "TopoNode":
+                    name = cr.get("metadata", {}).get("name", "")
+                    if name in existing_nodes:
+                        skipped_nodes.append(name)
+                    else:
+                        new_topo_nodes.append(cr)
+                else:
+                    other_crs.append(cr)
+
+            if skipped_nodes:
+                logger.info(
+                    "Skipping %d existing TopoNodes (already onboarded): %s",
+                    len(skipped_nodes),
+                    ", ".join(sorted(skipped_nodes)),
+                )
+
+            # Build the topology transaction:
+            #   - other CRs use replace (idempotent upsert)
+            #   - new TopoNodes use create (avoids re-onboarding)
             result = self._submit_phase(
-                crs=phased[PHASE_TOPOLOGY],
+                crs=other_crs,
+                create_crs=new_topo_nodes,
                 description="NVD topology",
                 dry_run=dry_run,
                 phase_label="Phase 1 (topology)",
@@ -655,14 +738,20 @@ class EdaClient:
                 return result
             last_result = result
 
-            # Wait for TopoNodes to sync before downstream phases
+            # Wait for ALL TopoNodes (new + existing) to be Synced
+            # before proceeding to fabric/services phases.
             if not dry_run:
-                topo_nodes = [
-                    cr for cr in phased[PHASE_TOPOLOGY]
-                    if cr.get("kind") == "TopoNode"
-                ]
-                if topo_nodes:
-                    self._wait_for_nodes_sync(topo_nodes)
+                all_node_names = (
+                    [cr.get("metadata", {}).get("name", "") for cr in new_topo_nodes]
+                    + skipped_nodes
+                )
+                if all_node_names:
+                    all_node_stubs = [
+                        {"metadata": {"name": n, "namespace": "eda"},
+                         "apiVersion": "core.eda.nokia.com/v1"}
+                        for n in all_node_names
+                    ]
+                    self._wait_for_nodes_sync(all_node_stubs)
 
         # Phase 2: Fabric
         if PHASE_FABRIC in run_phases and phased.get(PHASE_FABRIC):
@@ -762,10 +851,14 @@ class EdaClient:
         managed_by_kind: dict[str, list[dict]] = {}
         for cr in managed:
             kind = cr.get("_kind", "")
+            if kind in SHARED_KINDS:
+                continue
             managed_by_kind.setdefault(kind, []).append(cr)
 
         tx_crs: list[dict] = []
         for api_version, kind, plural in DESTROY_ORDER:
+            if kind in SHARED_KINDS:
+                continue
             for cr in managed_by_kind.get(kind, []):
                 name = cr.get("metadata", {}).get("name", "")
                 tx_crs.append(
@@ -811,13 +904,26 @@ class EdaClient:
         self,
         *,
         crs: list[dict],
+        create_crs: list[dict] | None = None,
         delete_crs: list[dict] | None = None,
         description: str,
         dry_run: bool,
         phase_label: str,
     ) -> TransactionResult:
-        """Submit a transaction for a set of CRs and poll for result."""
+        """Submit a transaction for a set of CRs and poll for result.
+
+        Args:
+            crs: CRs to upsert via ``replace`` (idempotent for most kinds).
+            create_crs: CRs to submit via ``create`` (fails if already
+                exists — used for TopoNodes to avoid re-onboarding).
+            delete_crs: CRs to delete.
+            description: Human-readable transaction description.
+            dry_run: Validate only.
+            phase_label: Label for log messages.
+        """
         tx_crs: list[dict] = [self._wrap_cr_replace(cr) for cr in crs]
+        for cr in (create_crs or []):
+            tx_crs.append(self._wrap_cr_create(cr))
         for d in (delete_crs or []):
             tx_crs.append(
                 self._wrap_cr_delete(
@@ -900,16 +1006,24 @@ class EdaClient:
     def _wait_for_nodes_sync(
         self,
         topo_nodes: list[dict],
-        timeout: int = 120,
-        interval: int = 5,
+        timeout: int = 600,
+        interval: int = 10,
     ) -> None:
         """
-        Wait for TopoNodes to be fully registered and synced in EDA.
+        Wait for all TopoNodes to reach ``Synced`` node-state.
 
-        After a topology transaction, EDA needs time to process the
-        nodes before downstream resources (Configlets, Interfaces, etc.)
-        can reference them. This polls the TopoNode REST API and checks
-        for a 'ready' condition.
+        After the topology transaction, EDA's NPP connects to each node,
+        pushes initial config, and transitions through several states::
+
+            TryingToConnect → WaitingForInitialCfg → Committing → Synced
+
+        Downstream phases (Fabric, Services) depend on nodes being fully
+        synced — submitting them earlier causes intent errors because the
+        NPP hasn't confirmed the baseline config yet.
+
+        This method polls ``GET /apps/.../toponodes/{name}`` and checks
+        ``status.node-state`` for each node until all report ``Synced``
+        or the timeout expires.
         """
         node_names = [
             cr.get("metadata", {}).get("name", "")
@@ -919,13 +1033,15 @@ class EdaClient:
         api_version = topo_nodes[0].get("apiVersion", "core.eda.nokia.com/v1")
 
         logger.info(
-            "Waiting for %d TopoNodes to be synced...", len(node_names)
+            "Waiting for %d TopoNodes to reach Synced state...",
+            len(node_names),
         )
 
         start = time.time()
         while time.time() - start < timeout:
-            all_ready = True
-            pending = []
+            synced: list[str] = []
+            pending: list[tuple[str, str]] = []  # (name, current_state)
+
             for name in node_names:
                 url = (
                     f"{self.url}/apps/{api_version}"
@@ -934,44 +1050,47 @@ class EdaClient:
                 try:
                     resp = self._session.get(url)
                     if resp.status_code != 200:
-                        all_ready = False
-                        pending.append(name)
+                        pending.append((name, f"http-{resp.status_code}"))
                         continue
                     data = resp.json()
-                    status = data.get("status", {})
-                    conditions = status.get("conditions", [])
-                    ready = any(
-                        c.get("type") == "Ready"
-                        and c.get("status") == "True"
-                        for c in conditions
-                    )
-                    if not ready and conditions:
-                        all_ready = False
-                        pending.append(name)
-                except Exception:
-                    all_ready = False
-                    pending.append(name)
+                    node_state = data.get("status", {}).get("node-state", "")
+                    if node_state == "Synced":
+                        synced.append(name)
+                    else:
+                        pending.append((name, node_state or "unknown"))
+                except Exception as e:
+                    pending.append((name, f"error: {e}"))
 
-            if all_ready:
+            if len(synced) == len(node_names):
                 elapsed = int(time.time() - start)
                 logger.info(
-                    "All %d TopoNodes are synced (%ds)", len(node_names), elapsed
+                    "All %d TopoNodes are Synced (%ds)",
+                    len(node_names),
+                    elapsed,
                 )
                 return
 
             elapsed = int(time.time() - start)
+            state_summary = ", ".join(
+                f"{n}={s}" for n, s in pending[:5]
+            )
+            if len(pending) > 5:
+                state_summary += f" (+{len(pending) - 5} more)"
             logger.info(
-                "Waiting for TopoNodes: %d/%d ready (%ds/%ds) — pending: %s",
-                len(node_names) - len(pending),
+                "Waiting for TopoNodes: %d/%d Synced (%ds/%ds) — %s",
+                len(synced),
                 len(node_names),
                 elapsed,
                 timeout,
-                ", ".join(pending[:5]),
+                state_summary,
             )
             time.sleep(interval)
 
+        pending_names = ", ".join(n for n, _ in pending)
         logger.warning(
-            "Timed out waiting for TopoNodes after %ds, proceeding",
+            "Timed out waiting for TopoNodes after %ds — "
+            "still pending: %s. Proceeding anyway.",
             timeout,
+            pending_names,
         )
 
