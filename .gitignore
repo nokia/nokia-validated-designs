@@ -40,6 +40,7 @@ coverage.xml
 
 # ---------- Ansible ----------
 *.retry
+validated-designs/3-stage-evpn-vxlan/3-stage-evpn-vxlan-ansible/
 
 # ---------- IDE / Editor ----------
 .vscode/
@@ -53,3 +54,4 @@ coverage.xml
 .env
 .env.*
 !.env.example
+**/*-ansible/

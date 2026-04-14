@@ -18,7 +18,7 @@ underlay:
 spines:
   count: 2
   platform: "7220 IXR-D3L"
-  version: "25.10.2"
+  version: "26.3.1"
   mgmt_base_ipv4: "172.21.21.101"
   labels:
     eda.nokia.com/role: spine
@@ -27,7 +27,7 @@ spines:
 leafs:
   count: 8
   platform: "7220 IXR-D3L"
-  version: "25.10.2"
+  version: "26.3.1"
   mgmt_base_ipv4: "172.21.21.11"
   labels:
     eda.nokia.com/role: leaf

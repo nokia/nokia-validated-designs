@@ -23,7 +23,8 @@ def get_builder(version: str):
     if version in _BUILDER_CACHE:
         return _BUILDER_CACHE[version]
 
-    parts = version.replace("-", ".").split(".")
+    normalized = version.lstrip("v")
+    parts = normalized.replace("-", ".").split(".")
     candidates = []
     if len(parts) >= 3:
         candidates.append(f"v{'_'.join(parts[:3])}")

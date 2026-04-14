@@ -20,6 +20,7 @@ familiar with EDA can work with Ansible using the same mental model.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import textwrap
@@ -32,6 +33,7 @@ import yaml
 
 from automation.core.models import (
     BridgeDomainIntent,
+    ConfigletIntent,
     EdgeInterfaceIntent,
     FabricIntent,
     IrbInterfaceIntent,
@@ -64,6 +66,79 @@ def _intf_to_srl(name: str) -> str:
     if m:
         return f"{m.group(1)}/{m.group(2)}"
     return name
+
+
+# ---------------------------------------------------------------------------
+# EDA jspath → SR Linux JSON-RPC path conversion
+# ---------------------------------------------------------------------------
+
+_JSPATH_PREDICATE_RE = re.compile(r'\{\.(\w[\w-]*)=="?([^"}\s]+)"?\}')
+
+
+def _jspath_to_jsonrpc(jspath: str) -> str:
+    """Convert an EDA jspath to an SR Linux JSON-RPC path.
+
+    ``.system.information``
+        → ``/system/information``
+
+    ``.network-instance{.name=="default"}.protocols.bgp``
+        → ``/network-instance[name=default]/protocols/bgp``
+    """
+    if jspath.startswith("/"):
+        return jspath
+
+    path = jspath.lstrip(".")
+    path = _JSPATH_PREDICATE_RE.sub(r"[\1=\2]", path)
+    segments = path.split(".")
+    return "/" + "/".join(segments)
+
+
+# ---------------------------------------------------------------------------
+# Configlet resolution — map ConfigletIntents to per-node overrides
+# ---------------------------------------------------------------------------
+
+
+def _resolve_configlets(intent: FabricIntent) -> dict[str, list[dict[str, Any]]]:
+    """Convert extras ConfigletIntents to per-node config_overrides lists.
+
+    Only configlets with ``origin == "extras"`` are emitted; design-generated
+    configlets (bgp-evpn-rapid, node-isolation, etc.) are already natively
+    handled by the srl_builders and would cause duplicates.
+
+    Returns ``{node_name: [{"path": ..., "value": ...}, ...]}``.
+    """
+    node_map: dict[str, NodeIntent] = {n.name: n for n in intent.nodes}
+    overrides: dict[str, list[dict[str, Any]]] = defaultdict(list)
+
+    extras = sorted(
+        (c for c in intent.configlets if c.origin == "extras"),
+        key=lambda c: c.priority,
+    )
+
+    for cfglet in extras:
+        target_nodes: set[str] = set()
+
+        for name in cfglet.endpoints:
+            if name in node_map:
+                target_nodes.add(name)
+
+        if cfglet.endpoint_selector:
+            for name, node in node_map.items():
+                if _node_matches_selector(node, cfglet.endpoint_selector):
+                    target_nodes.add(name)
+
+        entries: list[dict[str, Any]] = []
+        for cfg in cfglet.configs:
+            entry: dict[str, Any] = {
+                "path": _jspath_to_jsonrpc(cfg.path),
+                "value": json.loads(cfg.config),
+            }
+            entries.append(entry)
+
+        for node_name in sorted(target_nodes):
+            overrides[node_name].extend(entries)
+
+    return dict(overrides)
 
 
 # ---------------------------------------------------------------------------
@@ -704,6 +779,7 @@ def _playbook_yml(fabric_name: str) -> list[dict[str, Any]]:
             {"role": "topology", "tags": ["topology"]},
             {"role": "fabric", "tags": ["fabric"]},
             {"role": "services", "tags": ["services"]},
+            {"role": "overrides", "tags": ["overrides", "services"]},
             {
                 "role": "purge",
                 "tags": ["never", "full"],
@@ -836,11 +912,11 @@ def _role_configure() -> list[dict[str, Any]]:
             "register": "deploy_result",
             "when": has_work,
         },
-        {
-            "name": "Show changes",
-            "ansible.builtin.debug": {"var": "deploy_result.diff"},
-            "when": "deploy_result is defined and deploy_result.changed | default(false)",
-        },
+        # {
+        #     "name": "Show changes",
+        #     "ansible.builtin.debug": {"var": "deploy_result.diff"},
+        #     "when": "deploy_result is defined and deploy_result.changed | default(false)",
+        # },
     ]
 
 
@@ -870,11 +946,30 @@ def _role_confirm() -> list[dict[str, Any]]:
     ]
 
 
+def _role_overrides() -> list[dict[str, Any]]:
+    """Accumulate user-provided config_overrides into the update bucket.
+
+    Overrides come from ``extras.configlets`` in the design inputs (converted
+    to JSON-RPC path/value pairs at generation time) or from hand-edited
+    ``host_vars`` / ``group_vars`` YAML during Day-2 operations.
+    """
+    return [
+        {
+            "name": "Accumulate config overrides",
+            "ansible.builtin.set_fact": {
+                "config_update": "{{ config_update + (config_overrides | default([])) }}",
+            },
+            "when": "config_overrides is defined and config_overrides | length > 0",
+        },
+    ]
+
+
 _ROLES: dict[str, Any] = {
     "detect": _role_detect,
     "topology": lambda: _role_phase("topology"),
     "fabric": lambda: _role_phase("fabric"),
     "services": lambda: _role_phase("services"),
+    "overrides": _role_overrides,
     "purge": _role_purge,
     "configure": _role_configure,
     "confirm": _role_confirm,
@@ -944,6 +1039,7 @@ def _readme(fabric_name: str) -> str:
         | `topology` | system0, underlay interfaces, BFD, hostname, LLDP |
         | `fabric` | default NI (BGP underlay/overlay), routing-policy |
         | `services` | edge interfaces, LAGs, IRBs, VXLAN, mac-vrf, ip-vrf, ES |
+        | `overrides` | raw SR Linux config patches from `extras.configlets` |
 
         Running without `--tags` applies all phases.  With `--tags full`,
         pruning of stale resources is also performed.
@@ -966,6 +1062,25 @@ def _readme(fabric_name: str) -> str:
 
         Changes are applied with a timeout; if not confirmed within the window,
         the device automatically rolls back.
+
+        ## Config overrides
+
+        The `config_overrides` variable holds raw SR Linux JSON-RPC path/value
+        entries that are applied after all phase-based configuration.  These
+        come from `extras.configlets` in the design inputs and are pre-resolved
+        into each node's `host_vars`.
+
+        For Day-2, you can add or edit overrides directly in `host_vars/` or
+        `group_vars/` files:
+
+        ```yaml
+        config_overrides:
+          - path: /system/information
+            value:
+              contact: support@example.com
+          - path: /system/name/domain-name
+            value: lab.example.com
+        ```
 
         ## Day-2 changes
 
@@ -995,6 +1110,7 @@ def _readme(fabric_name: str) -> str:
             ├── topology/
             ├── fabric/
             ├── services/
+            ├── overrides/
             ├── purge/
             ├── configure/
             └── confirm/
@@ -1046,6 +1162,7 @@ def generate(intent: FabricIntent, output_dir: Path | str | None = None) -> Path
     logger.info("Generating Ansible project for fabric '%s'", intent.fabric_name)
 
     node_services = _resolve_placement(intent)
+    node_overrides = _resolve_configlets(intent)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "group_vars").mkdir(exist_ok=True)
@@ -1064,6 +1181,9 @@ def generate(intent: FabricIntent, output_dir: Path | str | None = None) -> Path
             hv = _build_leaf_host_vars(node, intent, svc)
         else:
             hv = _build_spine_host_vars(node, intent)
+        co = node_overrides.get(node.name)
+        if co:
+            hv["config_overrides"] = co
         _write_yaml(output_dir / "host_vars" / f"{node.name}.yml", hv)
 
     _copy_filter_plugins(output_dir)
