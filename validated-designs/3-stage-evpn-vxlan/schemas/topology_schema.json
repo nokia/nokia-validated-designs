@@ -89,6 +89,18 @@
           "description": "EDA namespace for all resources."
         }
       }
+    },
+    "extras": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Unconstrained additions that supplement the locked design. Resources here are labeled nvd-design:extras.",
+      "properties": {
+        "configlets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/configlet" },
+          "description": "Additional or override configlets (raw SR Linux config patches)."
+        }
+      }
     }
   },
   "$defs": {
@@ -351,6 +363,58 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "Explicit list of nodes on which to configure the banners."
+        }
+      }
+    },
+    "configlet": {
+      "type": "object",
+      "required": ["name", "configs"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Configlet resource name."
+        },
+        "endpoint_selector": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Label selectors to match target nodes."
+        },
+        "endpoints": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Explicit list of target node names."
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000,
+          "default": 100,
+          "description": "Configlet priority (higher = applied later)."
+        },
+        "configs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["path", "operation", "config"],
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "JSON path in the SR Linux YANG model."
+              },
+              "operation": {
+                "type": "string",
+                "enum": ["Create", "Update", "Delete"],
+                "description": "Config operation type."
+              },
+              "config": {
+                "type": "string",
+                "description": "JSON config payload as a string."
+              }
+            }
+          }
         }
       }
     }

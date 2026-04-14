@@ -98,6 +98,7 @@ logger = logging.getLogger(__name__)
 
 MANAGED_BY_LABEL = "eda.nokia.com/managed-by"
 MANAGED_BY_VALUE = "nvd-automation"
+NVD_DESIGN_LABEL = "eda.nokia.com/nvd-design"
 
 
 # ---------------------------------------------------------------------------
@@ -233,9 +234,14 @@ def generate(intent: FabricIntent, output_dir: Path | None = None) -> list[dict]
 # ---------------------------------------------------------------------------
 
 
-def _managed_labels(extra: dict[str, str] | None = None) -> dict[str, str]:
-    """Return labels with the managed-by marker."""
+def _managed_labels(
+    extra: dict[str, str] | None = None,
+    origin: str = "",
+) -> dict[str, str]:
+    """Return labels with the managed-by marker and optional provenance."""
     labels = {MANAGED_BY_LABEL: MANAGED_BY_VALUE}
+    if origin:
+        labels[NVD_DESIGN_LABEL] = origin
     if extra:
         labels.update(extra)
     return labels
@@ -248,6 +254,7 @@ def _wrap_cr(
     ns: str,
     spec: BaseModel,
     labels: dict[str, str] | None = None,
+    origin: str = "3-stage",
 ) -> dict:
     """Wrap a Pydantic spec model into a full EDA CR dict."""
     return {
@@ -256,7 +263,7 @@ def _wrap_cr(
         "metadata": {
             "name": name,
             "namespace": ns,
-            "labels": labels or _managed_labels(),
+            "labels": labels or _managed_labels(origin=origin),
         },
         "spec": spec.model_dump(by_alias=True, exclude_none=True),
     }
@@ -269,6 +276,7 @@ def _wrap_cr_raw(
     ns: str,
     spec: dict,
     labels: dict[str, str] | None = None,
+    origin: str = "3-stage",
 ) -> dict:
     """Wrap a raw spec dict into a full EDA CR dict (for complex cases)."""
     return {
@@ -277,7 +285,7 @@ def _wrap_cr_raw(
         "metadata": {
             "name": name,
             "namespace": ns,
-            "labels": labels or _managed_labels(),
+            "labels": labels or _managed_labels(origin=origin),
         },
         "spec": spec,
     }
@@ -328,10 +336,10 @@ def _cr_node_profile(ns: str, profile_name: str, version: str) -> dict:
 
 def _cr_topo_node(node: NodeIntent, node_profile: str, ns: str) -> dict:
     """Generate a TopoNode CR for each node."""
-    labels = _managed_labels({
-        "eda.nokia.com/name": node.name,
-        **node.labels,
-    })
+    labels = _managed_labels(
+        {"eda.nokia.com/name": node.name, **node.labels},
+        origin="3-stage",
+    )
     if "eda.nokia.com/security-profile" not in labels:
         labels["eda.nokia.com/security-profile"] = "managed"
 
@@ -358,13 +366,13 @@ def _cr_interface_isl(node: str, interface: str, ns: str) -> dict:
     )
     return _wrap_cr(
         "interfaces.eda.nokia.com/v1alpha1", "Interface", name, ns, spec,
-        _managed_labels({"eda.nokia.com/role": "interSwitch"}),
+        _managed_labels({"eda.nokia.com/role": "interSwitch"}, origin="3-stage"),
     )
 
 
 def _cr_interface_edge(ei: EdgeInterfaceIntent, ns: str) -> dict:
     """Generate an edge Interface CR."""
-    labels = _managed_labels({**ei.labels, "eda.nokia.com/role": "edge"})
+    labels = _managed_labels({**ei.labels, "eda.nokia.com/role": "edge"}, origin="3-stage")
     spec = InterfaceSpec(
         enabled=True,
         lldp=True,
@@ -387,13 +395,13 @@ def _cr_interface_lag_member(node: str, interface: str, ns: str) -> dict:
     )
     return _wrap_cr(
         "interfaces.eda.nokia.com/v1alpha1", "Interface", name, ns, spec,
-        _managed_labels({"eda.nokia.com/role": "edge"}),
+        _managed_labels({"eda.nokia.com/role": "edge"}, origin="3-stage"),
     )
 
 
 def _cr_interface_lag(lag: LagIntent, ns: str) -> dict:
     """Generate a LAG Interface CR."""
-    labels = _managed_labels({**lag.labels, "eda.nokia.com/role": "edge"})
+    labels = _managed_labels({**lag.labels, "eda.nokia.com/role": "edge"}, origin="3-stage")
 
     members = [
         InterfaceMembers(
@@ -474,7 +482,7 @@ def _cr_topo_link(link: LinkIntent, ns: str) -> dict:
     )
     return _wrap_cr(
         "core.eda.nokia.com/v1", "TopoLink", link.name, ns, spec,
-        _managed_labels({"eda.nokia.com/role": "interSwitch"}),
+        _managed_labels({"eda.nokia.com/role": "interSwitch"}, origin="3-stage"),
     )
 
 
@@ -544,8 +552,17 @@ def _cr_bridge_domain(bd: BridgeDomainIntent, ns: str) -> dict:
             action=bd.mac_duplication.get("action", "StopLearning"),
             num_moves=bd.mac_duplication.get("num_moves", 5),
         )
-    spec = BridgeDomainSpec(vni=bd.vni, evi=bd.evi, mac_duplication_detection=mac_dup)
-    return _wrap_cr("services.eda.nokia.com/v1", "BridgeDomain", bd.name, ns, spec)
+    spec = BridgeDomainSpec(
+        vni=bd.vni,
+        evi=bd.evi,
+        mac_learning=bd.mac_learning,
+        mac_aging=bd.mac_aging,
+        mac_duplication_detection=mac_dup,
+    )
+    return _wrap_cr(
+        "services.eda.nokia.com/v1", "BridgeDomain", bd.name, ns, spec,
+        origin=bd.origin or "3-stage",
+    )
 
 
 def _cr_router(router: RouterIntent, ns: str) -> dict:
@@ -615,7 +632,10 @@ def _cr_irb_interface(irb: IrbInterfaceIntent, ns: str) -> dict:
         evpn_route_advertisement_type=evpn_adv,
         host_route_populate=host_pop,
     )
-    return _wrap_cr("services.eda.nokia.com/v1", "IRBInterface", irb.name, ns, spec)
+    return _wrap_cr(
+        "services.eda.nokia.com/v1", "IRBInterface", irb.name, ns, spec,
+        origin=irb.origin or "3-stage",
+    )
 
 
 def _cr_vlan(vlan: VlanIntent, ns: str) -> dict:
@@ -676,7 +696,10 @@ def _cr_configlet(cfglet: ConfigletIntent, ns: str) -> dict:
             for c in cfglet.configs
         ],
     )
-    return _wrap_cr("config.eda.nokia.com/v1alpha1", "Configlet", cfglet.name, ns, spec)
+    return _wrap_cr(
+        "config.eda.nokia.com/v1alpha1", "Configlet", cfglet.name, ns, spec,
+        origin=cfglet.origin or "3-stage",
+    )
 
 
 def _cr_default_mtu(mtu: DefaultMtuIntent, ns: str) -> dict:

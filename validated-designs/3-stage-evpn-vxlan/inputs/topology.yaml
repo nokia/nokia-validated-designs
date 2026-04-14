@@ -184,3 +184,14 @@ banners:
 # EDA-specific settings
 eda:
   namespace: eda
+extras:
+  configlets:
+    - name: contact-info
+      endpoint_selector:
+        - eda.nokia.com/role=leaf
+        - eda.nokia.com/role=spine
+      priority: 100
+      configs:
+        - path: '.system.information'
+          operation: Create
+          config: '{ "contact": "support@nokia.com" }'

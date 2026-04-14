@@ -26,6 +26,7 @@ from automation.core.models import (
     EdgeInterfaceIntent,
     EdaSettings,
     FabricIntent,
+    IrbIpAddress,
     IrbInterfaceIntent,
     LacpConfig,
     LagIntent,
@@ -124,11 +125,15 @@ def build(topology: dict, services: dict) -> FabricIntent:
             break
 
     # -----------------------------------------------------------------------
-    # Services (pass through from input)
+    # Services (pass through from input, tagged as design origin)
     # -----------------------------------------------------------------------
-    bridge_domains = _build_bridge_domains(services.get("bridge_domains", []))
+    bridge_domains = _build_bridge_domains(
+        services.get("bridge_domains", []), origin="3-stage"
+    )
     routers = _build_routers(services.get("routers", []))
-    irb_interfaces = _build_irb_interfaces(services.get("irb_interfaces", []), default_ip_mtu)
+    irb_interfaces = _build_irb_interfaces(
+        services.get("irb_interfaces", []), default_ip_mtu, origin="3-stage"
+    )
     vlans = _build_vlans(services.get("vlans", []))
     routed_interfaces = _build_routed_interfaces(services.get("routed_interfaces", []))
     static_routes = _build_static_routes(services.get("static_routes", []))
@@ -137,6 +142,27 @@ def build(topology: dict, services: dict) -> FabricIntent:
     # Configlets (design-specific device configuration)
     # -----------------------------------------------------------------------
     configlets = _build_configlets(lags)
+
+    # -----------------------------------------------------------------------
+    # Extras — unconstrained additions/overrides from user input
+    # -----------------------------------------------------------------------
+    topo_extras = topology.get("extras", {})
+    svc_extras = services.get("extras", {})
+
+    if topo_extras.get("configlets"):
+        configlets = _merge_extras_configlets(
+            configlets, topo_extras["configlets"]
+        )
+
+    if svc_extras.get("bridge_domains"):
+        bridge_domains = _merge_extras_bridge_domains(
+            bridge_domains, svc_extras["bridge_domains"]
+        )
+
+    if svc_extras.get("irb_interfaces"):
+        irb_interfaces = _merge_extras_irb_interfaces(
+            irb_interfaces, svc_extras["irb_interfaces"], default_ip_mtu
+        )
 
     # -----------------------------------------------------------------------
     # Banners (optional)
@@ -429,7 +455,9 @@ def _build_lags(raw: list[dict]) -> list[LagIntent]:
 # ---------------------------------------------------------------------------
 
 
-def _build_bridge_domains(raw: list[dict]) -> list[BridgeDomainIntent]:
+def _build_bridge_domains(
+    raw: list[dict], origin: str = ""
+) -> list[BridgeDomainIntent]:
     return [
         BridgeDomainIntent(
             name=bd["name"],
@@ -447,6 +475,7 @@ def _build_bridge_domains(raw: list[dict]) -> list[BridgeDomainIntent]:
                     "num_moves": 5,
                 },
             ),
+            origin=origin,
         )
         for bd in raw
     ]
@@ -464,18 +493,25 @@ def _build_routers(raw: list[dict]) -> list[RouterIntent]:
     ]
 
 
-def _build_irb_interfaces(raw: list[dict], default_ip_mtu: int = 1500) -> list[IrbInterfaceIntent]:
+def _build_irb_interfaces(
+    raw: list[dict], default_ip_mtu: int = 1500, origin: str = ""
+) -> list[IrbInterfaceIntent]:
     """Build IRB interface intents, using default_ip_mtu when ip_mtu is not explicitly set."""
     return [
         IrbInterfaceIntent(
             name=irb["name"],
             bridge_domain=irb["bridge_domain"],
             router=irb["router"],
-            ipv4=irb["ipv4"],
+            ipv4=irb.get("ipv4", ""),
+            ip_addresses=[
+                IrbIpAddress(**a) for a in irb.get("ip_addresses", [])
+            ],
+            description=irb.get("description", ""),
             proxy_arp=irb.get("proxy_arp", True),
             proxy_nd=irb.get("proxy_nd", False),
             arp_timeout=irb.get("arp_timeout", 280),
             ip_mtu=irb.get("ip_mtu", default_ip_mtu),
+            learn_unsolicited=irb.get("learn_unsolicited", "NONE"),
             evpn_route_advertisement_type=irb.get(
                 "evpn_route_advertisement_type",
                 {
@@ -490,6 +526,7 @@ def _build_irb_interfaces(raw: list[dict], default_ip_mtu: int = 1500) -> list[I
                 "host_route_populate",
                 {"dynamic": True, "static": True, "evpn": False},
             ),
+            origin=origin,
         )
         for irb in raw
     ]
@@ -559,6 +596,7 @@ def _build_configlets(lags: list[LagIntent]) -> list[ConfigletIntent]:
             endpoint_selector=["eda.nokia.com/role=leaf", "eda.nokia.com/role=spine"],
             operating_system="srl",
             priority=100,
+            origin="3-stage",
             configs=[
                 ConfigletConfigEntry(
                     path='.network-instance{.name=="default"}.protocols.bgp.afi-safi{.afi-safi-name=="evpn"}.evpn',
@@ -576,6 +614,7 @@ def _build_configlets(lags: list[LagIntent]) -> list[ConfigletIntent]:
             endpoint_selector=["eda.nokia.com/role=leaf", "eda.nokia.com/role=spine"],
             operating_system="srl",
             priority=100,
+            origin="3-stage",
             configs=[
                 ConfigletConfigEntry(
                     path='.network-instance{.name=="default"}.protocols.bgp.route-advertisement',
@@ -623,6 +662,7 @@ def _build_configlets(lags: list[LagIntent]) -> list[ConfigletIntent]:
                 endpoints=[node_name],
                 operating_system="srl",
                 priority=50,
+                origin="3-stage",
                 configs=[
                     ConfigletConfigEntry(path=".system", operation="Create", config=config_json)
                 ],
@@ -638,6 +678,7 @@ def _build_configlets(lags: list[LagIntent]) -> list[ConfigletIntent]:
                 endpoints=endpoints,
                 operating_system="srl",
                 priority=100,
+                origin="3-stage",
                 configs=[
                     ConfigletConfigEntry(
                         path=f'.system.network-instance.protocols.evpn.ethernet-segments.bgp-instance{{.id==1}}.ethernet-segment{{.name=="{lag.name}"}}.df-election.timers',
@@ -688,6 +729,117 @@ def _build_banners(raw: list[dict]) -> list[BannerIntent]:
         )
         for b in raw
     ]
+
+
+# ---------------------------------------------------------------------------
+# Extras merge — unconstrained additions/overrides
+# ---------------------------------------------------------------------------
+
+
+def _merge_extras_configlets(
+    design: list[ConfigletIntent], extras_raw: list[dict]
+) -> list[ConfigletIntent]:
+    """Merge user-provided extras configlets with design-generated ones.
+
+    If an extras configlet shares a name with a design configlet, the
+    extras version replaces it entirely.  New names are appended.
+    """
+    by_name = {c.name: c for c in design}
+    for raw in extras_raw:
+        cfglet = ConfigletIntent(
+            name=raw["name"],
+            endpoint_selector=raw.get("endpoint_selector", []),
+            endpoints=raw.get("endpoints", []),
+            operating_system=raw.get("operating_system", "srl"),
+            priority=raw.get("priority", 100),
+            origin="extras",
+            configs=[
+                ConfigletConfigEntry(
+                    path=c["path"],
+                    operation=c.get("operation", "Update"),
+                    config=c["config"],
+                )
+                for c in raw.get("configs", [])
+            ],
+        )
+        by_name[cfglet.name] = cfglet
+    return list(by_name.values())
+
+
+def _merge_extras_bridge_domains(
+    design: list[BridgeDomainIntent], extras_raw: list[dict]
+) -> list[BridgeDomainIntent]:
+    """Merge extras bridge domain overrides into design-generated ones.
+
+    Extras fields are overlaid onto the matching design entry (by name).
+    New names are appended as fully extras-originated resources.
+    """
+    by_name = {bd.name: bd for bd in design}
+    for raw in extras_raw:
+        name = raw["name"]
+        if name in by_name:
+            existing = by_name[name]
+            by_name[name] = existing.model_copy(update={
+                **{k: v for k, v in raw.items() if k != "name"},
+                "origin": "extras",
+            })
+        else:
+            by_name[name] = BridgeDomainIntent(
+                name=name,
+                vni=raw["vni"],
+                evi=raw["evi"],
+                mac_learning=raw.get("mac_learning", True),
+                mac_aging=raw.get("mac_aging", 300),
+                mac_duplication=raw.get("mac_duplication"),
+                origin="extras",
+            )
+    return list(by_name.values())
+
+
+def _merge_extras_irb_interfaces(
+    design: list[IrbInterfaceIntent],
+    extras_raw: list[dict],
+    default_ip_mtu: int = 1500,
+) -> list[IrbInterfaceIntent]:
+    """Merge extras IRB overrides into design-generated ones.
+
+    Extras fields are overlaid onto the matching design entry (by name).
+    New names are appended as fully extras-originated resources.
+    """
+    by_name = {irb.name: irb for irb in design}
+    for raw in extras_raw:
+        name = raw["name"]
+        update: dict = {k: v for k, v in raw.items() if k != "name"}
+        if "ip_addresses" in update:
+            update["ip_addresses"] = [
+                IrbIpAddress(**a) for a in update["ip_addresses"]
+            ]
+        update["origin"] = "extras"
+
+        if name in by_name:
+            by_name[name] = by_name[name].model_copy(update=update)
+        else:
+            by_name[name] = IrbInterfaceIntent(
+                name=name,
+                bridge_domain=raw["bridge_domain"],
+                router=raw["router"],
+                ipv4=raw.get("ipv4", ""),
+                ip_addresses=[
+                    IrbIpAddress(**a) for a in raw.get("ip_addresses", [])
+                ],
+                description=raw.get("description", ""),
+                proxy_arp=raw.get("proxy_arp", True),
+                proxy_nd=raw.get("proxy_nd", False),
+                arp_timeout=raw.get("arp_timeout", 280),
+                ip_mtu=raw.get("ip_mtu", default_ip_mtu),
+                learn_unsolicited=raw.get("learn_unsolicited", "NONE"),
+                evpn_route_advertisement_type=raw.get(
+                    "evpn_route_advertisement_type"
+                ),
+                host_route_populate=raw.get("host_route_populate"),
+                origin="extras",
+            )
+    return list(by_name.values())
 
 
 # ---------------------------------------------------------------------------

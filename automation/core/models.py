@@ -122,6 +122,7 @@ class BridgeDomainIntent(BaseModel):
             "num_moves": 5,
         }
     )
+    origin: str = ""  # "3-stage" | "extras" — set by builder for provenance tracking
 
 
 class RouterIntent(BaseModel):
@@ -167,6 +168,8 @@ class IrbInterfaceIntent(BaseModel):
     # EVPN route control
     evpn_route_advertisement_type: dict | None = None
     host_route_populate: dict | bool | None = None
+
+    origin: str = ""  # "3-stage" | "extras" — set by builder for provenance tracking
 
 
 class VlanIntent(BaseModel):
@@ -221,6 +224,7 @@ class ConfigletIntent(BaseModel):
     endpoints: list[str] = Field(default_factory=list)
     operating_system: str = "srl"
     priority: int = 0
+    origin: str = ""  # "3-stage" | "extras" — set by builder for provenance tracking
 
 
 # ---------------------------------------------------------------------------

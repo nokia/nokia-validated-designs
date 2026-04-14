@@ -134,11 +134,15 @@ def _resolve_placement(intent: FabricIntent) -> dict[str, _NodeServices]:
                 "vni": bd.vni,
                 "evi": bd.evi,
             }
+            # Track provenance for extras-originated resources
+            bd_origin = getattr(bd, "origin", "")
             access = node_bd_access.get(node_name, {}).get(bd_name, [])
             if access:
                 entry["access"] = access
             irb = irb_by_bd.get(bd_name)
+            irb_origin = ""
             if irb:
+                irb_origin = getattr(irb, "origin", "")
                 irb_entry: dict[str, Any] = {"anycast_gw": True}
                 if irb.ipv4:
                     irb_entry["ipv4"] = irb.ipv4
@@ -155,6 +159,8 @@ def _resolve_placement(intent: FabricIntent) -> dict[str, _NodeServices]:
                     irb_entry["ip_mtu"] = irb.ip_mtu
                 entry["irb"] = irb_entry
                 entry["router"] = irb.router
+            if bd_origin == "extras" or irb_origin == "extras":
+                entry["_origin"] = "extras"
             svc[node_name].bridge_domains.append(entry)
 
     # --- Router placement via node_selector ---
