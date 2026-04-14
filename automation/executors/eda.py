@@ -394,6 +394,76 @@ class EdaClient:
     # TopoNode existence check (avoid re-onboarding)
     # ------------------------------------------------------------------
 
+    # ------------------------------------------------------------------
+    # NodeProfile enrichment
+    # ------------------------------------------------------------------
+
+    def _get_reference_node_profile(
+        self, version: str, namespace: str = "eda"
+    ) -> dict | None:
+        """Fetch the EDA-managed ``srlinux-ghcr-{version}`` NodeProfile spec."""
+        self._ensure_auth()
+        name = f"srlinux-ghcr-{version}"
+        url = (
+            f"{self.url}/apps/core.eda.nokia.com/v1"
+            f"/namespaces/{namespace}/nodeprofiles/{name}"
+        )
+        try:
+            resp = self._session.get(url)
+            if resp.status_code == 200:
+                spec = resp.json().get("spec", {})
+                logger.info(
+                    "Fetched reference NodeProfile %s from EDA", name
+                )
+                return spec
+            logger.warning(
+                "Reference NodeProfile %s not found (HTTP %d)",
+                name, resp.status_code,
+            )
+        except Exception as e:
+            logger.warning(
+                "Error fetching reference NodeProfile %s: %s", name, e
+            )
+        return None
+
+    def _enrich_node_profiles(self, crs: list[dict]) -> list[dict]:
+        """Enrich NodeProfile CRs with version-specific fields from EDA.
+
+        For each NodeProfile CR, look up the matching
+        ``srlinux-ghcr-{version}`` profile already installed in EDA and
+        copy over the ``yang``, ``versionMatch``, ``versionPath``, and
+        ``llmDb`` fields.  Clab-specific fields (``images``, ``port``,
+        ``annotate``) are preserved from the generated CR.
+        """
+        result: list[dict] = []
+        for cr in crs:
+            if cr.get("kind") != "NodeProfile":
+                result.append(cr)
+                continue
+
+            spec = cr.get("spec", {})
+            version = spec.get("version", "")
+            if not version:
+                result.append(cr)
+                continue
+
+            ref = self._get_reference_node_profile(version)
+            if ref:
+                for field in ("yang", "versionMatch", "versionPath", "llmDb"):
+                    if field in ref:
+                        spec[field] = ref[field]
+                logger.info(
+                    "Enriched NodeProfile %s with fields from srlinux-ghcr-%s",
+                    cr.get("metadata", {}).get("name", ""),
+                    version,
+                )
+            result.append(cr)
+        return result
+
+    # ------------------------------------------------------------------
+    # TopoNode helpers
+    # ------------------------------------------------------------------
+
     def _get_existing_toponode_names(self, namespace: str = "eda") -> set[str]:
         """
         Query EDA for TopoNodes that already exist.
@@ -689,6 +759,9 @@ class EdaClient:
             delete_crs = plan.deletes
         else:
             all_desired = resources
+
+        # Enrich NodeProfile CRs with version-specific fields from EDA
+        all_desired = self._enrich_node_profiles(all_desired)
 
         # Split CRs into phases
         phased = self._split_by_phase(all_desired)

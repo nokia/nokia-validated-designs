@@ -125,17 +125,15 @@ def generate(intent: FabricIntent, output_dir: Path | None = None) -> list[dict]
     # 2. NodeUser
     resources.append(_cr_node_user(ns))
 
-    # 3. NodeProfile
-    if intent.eda.node_profile:
-        node = intent.nodes[0] if intent.nodes else None
-        version = node.version if node else ""
-        resources.append(
-            _cr_node_profile(ns, intent.eda.node_profile, version)
-        )
+    # 3. NodeProfile — derived from node version
+    node_version = intent.nodes[0].version if intent.nodes else ""
+    profile_name = intent.eda.node_profile or f"clab-srlinux-{node_version}"
+    if node_version:
+        resources.append(_cr_node_profile(ns, profile_name, node_version))
 
     # 4. TopoNodes (individual per-node CRs)
     for node in intent.nodes:
-        resources.append(_cr_topo_node(node, intent.eda.node_profile, ns))
+        resources.append(_cr_topo_node(node, profile_name, ns))
 
     # 5. Interfaces — ISL interfaces (per node endpoint)
     for link in intent.links:

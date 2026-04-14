@@ -11,14 +11,14 @@ environment: containerlab
 underlay:
   spine_asn: 65500
   leaf_asn_start: 65411
-  system0_prefix: 192.0.2.0/24
+  system0_prefix: 192.168.254.0/24
   # Leafs get IPs from .11 upward
   # Spines get IPs from .101 upward
 
 spines:
   count: 2
   platform: "7220 IXR-D3L"
-  version: "24.10.2"
+  version: "25.10.2"
   mgmt_base_ipv4: "172.21.21.101"
   labels:
     eda.nokia.com/role: spine
@@ -27,7 +27,7 @@ spines:
 leafs:
   count: 8
   platform: "7220 IXR-D3L"
-  version: "24.10.2"
+  version: "25.10.2"
   mgmt_base_ipv4: "172.21.21.11"
   labels:
     eda.nokia.com/role: leaf
@@ -183,5 +183,4 @@ banners:
 
 # EDA-specific settings
 eda:
-  node_profile: "clab-srlinux-24.10.2"
   namespace: eda
