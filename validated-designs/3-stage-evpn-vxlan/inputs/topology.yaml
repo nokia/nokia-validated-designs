@@ -166,9 +166,9 @@ lags:
 # Default MTU settings (jumbo frames)
 default_mtu:
   - name: default-port-mtu
-    interface_mtu: 9232
-    layer2_subif_mtu: 9198
-    layer3_mtu: 9100
+    interface_mtu: 9412
+    layer2_subif_mtu: 9412
+    layer3_mtu: 9394  
     node_selector:
       - "eda.nokia.com/role=leaf"
       - "eda.nokia.com/role = spine"

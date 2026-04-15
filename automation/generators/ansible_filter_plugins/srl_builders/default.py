@@ -1036,6 +1036,22 @@ def build_system_updates(hv: dict, scope: str = "all") -> list[dict[str, Any]]:
                 "op": "update",
             })
 
+        mtu_cfg = hv.get("default_mtu", {})
+        if mtu_cfg:
+            mtu_value: dict[str, Any] = {}
+            if "interface_mtu" in mtu_cfg:
+                mtu_value["default-port-mtu"] = mtu_cfg["interface_mtu"]
+            if "layer2_subif_mtu" in mtu_cfg:
+                mtu_value["default-l2-mtu"] = mtu_cfg["layer2_subif_mtu"]
+            if "layer3_mtu" in mtu_cfg:
+                mtu_value["default-ip-mtu"] = mtu_cfg["layer3_mtu"]
+            if mtu_value:
+                updates.append({
+                    "path": "/system/mtu",
+                    "value": mtu_value,
+                    "op": "update",
+                })
+
     if scope in ("services", "all"):
         eh = hv.get("event_handler", {})
         ni_cfg = eh.get("node_isolation")

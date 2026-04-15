@@ -16,8 +16,27 @@ dependencies = [
     "ansible-core>=2.19.8",
 ]
 
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+    "pytest-html>=4.0",
+    "pytest-timeout>=2.3",
+    "pytest-metadata>=3.0",
+]
+
 [project.scripts]
 nvd = "automation.deploy:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "connectivity: steady-state connectivity tests",
+    "convergence: failure/recovery convergence tests",
+    "slow: tests that take more than 30 seconds",
+]
+log_cli = true
+log_cli_level = "INFO"
+render_collapsed = "passed,skipped"
 
 [tool.setuptools.packages.find]
 include = ["automation*"]

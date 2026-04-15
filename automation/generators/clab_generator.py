@@ -56,6 +56,7 @@ PLATFORM_TYPE_MAP = {
 
 CLIENT_IMAGE = "ghcr.io/srl-labs/network-multitool"
 SRL_IMAGE_BASE = "ghcr.io/nokia/srlinux"
+CLIENT_LINK_MTU = 9000
 
 
 # ---------------------------------------------------------------------------
@@ -490,6 +491,7 @@ def _generate_client_script(client: ClientNode) -> str:
     if client.routed:
         ra = client.routed
         lines.append("# Routed interface (direct L3)")
+        lines.append(f"ip link set dev eth1 mtu {CLIENT_LINK_MTU}")
         lines.append(f"ip addr add {ra.client_ip}/{ra.client_mask} dev eth1")
         lines.append("")
         if ra.loopback_ips:
@@ -527,8 +529,9 @@ def _generate_single_homed_script(
         tagged = [a for a in link.attachments if a.vlan_id not in ("untagged", "null")]
         untagged = [a for a in link.attachments if a.vlan_id in ("untagged", "null")]
 
+        lines.append(f"# Interface setup: {iface}")
+        lines.append(f"ip link set dev {iface} mtu {CLIENT_LINK_MTU}")
         if tagged:
-            lines.append(f"# Interface setup: {iface}")
             lines.append(f"ip link set dev {iface} down")
             for att in tagged:
                 sub = f"{iface}.{att.vlan_id}"
@@ -594,9 +597,11 @@ def _generate_bonded_script(client: ClientNode, lines: list[str]) -> str:
     for link in client.links:
         iface = f"eth{link.eth_index}"
         lines.append(f"ip link set dev {iface} down")
+        lines.append(f"ip link set dev {iface} mtu {CLIENT_LINK_MTU}")
     for link in client.links:
         iface = f"eth{link.eth_index}"
         lines.append(f"ip link set {iface} master bond0")
+    lines.append(f"ip link set dev bond0 mtu {CLIENT_LINK_MTU}")
     for link in client.links:
         iface = f"eth{link.eth_index}"
         lines.append(f"ip link set dev {iface} up")

@@ -34,6 +34,7 @@ import yaml
 from automation.core.models import (
     BridgeDomainIntent,
     ConfigletIntent,
+    DefaultMtuIntent,
     EdgeInterfaceIntent,
     FabricIntent,
     IrbInterfaceIntent,
@@ -139,6 +140,42 @@ def _resolve_configlets(intent: FabricIntent) -> dict[str, list[dict[str, Any]]]
             overrides[node_name].extend(entries)
 
     return dict(overrides)
+
+
+def _resolve_default_mtus(intent: FabricIntent) -> dict[str, dict[str, Any]]:
+    """Resolve ``default_mtus`` per-node using label selectors.
+
+    Returns ``{node_name: {"interface_mtu": ..., "layer2_subif_mtu": ..., "layer3_mtu": ...}}``.
+    When multiple DefaultMtuIntent entries match a node, later entries win.
+    """
+    node_map: dict[str, NodeIntent] = {n.name: n for n in intent.nodes}
+    result: dict[str, dict[str, Any]] = {}
+
+    for mtu in intent.default_mtus:
+        target_nodes: set[str] = set()
+
+        for name in mtu.nodes:
+            if name in node_map:
+                target_nodes.add(name)
+
+        if mtu.node_selector:
+            for name, node in node_map.items():
+                if _node_matches_selector(node, mtu.node_selector):
+                    target_nodes.add(name)
+
+        entry: dict[str, Any] = {}
+        if mtu.interface_mtu is not None:
+            entry["interface_mtu"] = mtu.interface_mtu
+        if mtu.layer2_subif_mtu is not None:
+            entry["layer2_subif_mtu"] = mtu.layer2_subif_mtu
+        if mtu.layer3_mtu is not None:
+            entry["layer3_mtu"] = mtu.layer3_mtu
+
+        if entry:
+            for node_name in target_nodes:
+                result[node_name] = entry
+
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -1163,6 +1200,7 @@ def generate(intent: FabricIntent, output_dir: Path | str | None = None) -> Path
 
     node_services = _resolve_placement(intent)
     node_overrides = _resolve_configlets(intent)
+    node_mtus = _resolve_default_mtus(intent)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "group_vars").mkdir(exist_ok=True)
@@ -1181,6 +1219,9 @@ def generate(intent: FabricIntent, output_dir: Path | str | None = None) -> Path
             hv = _build_leaf_host_vars(node, intent, svc)
         else:
             hv = _build_spine_host_vars(node, intent)
+        mtu = node_mtus.get(node.name)
+        if mtu:
+            hv["default_mtu"] = mtu
         co = node_overrides.get(node.name)
         if co:
             hv["config_overrides"] = co
