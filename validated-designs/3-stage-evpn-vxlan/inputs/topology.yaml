@@ -18,8 +18,10 @@ underlay:
 spines:
   count: 2
   platform: "7220 IXR-D3L"
-  version: "26.3.1"
+  version: "25.10.2"
   mgmt_base_ipv4: "172.21.21.101"
+  # name_template: "spine{i}"        # default: spine1, spine2 (omit for default)
+  # name_template: "dc1-spine-{i:02}" # custom: dc1-spine-01, dc1-spine-02
   labels:
     eda.nokia.com/role: spine
   breakouts: []
@@ -27,10 +29,21 @@ spines:
 leafs:
   count: 8
   platform: "7220 IXR-D3L"
-  version: "26.3.1"
+  version: "25.10.2"
   mgmt_base_ipv4: "172.21.21.11"
+  # name_template: "leaf{i}"          # default: leaf1, leaf2, ... (omit for default)
+  # name_template: "dc1-leaf-{i:02}"  # custom: dc1-leaf-01, dc1-leaf-02, ...
   labels:
     eda.nokia.com/role: leaf
+
+# Per-node overrides (optional — customize individual auto-generated nodes)
+# nodes:
+#   - name: leaf1
+#     mgmt_ipv4: "172.21.21.50"
+#     labels:
+#       eda.nokia.com/role: leaf
+#   - name: spine1
+#     version: "25.10.3"
 
 # Edge interfaces (server-facing ports)
 edge_interfaces:
@@ -42,6 +55,7 @@ edge_interfaces:
     labels:
       eda.nokia.com/role: edge
       eda.nokia.com/tagged-v10: enabled
+      eda.nokia.com/tagged-v99: enabled
 
   # leaf1 - server s5 (routed, no VLAN)
   - name: leaf1-ethernet-1-4
@@ -68,6 +82,7 @@ edge_interfaces:
     labels:
       eda.nokia.com/role: edge
       eda.nokia.com/untagged-v10: enabled
+      eda.nokia.com/tagged-v99: enabled
 
   # leaf3 - server s2 (untagged vlan 10)
   - name: leaf3-ethernet-1-3
@@ -77,6 +92,7 @@ edge_interfaces:
     labels:
       eda.nokia.com/role: edge
       eda.nokia.com/untagged-v10: enabled
+      eda.nokia.com/tagged-v99: enabled
 
   # leaf4 - server s3 (untagged vlan 20)
   - name: leaf4-ethernet-1-3
@@ -172,6 +188,12 @@ default_mtu:
     node_selector:
       - "eda.nokia.com/role=leaf"
       - "eda.nokia.com/role = spine"
+  # Target specific nodes instead of using label selectors:
+  # - name: spine-only-mtu
+  #   interface_mtu: 9232
+  #   nodes:
+  #     - spine1
+  #     - spine2
 
 # Banners (login / MOTD)
 banners:
@@ -180,12 +202,20 @@ banners:
     node_selector:
       - "eda.nokia.com/role=leaf"
       - "eda.nokia.com/role=spine"
+    # motd: "Welcome to the DC1 fabric"    # Message of the Day (after login)
+    # Target specific nodes instead of using label selectors:
+    # nodes:
+    #   - leaf1
+    #   - leaf2
 
 # EDA-specific settings
 eda:
   namespace: eda
+  # node_profile: ""                        # EDA NodeProfile name for onboarding
+
 extras:
   configlets:
+    # Target by label selector
     - name: contact-info
       endpoint_selector:
         - eda.nokia.com/role=leaf
@@ -195,3 +225,21 @@ extras:
         - path: '.system.information'
           operation: Create
           config: '{ "contact": "support@nokia.com" }'
+    # Target by explicit node names:
+    # - name: leaf1-custom
+    #   endpoints:
+    #     - leaf1
+    #   priority: 200
+    #   configs:
+    #     - path: '.system.information'
+    #       operation: Update
+    #       config: '{ "location": "rack-a1" }'
+    # Override a design-generated configlet (match by name):
+    # - name: bgp-evpn-rapid
+    #   endpoint_selector:
+    #     - eda.nokia.com/role=leaf
+    #   priority: 110
+    #   configs:
+    #     - path: '.network-instance{.name=="default"}.protocols.bgp.afi-safi{.afi-safi-name=="evpn"}.evpn'
+    #       operation: Update
+    #       config: '{ "rapid-update": "false" }'

@@ -7,6 +7,7 @@ Usage:
     --mode eda \\
     [--generate-only]
     [--generate-clab]
+    [--diff]
     [--phase {topology,fabric,services}]
     [--destroy]
     [--dry-run]
@@ -27,6 +28,8 @@ from pathlib import Path
 
 from automation.core.fabric_builder import build_intent
 from automation.core.schema_validator import load_inputs
+from automation.eda_models.registry import check_srl_version, EDA_VERSION
+from automation.executors.eda import EdaClient
 from automation.generators.eda_generator import generate as eda_generate
 
 
@@ -85,6 +88,11 @@ def main() -> int:
     parser.add_argument("--eda-url", help="EDA API URL (overrides EDA_URL env)")
     parser.add_argument("--eda-user", help="EDA username (overrides EDA_USER env)")
     parser.add_argument("--eda-password", help="EDA password (overrides EDA_PASSWORD env)")
+    parser.add_argument(
+        "--diff",
+        action="store_true",
+        help="Preview changes against live EDA state without applying (EDA mode only)",
+    )
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="Enable verbose logging"
     )
@@ -159,11 +167,23 @@ def main() -> int:
 
     if args.mode == "eda":
         # -----------------------------------------------------------
+        # Validate SRL versions against EDA compatibility
+        # -----------------------------------------------------------
+        srl_versions = {node.version for node in intent.nodes}
+        for ver in sorted(srl_versions):
+            err = check_srl_version(ver)
+            if err:
+                logging.error(err)
+                return 1
+        logging.info(
+            "SRL version check passed (EDA %s): %s",
+            EDA_VERSION, ", ".join(sorted(srl_versions)),
+        )
+
+        # -----------------------------------------------------------
         # Destroy mode — no intent/generation needed
         # -----------------------------------------------------------
         if args.destroy:
-            from automation.executors.eda import EdaClient
-
             try:
                 client = EdaClient(
                     url=args.eda_url,
@@ -174,11 +194,13 @@ def main() -> int:
                 logging.error(str(e))
                 return 1
 
-            logging.info("Destroying managed resources at %s...", client.url)
+            ns = intent.eda.namespace
+            logging.info("Destroying managed resources at %s (namespace=%s)...", client.url, ns)
             result = client.destroy(
                 phases=args.phase,
                 dry_run=args.dry_run,
                 auto_confirm=args.yes,
+                namespace=ns,
             )
 
             if result.success:
@@ -206,10 +228,29 @@ def main() -> int:
             return 0
 
         # -----------------------------------------------------------
+        # Diff mode — preview changes without applying
+        # -----------------------------------------------------------
+        if args.diff:
+            try:
+                client = EdaClient(
+                    url=args.eda_url,
+                    username=args.eda_user,
+                    password=args.eda_password,
+                )
+            except ValueError as e:
+                logging.error(str(e))
+                return 1
+
+            ns = intent.eda.namespace
+            logging.info("Fetching current managed resources from EDA...")
+            current = client.get_managed_resources(namespace=ns)
+            plan = client.compute_diff(resources, current)
+            _print_diff(plan)
+            return 0
+
+        # -----------------------------------------------------------
         # Deploy to EDA
         # -----------------------------------------------------------
-        from automation.executors.eda import EdaClient
-
         try:
             client = EdaClient(
                 url=args.eda_url,
@@ -256,6 +297,40 @@ def main() -> int:
         return 0
 
     return 0
+
+
+def _print_diff(plan) -> None:
+    """Print a human-readable diff summary."""
+    print(
+        f"\nTransaction plan: "
+        f"{len(plan.creates)} create, "
+        f"{len(plan.updates)} update, "
+        f"{len(plan.deletes)} delete"
+    )
+
+    if plan.creates:
+        print("\n  CREATE:")
+        for cr in plan.creates:
+            kind = cr.get("kind", "?")
+            name = cr.get("metadata", {}).get("name", "?")
+            print(f"    + {kind}/{name}")
+
+    if plan.updates:
+        print("\n  UPDATE:")
+        for cr in plan.updates:
+            kind = cr.get("kind", "?")
+            name = cr.get("metadata", {}).get("name", "?")
+            print(f"    ~ {kind}/{name}")
+
+    if plan.deletes:
+        print("\n  DELETE:")
+        for entry in plan.deletes:
+            kind = entry.get("kind", "?")
+            name = entry.get("name", "?")
+            print(f"    - {kind}/{name}")
+
+    if plan.total_ops == 0:
+        print("\n  No changes detected.")
 
 
 def _print_summary(resources: list[dict]) -> None:

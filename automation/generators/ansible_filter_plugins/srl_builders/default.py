@@ -131,6 +131,45 @@ def _bd_lag_access(bd: dict, lag_lookup: dict) -> list[str]:
     return lag_names
 
 
+_MAC_DUP_ACTION_MAP = {
+    "stoplearning": "stop-learning",
+    "blackhole": "blackhole",
+    "usenetinstanceaction": "use-net-instance-action",
+}
+
+
+def _build_bridge_table(bd: dict) -> dict[str, Any]:
+    """Build the bridge-table subtree for a mac-vrf, reading optional overrides from bd."""
+    mac_learning = bd.get("mac_learning", True)
+    mac_aging = bd.get("mac_aging", 300)
+    mac_dup = bd.get("mac_duplication") or {
+        "enabled": True,
+        "hold_down_time": 9,
+        "monitoring_window": 3,
+        "action": "StopLearning",
+        "num_moves": 5,
+    }
+    raw_action = mac_dup.get("action", "StopLearning")
+    srl_action = _MAC_DUP_ACTION_MAP.get(raw_action.lower(), "stop-learning")
+
+    return {
+        "mac-learning": {
+            "admin-state": "enable" if mac_learning else "disable",
+            "aging": {
+                "admin-state": "enable",
+                "age-time": mac_aging,
+            },
+        },
+        "mac-duplication": {
+            "admin-state": "enable" if mac_dup.get("enabled", True) else "disable",
+            "monitoring-window": mac_dup.get("monitoring_window", 3),
+            "num-moves": mac_dup.get("num_moves", 5),
+            "hold-down-time": mac_dup.get("hold_down_time", 9),
+            "action": srl_action,
+        },
+    }
+
+
 # ---------------------------------------------------------------------------
 # Interface builders
 # ---------------------------------------------------------------------------
@@ -735,22 +774,7 @@ def _build_macvrf_instances(hv: dict, updates: list[dict]) -> None:
                     }],
                 },
             },
-            "bridge-table": {
-                "mac-learning": {
-                    "admin-state": "enable",
-                    "aging": {
-                        "admin-state": "enable",
-                        "age-time": 300,
-                    },
-                },
-                "mac-duplication": {
-                    "admin-state": "enable",
-                    "monitoring-window": 3,
-                    "num-moves": 5,
-                    "hold-down-time": 9,
-                    "action": "stop-learning",
-                },
-            },
+            "bridge-table": _build_bridge_table(bd),
         }
 
         updates.append({
@@ -900,8 +924,21 @@ def _collect_static_routes(
 # Routing policy
 # ---------------------------------------------------------------------------
 
-def build_routing_policy_updates(hv: dict) -> list[dict[str, Any]]:
-    """Build /routing-policy with prefix-sets and import/export policies."""
+def _build_routing_policy(
+    hv: dict,
+    *,
+    local_pref: dict[str, Any],
+    nested_prefix_set: bool = False,
+) -> list[dict[str, Any]]:
+    """Parameterized routing-policy builder shared across SR Linux versions.
+
+    Args:
+        hv: Host variables dict.
+        local_pref: local-preference dict shape
+            (24.x/25.x: ``{"set": 100}``, 26.x: ``{"value": 100, "operation": "set"}``).
+        nested_prefix_set: If True, use 25.x+ ``match.prefix.prefix-set``
+            nesting; otherwise use 24.x ``match.prefix-set``.
+    """
     rp_cfg = hv.get("routing_policy", {})
     fabric_name = hv.get("fabric_name", "dc1")
 
@@ -912,12 +949,15 @@ def build_routing_policy_updates(hv: dict) -> list[dict[str, Any]]:
     export_name = f"ebgp-isl-export-policy-{fabric_name}"
     import_name = f"ebgp-isl-import-policy-{fabric_name}"
 
-    local_pref = {"set": 100}
+    if nested_prefix_set:
+        prefix_match: dict[str, Any] = {"prefix": {"prefix-set": prefix_set_name}}
+    else:
+        prefix_match = {"prefix-set": prefix_set_name}
 
-    export_statements = {
+    export_statements: dict[str, Any] = {
         "10": {
             "match": {
-                "prefix-set": prefix_set_name,
+                **prefix_match,
                 "protocol": "local",
             },
             "action": {
@@ -997,6 +1037,11 @@ def build_routing_policy_updates(hv: dict) -> list[dict[str, Any]]:
     }
 
     return [{"path": "/routing-policy", "value": value, "op": "replace"}]
+
+
+def build_routing_policy_updates(hv: dict) -> list[dict[str, Any]]:
+    """Build /routing-policy (24.10.x schema: flat prefix-set, ``{"set": N}`` local-pref)."""
+    return _build_routing_policy(hv, local_pref={"set": 100}, nested_prefix_set=False)
 
 
 # ---------------------------------------------------------------------------

@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -29,6 +30,14 @@ import requests
 import urllib3
 
 from automation.generators.eda_generator import MANAGED_BY_LABEL, MANAGED_BY_VALUE
+from automation.eda_models.registry import (
+    INIT, NODE_USER, NODE_PROFILE, TOPO_NODE, TOPO_LINK,
+    INDEX_ALLOCATION_POOL, IP_ALLOCATION_POOL,
+    INTERFACE, FABRIC,
+    BRIDGE_DOMAIN, ROUTER, IRB_INTERFACE, VLAN, ROUTED_INTERFACE,
+    STATIC_ROUTE, CONFIGLET, DEFAULT_MTU, BANNER,
+    CRType,
+)
 
 # Suppress InsecureRequestWarning for self-signed certs
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -61,6 +70,13 @@ PHASE_KINDS: dict[str, set[str]] = {
     },
 }
 
+# Reverse map for O(1) lookup in _split_by_phase
+_KIND_TO_PHASE: dict[str, str] = {
+    kind: phase
+    for phase, kinds in PHASE_KINDS.items()
+    for kind in kinds
+}
+
 # Shared/singleton resource kinds that are NOT destroyed by default.
 # These bootstrap resources (Init, NodeUser, NodeProfile) are typically
 # shared across multiple designs and should survive a destroy operation.
@@ -85,29 +101,16 @@ DESTROY_PHASE_KINDS: dict[str, set[str]] = {
 
 # Resource types in correct destroy order (services first, topo last).
 # Interface appears AFTER TopoLink because ISLs reference Interfaces.
-DESTROY_ORDER: list[tuple[str, str, str]] = [
-    # (apiVersion, kind, plural)
+DESTROY_ORDER: list[CRType] = [
     # --- services ---
-    ("config.eda.nokia.com/v1alpha1", "Configlet", "configlets"),
-    ("protocols.eda.nokia.com/v1", "StaticRoute", "staticroutes"),
-    ("services.eda.nokia.com/v1", "RoutedInterface", "routedinterfaces"),
-    ("services.eda.nokia.com/v1", "VLAN", "vlans"),
-    ("services.eda.nokia.com/v1", "IRBInterface", "irbinterfaces"),
-    ("services.eda.nokia.com/v1", "Router", "routers"),
-    ("services.eda.nokia.com/v1", "BridgeDomain", "bridgedomains"),
+    CONFIGLET, STATIC_ROUTE, ROUTED_INTERFACE,
+    VLAN, IRB_INTERFACE, ROUTER, BRIDGE_DOMAIN,
     # --- fabric ---
-    ("fabrics.eda.nokia.com/v1alpha1", "Fabric", "fabrics"),
+    FABRIC,
     # --- topology (Interface after TopoLink!) ---
-    ("core.eda.nokia.com/v1", "TopoLink", "topolinks"),
-    ("interfaces.eda.nokia.com/v1alpha1", "Interface", "interfaces"),
-    ("siteinfo.eda.nokia.com/v1alpha1", "DefaultMTU", "defaultmtus"),
-    ("siteinfo.eda.nokia.com/v1alpha1", "Banner", "banners"),
-    ("core.eda.nokia.com/v1", "TopoNode", "toponodes"),
-    ("core.eda.nokia.com/v1", "IPAllocationPool", "ipallocationpools"),
-    ("core.eda.nokia.com/v1", "IndexAllocationPool", "indexallocationpools"),
-    ("core.eda.nokia.com/v1", "NodeProfile", "nodeprofiles"),
-    ("core.eda.nokia.com/v1", "NodeUser", "nodeusers"),
-    ("bootstrap.eda.nokia.com/v1alpha1", "Init", "inits"),
+    TOPO_LINK, INTERFACE, DEFAULT_MTU, BANNER,
+    TOPO_NODE, IP_ALLOCATION_POOL, INDEX_ALLOCATION_POOL,
+    NODE_PROFILE, NODE_USER, INIT,
 ]
 
 
@@ -165,6 +168,9 @@ class EdaClient:
         self.password = password or os.environ.get("EDA_PASSWORD", "admin")
         self.verify_ssl = verify_ssl
         self._token: str | None = None
+        self._token_expires_at: float = 0.0
+        self._client_secret: str | None = None
+        self._ref_profile_cache: dict[tuple[str, str], dict | None] = {}
         self._session = requests.Session()
         self._session.verify = self.verify_ssl
 
@@ -172,6 +178,15 @@ class EdaClient:
             raise ValueError(
                 "EDA URL must be provided via --eda-url or EDA_URL env var"
             )
+
+    @staticmethod
+    def _extract_namespace(resources: list[dict], default: str = "eda") -> str:
+        """Extract the namespace from the first resource in the list."""
+        for cr in resources:
+            ns = cr.get("metadata", {}).get("namespace", "")
+            if ns:
+                return ns
+        return default
 
     # ------------------------------------------------------------------
     # Authentication
@@ -190,9 +205,11 @@ class EdaClient:
         """
         keycloak_base = f"{self.url}/core/httpproxy/v1/keycloak"
 
-        # Step 1: Discover eda-api-server client secret
-        logger.info("Discovering EDA API client secret via Keycloak")
-        client_secret = self._discover_client_secret(keycloak_base)
+        # Step 1: Discover eda-api-server client secret (cached per-session)
+        if self._client_secret is None:
+            logger.info("Discovering EDA API client secret via Keycloak")
+            self._client_secret = self._discover_client_secret(keycloak_base)
+        client_secret = self._client_secret
 
         # Step 2: Get EDA API token
         token_url = f"{keycloak_base}/realms/eda/protocol/openid-connect/token"
@@ -213,7 +230,11 @@ class EdaClient:
         self._token = token_data["access_token"]
         self._session.headers["Authorization"] = f"Bearer {self._token}"
 
-        logger.info("Authentication successful")
+        # Store expiry with 30s safety margin
+        expires_in = token_data.get("expires_in", 300)
+        self._token_expires_at = time.time() + expires_in - 30
+
+        logger.info("Authentication successful (token expires in %ds)", expires_in)
         return self._token
 
     def _discover_client_secret(self, keycloak_base: str) -> str:
@@ -276,9 +297,29 @@ class EdaClient:
         return secret
 
     def _ensure_auth(self) -> None:
-        """Ensure we have a valid token."""
-        if not self._token:
+        """Ensure we have a valid, non-expired token."""
+        if not self._token or time.time() >= self._token_expires_at:
+            if self._token:
+                logger.info("Token expired or near expiry, re-authenticating")
             self.authenticate()
+
+    def _request(
+        self, method: str, url: str, **kwargs: Any
+    ) -> requests.Response:
+        """Make an authenticated request with a single 401 retry.
+
+        If the response is 401 Unauthorized, clears the token, re-authenticates,
+        and retries exactly once. This handles mid-session token expiry that
+        slips past the proactive expiry check in ``_ensure_auth``.
+        """
+        self._ensure_auth()
+        resp = self._session.request(method, url, **kwargs)
+        if resp.status_code == 401:
+            logger.warning("Got 401, re-authenticating and retrying")
+            self._token = None
+            self._ensure_auth()
+            resp = self._session.request(method, url, **kwargs)
+        return resp
 
     # ------------------------------------------------------------------
     # Transaction payload formatting
@@ -358,34 +399,38 @@ class EdaClient:
             target_kinds = None  # query all
 
         resource_types = [
-            (av, kind, plural)
-            for av, kind, plural in DESTROY_ORDER
-            if target_kinds is None or kind in target_kinds
+            crt for crt in DESTROY_ORDER
+            if target_kinds is None or crt.kind in target_kinds
         ]
 
-        managed: list[dict] = []
-        for api_version, kind, plural in resource_types:
+        params = {"labelSelector": f"{MANAGED_BY_LABEL}={MANAGED_BY_VALUE}"}
+
+        def _fetch(crt: CRType) -> list[dict]:
+            url = (
+                f"{self.url}/apps/{crt.api_version}"
+                f"/namespaces/{namespace}/{crt.plural}"
+            )
             try:
-                url = (
-                    f"{self.url}/apps/{api_version}"
-                    f"/namespaces/{namespace}/{plural}"
-                )
-                params = {
-                    "labelSelector": f"{MANAGED_BY_LABEL}={MANAGED_BY_VALUE}"
-                }
-                resp = self._session.get(url, params=params)
+                resp = self._request("GET", url, params=params)
                 if resp.status_code == 200:
                     items = resp.json().get("items", [])
                     for item in items:
-                        item["_kind"] = kind
-                        item["_apiVersion"] = api_version
-                    managed.extend(items)
-                else:
-                    logger.warning(
-                        "Could not query %s: %s", plural, resp.status_code
-                    )
+                        item["_kind"] = crt.kind
+                        item["_apiVersion"] = crt.api_version
+                    return items
+                logger.warning(
+                    "Could not query %s: %s", crt.plural, resp.status_code
+                )
             except Exception as e:
-                logger.warning("Error querying %s: %s", plural, e)
+                logger.warning("Error querying %s: %s", crt.plural, e)
+            return []
+
+        managed: list[dict] = []
+        # Parallel fetch — each kind lives on an independent list endpoint,
+        # so 8 concurrent requests cuts wall-clock time by roughly that factor.
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            for items in pool.map(_fetch, resource_types):
+                managed.extend(items)
 
         logger.info("Found %d managed resources in EDA", len(managed))
         return managed
@@ -401,32 +446,44 @@ class EdaClient:
     def _get_reference_node_profile(
         self, version: str, namespace: str = "eda"
     ) -> dict | None:
-        """Fetch the EDA-managed ``srlinux-ghcr-{version}`` NodeProfile spec."""
+        """Fetch the EDA-managed ``srlinux-ghcr-{version}`` NodeProfile spec.
+
+        Cached per (version, namespace) — the reference profile is immutable
+        for the lifetime of the client, so repeated lookups (e.g. across
+        multiple NodeProfile CRs sharing a version) reuse a single API call.
+        """
+        cache_key = (version, namespace)
+        if cache_key in self._ref_profile_cache:
+            return self._ref_profile_cache[cache_key]
+
         self._ensure_auth()
         name = f"srlinux-ghcr-{version}"
         url = (
-            f"{self.url}/apps/core.eda.nokia.com/v1"
-            f"/namespaces/{namespace}/nodeprofiles/{name}"
+            f"{self.url}/apps/{NODE_PROFILE.api_version}"
+            f"/namespaces/{namespace}/{NODE_PROFILE.plural}/{name}"
         )
+        spec: dict | None = None
         try:
-            resp = self._session.get(url)
+            resp = self._request("GET", url)
             if resp.status_code == 200:
                 spec = resp.json().get("spec", {})
                 logger.info(
                     "Fetched reference NodeProfile %s from EDA", name
                 )
-                return spec
-            logger.warning(
-                "Reference NodeProfile %s not found (HTTP %d)",
-                name, resp.status_code,
-            )
+            else:
+                logger.warning(
+                    "Reference NodeProfile %s not found (HTTP %d)",
+                    name, resp.status_code,
+                )
         except Exception as e:
             logger.warning(
                 "Error fetching reference NodeProfile %s: %s", name, e
             )
-        return None
 
-    def _enrich_node_profiles(self, crs: list[dict]) -> list[dict]:
+        self._ref_profile_cache[cache_key] = spec
+        return spec
+
+    def _enrich_node_profiles(self, crs: list[dict], namespace: str = "eda") -> list[dict]:
         """Enrich NodeProfile CRs with version-specific fields from EDA.
 
         For each NodeProfile CR, look up the matching
@@ -447,7 +504,7 @@ class EdaClient:
                 result.append(cr)
                 continue
 
-            ref = self._get_reference_node_profile(version)
+            ref = self._get_reference_node_profile(version, namespace=namespace)
             if ref:
                 for field in ("yang", "versionMatch", "versionPath", "llmDb"):
                     if field in ref:
@@ -475,11 +532,11 @@ class EdaClient:
         """
         self._ensure_auth()
         url = (
-            f"{self.url}/apps/core.eda.nokia.com/v1"
-            f"/namespaces/{namespace}/toponodes"
+            f"{self.url}/apps/{TOPO_NODE.api_version}"
+            f"/namespaces/{namespace}/{TOPO_NODE.plural}"
         )
         try:
-            resp = self._session.get(url)
+            resp = self._request("GET", url)
             if resp.status_code == 200:
                 items = resp.json().get("items", [])
                 names = {
@@ -596,7 +653,7 @@ class EdaClient:
             dry_run,
         )
 
-        resp = self._session.post(tx_url, json=payload)
+        resp = self._request("POST", tx_url, json=payload)
         resp.raise_for_status()
 
         result = resp.json()
@@ -615,10 +672,14 @@ class EdaClient:
         """
         Poll for transaction completion.
 
+        Uses exponential backoff (1s → 2s → 4s → ``interval``) so that short
+        transactions finish quickly while long-running ones settle at the
+        configured steady-state interval.
+
         Args:
             tx_id: Transaction ID from submit_transaction
             timeout: Maximum wait time in seconds
-            interval: Polling interval in seconds
+            interval: Steady-state (and maximum) polling interval in seconds
 
         Returns:
             TransactionResult
@@ -629,15 +690,17 @@ class EdaClient:
         summary_url = f"{self.url}/core/transaction/v2/result/summary/{tx_id}"
         execution_url = f"{self.url}/core/transaction/v2/result/execution/{tx_id}"
 
+        backoff = 1.0
         start = time.time()
         while time.time() - start < timeout:
             try:
-                resp = self._session.get(summary_url)
+                resp = self._request("GET", summary_url)
                 if resp.status_code == 200:
                     data = resp.json()
                     if not data:
                         logger.debug("Transaction %s: empty response", tx_id)
-                        time.sleep(interval)
+                        time.sleep(backoff)
+                        backoff = min(backoff * 2, float(interval))
                         continue
                     state = (data.get("state") or "").lower()
 
@@ -647,7 +710,7 @@ class EdaClient:
                         # Fetch execution details for error info
                         details = data
                         try:
-                            exec_resp = self._session.get(execution_url)
+                            exec_resp = self._request("GET", execution_url)
                             if exec_resp.status_code == 200:
                                 exec_data = exec_resp.json()
                                 if exec_data:
@@ -693,7 +756,8 @@ class EdaClient:
             except Exception as e:
                 logger.warning("Error polling transaction %s: %s", tx_id, e)
 
-            time.sleep(interval)
+            time.sleep(backoff)
+            backoff = min(backoff * 2, float(interval))
 
         return TransactionResult(
             success=False,
@@ -736,11 +800,12 @@ class EdaClient:
         """
         self.authenticate()
         run_phases = phases or ALL_PHASES
+        ns = self._extract_namespace(resources)
 
         # Optional prune diff
         delete_crs: list[dict] = []
         if prune:
-            current = self.get_managed_resources(phases=run_phases)
+            current = self.get_managed_resources(namespace=ns, phases=run_phases)
             plan = self.compute_diff(resources, current)
             logger.info(plan.summary())
             all_desired = plan.creates + plan.updates
@@ -761,7 +826,7 @@ class EdaClient:
             all_desired = resources
 
         # Enrich NodeProfile CRs with version-specific fields from EDA
-        all_desired = self._enrich_node_profiles(all_desired)
+        all_desired = self._enrich_node_profiles(all_desired, namespace=ns)
 
         # Split CRs into phases
         phased = self._split_by_phase(all_desired)
@@ -775,7 +840,7 @@ class EdaClient:
             # TopoNodes need special handling: re-applying an existing
             # TopoNode via replace triggers full re-onboarding. Query
             # EDA first and only create genuinely new ones.
-            existing_nodes = self._get_existing_toponode_names()
+            existing_nodes = self._get_existing_toponode_names(namespace=ns)
             new_topo_nodes: list[dict] = []
             skipped_nodes: list[str] = []
             other_crs: list[dict] = []
@@ -819,9 +884,10 @@ class EdaClient:
                     + skipped_nodes
                 )
                 if all_node_names:
+                    topo_ns = self._extract_namespace(resources)
                     all_node_stubs = [
-                        {"metadata": {"name": n, "namespace": "eda"},
-                         "apiVersion": "core.eda.nokia.com/v1"}
+                        {"metadata": {"name": n, "namespace": topo_ns},
+                         "apiVersion": TOPO_NODE.api_version}
                         for n in all_node_names
                     ]
                     self._wait_for_nodes_sync(all_node_stubs)
@@ -929,13 +995,13 @@ class EdaClient:
             managed_by_kind.setdefault(kind, []).append(cr)
 
         tx_crs: list[dict] = []
-        for api_version, kind, plural in DESTROY_ORDER:
-            if kind in SHARED_KINDS:
+        for crt in DESTROY_ORDER:
+            if crt.kind in SHARED_KINDS:
                 continue
-            for cr in managed_by_kind.get(kind, []):
+            for cr in managed_by_kind.get(crt.kind, []):
                 name = cr.get("metadata", {}).get("name", "")
                 tx_crs.append(
-                    self._wrap_cr_delete(api_version, kind, name, namespace)
+                    self._wrap_cr_delete(crt.api_version, crt.kind, name, namespace)
                 )
 
         if not tx_crs:
@@ -1049,10 +1115,6 @@ class EdaClient:
         go into the services phase.
         """
         result: dict[str, list[dict]] = {}
-        kind_to_phase: dict[str, str] = {}
-        for phase, kinds in PHASE_KINDS.items():
-            for kind in kinds:
-                kind_to_phase[kind] = phase
 
         for cr in resources:
             kind = cr.get("kind", "")
@@ -1067,7 +1129,7 @@ class EdaClient:
                     else PHASE_SERVICES
                 )
             else:
-                phase = kind_to_phase.get(kind, PHASE_SERVICES)
+                phase = _KIND_TO_PHASE.get(kind, PHASE_SERVICES)
             result.setdefault(phase, []).append(cr)
 
         return result
@@ -1103,61 +1165,63 @@ class EdaClient:
             for cr in topo_nodes
         ]
         ns = topo_nodes[0].get("metadata", {}).get("namespace", "eda")
-        api_version = topo_nodes[0].get("apiVersion", "core.eda.nokia.com/v1")
 
         logger.info(
             "Waiting for %d TopoNodes to reach Synced state...",
             len(node_names),
         )
 
-        start = time.time()
-        while time.time() - start < timeout:
-            synced: list[str] = []
-            pending: list[tuple[str, str]] = []  # (name, current_state)
+        def _check(name: str) -> tuple[str, str | None]:
+            """Return (name, node_state) — None on error."""
+            url = (
+                f"{self.url}/apps/{TOPO_NODE.api_version}"
+                f"/namespaces/{ns}/{TOPO_NODE.plural}/{name}"
+            )
+            try:
+                resp = self._request("GET", url)
+                if resp.status_code != 200:
+                    return name, f"http-{resp.status_code}"
+                return name, resp.json().get("status", {}).get("node-state", "") or "unknown"
+            except Exception as e:
+                return name, f"error: {e}"
 
-            for name in node_names:
-                url = (
-                    f"{self.url}/apps/{api_version}"
-                    f"/namespaces/{ns}/toponodes/{name}"
-                )
-                try:
-                    resp = self._session.get(url)
-                    if resp.status_code != 200:
-                        pending.append((name, f"http-{resp.status_code}"))
-                        continue
-                    data = resp.json()
-                    node_state = data.get("status", {}).get("node-state", "")
-                    if node_state == "Synced":
+        start = time.time()
+        pending: list[tuple[str, str]] = []
+        with ThreadPoolExecutor(max_workers=min(8, max(1, len(node_names)))) as pool:
+            while time.time() - start < timeout:
+                synced: list[str] = []
+                pending = []  # (name, current_state)
+
+                for name, state in pool.map(_check, node_names):
+                    if state == "Synced":
                         synced.append(name)
                     else:
-                        pending.append((name, node_state or "unknown"))
-                except Exception as e:
-                    pending.append((name, f"error: {e}"))
+                        pending.append((name, state or "unknown"))
 
-            if len(synced) == len(node_names):
+                if len(synced) == len(node_names):
+                    elapsed = int(time.time() - start)
+                    logger.info(
+                        "All %d TopoNodes are Synced (%ds)",
+                        len(node_names),
+                        elapsed,
+                    )
+                    return
+
                 elapsed = int(time.time() - start)
+                state_summary = ", ".join(
+                    f"{n}={s}" for n, s in pending[:5]
+                )
+                if len(pending) > 5:
+                    state_summary += f" (+{len(pending) - 5} more)"
                 logger.info(
-                    "All %d TopoNodes are Synced (%ds)",
+                    "Waiting for TopoNodes: %d/%d Synced (%ds/%ds) — %s",
+                    len(synced),
                     len(node_names),
                     elapsed,
+                    timeout,
+                    state_summary,
                 )
-                return
-
-            elapsed = int(time.time() - start)
-            state_summary = ", ".join(
-                f"{n}={s}" for n, s in pending[:5]
-            )
-            if len(pending) > 5:
-                state_summary += f" (+{len(pending) - 5} more)"
-            logger.info(
-                "Waiting for TopoNodes: %d/%d Synced (%ds/%ds) — %s",
-                len(synced),
-                len(node_names),
-                elapsed,
-                timeout,
-                state_summary,
-            )
-            time.sleep(interval)
+                time.sleep(interval)
 
         pending_names = ", ".join(n for n, _ in pending)
         logger.warning(

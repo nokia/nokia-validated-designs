@@ -21,6 +21,8 @@ from . import default as _base
 from . import v25_3
 from .default import (
     _bd_access_interfaces,
+    _build_bridge_table,
+    _build_routing_policy,
     _get,
     _get_lag_bridge_domains,
     _irb_index_map,
@@ -123,22 +125,7 @@ def _build_macvrf_instances(hv: dict, updates: list[dict]) -> None:
                     }],
                 },
             },
-            "bridge-table": {
-                "mac-learning": {
-                    "admin-state": "enable",
-                    "aging": {
-                        "admin-state": "enable",
-                        "age-time": 300,
-                    },
-                },
-                "mac-duplication": {
-                    "admin-state": "enable",
-                    "monitoring-window": 3,
-                    "num-moves": 5,
-                    "hold-down-time": 9,
-                    "action": "stop-learning",
-                },
-            },
+            "bridge-table": _build_bridge_table(bd),
         }
 
         updates.append({
@@ -154,101 +141,11 @@ def _build_macvrf_instances(hv: dict, updates: list[dict]) -> None:
 
 def build_routing_policy_updates(hv: dict) -> list[dict[str, Any]]:
     """Build /routing-policy with 26.x ``local-preference`` and ``match.prefix`` schemas."""
-    rp_cfg = hv.get("routing_policy", {})
-    fabric_name = hv.get("fabric_name", "dc1")
-
-    prefix_set_name = rp_cfg.get("prefix_set", f"prefixset-{fabric_name}")
-    prefix = rp_cfg.get("prefix", hv.get("system0_prefix", ""))
-    mask_range = rp_cfg.get("mask_length_range", "32..32")
-
-    export_name = f"ebgp-isl-export-policy-{fabric_name}"
-    import_name = f"ebgp-isl-import-policy-{fabric_name}"
-
-    local_pref = {"value": 100, "operation": "set"}
-
-    export_statements = {
-        "10": {
-            "match": {
-                "prefix": {"prefix-set": prefix_set_name},
-                "protocol": "local",
-            },
-            "action": {
-                "policy-result": "accept",
-                "bgp": {"local-preference": local_pref},
-            },
-        },
-        "15": {
-            "match": {"protocol": "bgp"},
-            "action": {
-                "policy-result": "accept",
-                "bgp": {"local-preference": local_pref},
-            },
-        },
-        "20": {
-            "match": {"protocol": "aggregate"},
-            "action": {
-                "policy-result": "accept",
-                "bgp": {"local-preference": local_pref},
-            },
-        },
-    }
-
-    for stmt_id, rt in [("25", 1), ("30", 2), ("35", 3), ("40", 4), ("45", 5)]:
-        export_statements[stmt_id] = {
-            "match": {"bgp": {"evpn": {"route-type": [rt]}}},
-            "action": {
-                "policy-result": "accept",
-                "bgp": {"local-preference": local_pref},
-            },
-        }
-
-    import_statements: dict[str, Any] = {
-        "10": {
-            "match": {"protocol": "bgp"},
-            "action": {
-                "policy-result": "accept",
-                "bgp": {"local-preference": local_pref},
-            },
-        },
-    }
-    for stmt_id, rt in [("25", 1), ("30", 2), ("35", 3), ("40", 4), ("45", 5)]:
-        import_statements[stmt_id] = {
-            "match": {"bgp": {"evpn": {"route-type": [rt]}}},
-            "action": {
-                "policy-result": "accept",
-                "bgp": {"local-preference": local_pref},
-            },
-        }
-
-    value: dict[str, Any] = {
-        "prefix-set": [{
-            "name": prefix_set_name,
-            "prefix": [{
-                "ip-prefix": prefix,
-                "mask-length-range": mask_range,
-            }],
-        }],
-        "policy": [
-            {
-                "name": export_name,
-                "default-action": {"policy-result": "reject"},
-                "statement": [
-                    {"name": sid, **body}
-                    for sid, body in export_statements.items()
-                ],
-            },
-            {
-                "name": import_name,
-                "default-action": {"policy-result": "reject"},
-                "statement": [
-                    {"name": sid, **body}
-                    for sid, body in import_statements.items()
-                ],
-            },
-        ],
-    }
-
-    return [{"path": "/routing-policy", "value": value, "op": "replace"}]
+    return _build_routing_policy(
+        hv,
+        local_pref={"value": 100, "operation": "set"},
+        nested_prefix_set=True,
+    )
 
 
 # ---------------------------------------------------------------------------

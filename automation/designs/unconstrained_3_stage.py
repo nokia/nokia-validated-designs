@@ -12,27 +12,30 @@ FabricIntent model.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from automation.core.models import (
-    BannerIntent,
     BridgeDomainIntent,
     ConfigletConfigEntry,
     ConfigletIntent,
-    DefaultMtuIntent,
-    EdgeInterfaceIntent,
+    Credentials,
     EdaSettings,
     FabricIntent,
     IrbIpAddress,
     IrbInterfaceIntent,
-    LacpConfig,
-    LagIntent,
-    LagMember,
     LinkIntent,
     NodeIntent,
-    RoutedInterfaceIntent,
     RouterIntent,
-    StaticRouteIntent,
-    VlanIntent,
+)
+from automation.designs._common_builders import (
+    build_banners as _build_banners,
+    build_default_mtus as _build_default_mtus,
+    build_edge_interfaces as _build_edge_interfaces,
+    build_lags as _build_lags,
+    build_routed_interfaces as _build_routed_interfaces,
+    build_routers as _build_routers,
+    build_static_routes as _build_static_routes,
+    build_vlans as _build_vlans,
 )
 
 logger = logging.getLogger(__name__)
@@ -125,6 +128,9 @@ def build(topology: dict, services: dict) -> FabricIntent:
     # EDA settings
     # -----------------------------------------------------------------------
     eda_cfg = topology.get("eda", {})
+    creds_cfg = topology.get("credentials", {})
+    credentials = Credentials(**creds_cfg) if creds_cfg else Credentials()
+
     eda_settings = EdaSettings(
         node_profile=eda_cfg.get("node_profile", ""),
         namespace=eda_cfg.get("namespace", "eda"),
@@ -137,6 +143,7 @@ def build(topology: dict, services: dict) -> FabricIntent:
         spine_asn=spine_asn,
         leaf_asn_start=leaf_asn_start,
         system0_prefix=system0_prefix,
+        mgmt_subnet=topology.get("mgmt_subnet", ""),
         nodes=nodes,
         links=links,
         breakouts=[],  # No auto-generated breakouts in unconstrained design
@@ -151,6 +158,7 @@ def build(topology: dict, services: dict) -> FabricIntent:
         configlets=configlets,
         default_mtus=default_mtus,
         banners=banners,
+        credentials=credentials,
         eda=eda_settings,
     )
 
@@ -193,64 +201,6 @@ def _build_links(raw: list[dict]) -> list[LinkIntent]:
 
 
 # ---------------------------------------------------------------------------
-# Edge / access builders (shared logic with 3-stage design)
-# ---------------------------------------------------------------------------
-
-
-def _build_edge_interfaces(raw: list[dict]) -> list[EdgeInterfaceIntent]:
-    """Build edge interface intents from raw input."""
-    return [
-        EdgeInterfaceIntent(
-            name=ei["name"],
-            node=ei["node"],
-            interface=ei["interface"],
-            encap=ei.get("encap", "dot1q"),
-            labels=ei.get("labels", {}),
-        )
-        for ei in raw
-    ]
-
-
-def _build_lags(raw: list[dict]) -> list[LagIntent]:
-    """Build LAG intents from raw input."""
-    result: list[LagIntent] = []
-    for lag in raw:
-        lacp_cfg = lag.get("lacp", {})
-        fallback = lacp_cfg.get("fallback")
-
-        members = [
-            LagMember(
-                node=m["node"],
-                interface=m["interface"],
-                aggregate_id=m["aggregate_id"],
-            )
-            for m in lag.get("members", [])
-        ]
-
-        result.append(
-            LagIntent(
-                name=lag["name"],
-                type=lag.get("type", "lacp"),
-                multihoming_mode=lag.get("mode", "all-active"),
-                min_links=lag.get("min_links", 1),
-                lacp=LacpConfig(
-                    interval=lacp_cfg.get("interval", "fast"),
-                    system_id_mac=lacp_cfg.get("system_id_mac", ""),
-                    system_priority=lacp_cfg.get("system_priority", 32768),
-                    fallback=fallback,
-                ),
-                members=members,
-                labels=lag.get("labels", {}),
-                revertive=lag.get("revertive", False),
-                preferred_active_node=lag.get("preferred_active_node", ""),
-                standby_signaling=lag.get("standby_signaling", ""),
-                reload_delay_timer=lag.get("reload_delay_timer", 100),
-            )
-        )
-    return result
-
-
-# ---------------------------------------------------------------------------
 # Configlets (explicit — user-defined in topology.yaml)
 # ---------------------------------------------------------------------------
 
@@ -277,40 +227,6 @@ def _build_configlets(raw: list[dict]) -> list[ConfigletIntent]:
 
 
 # ---------------------------------------------------------------------------
-# Siteinfo resources (DefaultMTU, Banner)
-# ---------------------------------------------------------------------------
-
-
-def _build_default_mtus(raw: list[dict]) -> list[DefaultMtuIntent]:
-    """Build default MTU intents from raw input."""
-    return [
-        DefaultMtuIntent(
-            name=mtu["name"],
-            interface_mtu=mtu.get("interface_mtu"),
-            layer2_subif_mtu=mtu.get("layer2_subif_mtu"),
-            layer3_mtu=mtu.get("layer3_mtu"),
-            node_selector=mtu.get("node_selector", []),
-            nodes=mtu.get("nodes", []),
-        )
-        for mtu in raw
-    ]
-
-
-def _build_banners(raw: list[dict]) -> list[BannerIntent]:
-    """Build banner intents from raw input."""
-    return [
-        BannerIntent(
-            name=b["name"],
-            login_banner=b.get("login_banner", ""),
-            motd=b.get("motd", ""),
-            node_selector=b.get("node_selector", []),
-            nodes=b.get("nodes", []),
-        )
-        for b in raw
-    ]
-
-
-# ---------------------------------------------------------------------------
 # Service builders
 # ---------------------------------------------------------------------------
 
@@ -330,17 +246,15 @@ def _build_bridge_domains(raw: list[dict]) -> list[BridgeDomainIntent]:
     ]
 
 
-def _build_routers(raw: list[dict]) -> list[RouterIntent]:
-    """Build router intents from raw input."""
-    return [
-        RouterIntent(
-            name=r["name"],
-            vni=r["vni"],
-            evi=r["evi"],
-            node_selector=r.get("node_selector", []),
-        )
-        for r in raw
-    ]
+def _coerce_evpn_adv_type(val: Any) -> dict | None:
+    """Coerce evpn_route_advertisement_type from string or dict input."""
+    if val is None or val == "":
+        return None
+    if isinstance(val, dict):
+        return val
+    if isinstance(val, str):
+        return {"type": val}
+    return None
 
 
 def _build_irb_interfaces(
@@ -367,8 +281,8 @@ def _build_irb_interfaces(
                 learn_unsolicited=irb.get("learn_unsolicited", "NONE"),
                 proxy_arp=irb.get("proxy_arp", True),
                 proxy_nd=irb.get("proxy_nd", False),
-                evpn_route_advertisement_type=irb.get(
-                    "evpn_route_advertisement_type", ""
+                evpn_route_advertisement_type=_coerce_evpn_adv_type(
+                    irb.get("evpn_route_advertisement_type")
                 ),
                 host_route_populate=irb.get("host_route_populate"),
             )
@@ -376,44 +290,3 @@ def _build_irb_interfaces(
     return result
 
 
-def _build_vlans(raw: list[dict]) -> list[VlanIntent]:
-    """Build VLAN intents from raw input."""
-    return [
-        VlanIntent(
-            name=v["name"],
-            bridge_domain=v["bridge_domain"],
-            vlan_id=v["vlan_id"],
-            interface_selector=v.get("interface_selector", []),
-        )
-        for v in raw
-    ]
-
-
-def _build_routed_interfaces(raw: list[dict]) -> list[RoutedInterfaceIntent]:
-    """Build routed interface intents from raw input."""
-    return [
-        RoutedInterfaceIntent(
-            name=ri["name"],
-            interface=ri["interface"],
-            router=ri["router"],
-            vlan_id=ri.get("vlan_id", "null"),
-            ipv4_addresses=ri.get("ipv4_addresses", []),
-            ip_mtu=ri.get("ip_mtu", 1500),
-            arp_timeout=ri.get("arp_timeout", 14400),
-        )
-        for ri in raw
-    ]
-
-
-def _build_static_routes(raw: list[dict]) -> list[StaticRouteIntent]:
-    """Build static route intents from raw input."""
-    return [
-        StaticRouteIntent(
-            name=sr["name"],
-            router=sr["router"],
-            nodes=sr.get("nodes", []),
-            prefixes=sr.get("prefixes", []),
-            nexthop_group=sr.get("nexthop_group", {}),
-        )
-        for sr in raw
-    ]

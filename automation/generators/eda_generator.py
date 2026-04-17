@@ -20,6 +20,26 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from automation.eda_models.registry import (
+    INIT as CR_INIT,
+    NODE_USER as CR_NODE_USER,
+    NODE_PROFILE as CR_NODE_PROFILE,
+    TOPO_NODE as CR_TOPO_NODE,
+    TOPO_LINK as CR_TOPO_LINK,
+    INDEX_ALLOCATION_POOL as CR_INDEX_ALLOCATION_POOL,
+    IP_ALLOCATION_POOL as CR_IP_ALLOCATION_POOL,
+    INTERFACE as CR_INTERFACE,
+    FABRIC as CR_FABRIC,
+    BRIDGE_DOMAIN as CR_BRIDGE_DOMAIN,
+    ROUTER as CR_ROUTER,
+    IRB_INTERFACE as CR_IRB_INTERFACE,
+    VLAN as CR_VLAN,
+    ROUTED_INTERFACE as CR_ROUTED_INTERFACE,
+    STATIC_ROUTE as CR_STATIC_ROUTE,
+    CONFIGLET as CR_CONFIGLET,
+    DEFAULT_MTU as CR_DEFAULT_MTU,
+    BANNER as CR_BANNER,
+)
 from automation.core.models import (
     BannerIntent,
     BridgeDomainIntent,
@@ -118,106 +138,113 @@ def generate(intent: FabricIntent, output_dir: Path | None = None) -> list[dict]
         Ordered list of EDA CR dicts
     """
     ns = intent.eda.namespace
+    design = intent.design
     resources: list[dict] = []
 
     # 1. Init (commitSave)
-    resources.append(_cr_init(ns))
+    resources.append(_cr_init(ns, design))
 
     # 2. NodeUser
-    resources.append(_cr_node_user(ns))
+    creds = intent.credentials
+    resources.append(_cr_node_user(ns, design, creds.username, creds.password))
 
     # 3. NodeProfile — derived from node version
     node_version = intent.nodes[0].version if intent.nodes else ""
     profile_name = intent.eda.node_profile or f"clab-srlinux-{node_version}"
     if node_version:
-        resources.append(_cr_node_profile(ns, profile_name, node_version))
+        resources.append(_cr_node_profile(ns, profile_name, node_version, design, creds.username, creds.password))
 
     # 4. TopoNodes (individual per-node CRs)
     for node in intent.nodes:
-        resources.append(_cr_topo_node(node, profile_name, ns))
+        resources.append(_cr_topo_node(node, profile_name, ns, design))
 
-    # 5. Interfaces — ISL interfaces (per node endpoint)
+    # 5. Interfaces — ISL interfaces (one per unique node/interface endpoint)
+    seen_isl: set[tuple[str, str]] = set()
     for link in intent.links:
-        resources.append(_cr_interface_isl(link.local_node, link.local_interface, ns))
-        resources.append(_cr_interface_isl(link.remote_node, link.remote_interface, ns))
+        for node, iface in (
+            (link.local_node, link.local_interface),
+            (link.remote_node, link.remote_interface),
+        ):
+            key = (node, iface)
+            if key in seen_isl:
+                continue
+            seen_isl.add(key)
+            resources.append(_cr_interface_isl(node, iface, ns, design))
 
     # 6. Interfaces — Edge interfaces
     for ei in intent.edge_interfaces:
-        resources.append(_cr_interface_edge(ei, ns))
+        resources.append(_cr_interface_edge(ei, ns, design))
 
     # 7. Interfaces — LAG member interfaces
     for lag in intent.lags:
         for member in lag.members:
             resources.append(
-                _cr_interface_lag_member(member.node, member.interface, ns)
+                _cr_interface_lag_member(member.node, member.interface, ns, design)
             )
 
     # 8. LAG Interfaces
     for lag in intent.lags:
-        resources.append(_cr_interface_lag(lag, ns))
+        resources.append(_cr_interface_lag(lag, ns, design))
 
     # 9. Links
     for link in intent.links:
-        resources.append(_cr_topo_link(link, ns))
+        resources.append(_cr_topo_link(link, ns, design))
 
     # 10. ASN allocation pools
     resources.append(
         _cr_index_allocation_pool(
-            "leaf-asn", intent.leaf_asn_start, 20, ns
+            "leaf-asn", intent.leaf_asn_start, 20, ns, design
         )
     )
     resources.append(
         _cr_index_allocation_pool(
-            "spine-asn", intent.spine_asn, 10, ns
+            "spine-asn", intent.spine_asn, 10, ns, design
         )
     )
 
     # 11. IP allocation pool (system0)
     resources.append(
-        _cr_ip_allocation_pool("system0", intent.system0_prefix, ns)
+        _cr_ip_allocation_pool("system0", intent.system0_prefix, ns, design)
     )
 
     # 12. Fabric
-    resources.append(_cr_fabric(intent, ns))
+    resources.append(_cr_fabric(intent, ns, design))
 
     # 13. Bridge domains
     for bd in intent.bridge_domains:
-        resources.append(_cr_bridge_domain(bd, ns))
+        resources.append(_cr_bridge_domain(bd, ns, design))
 
     # 14. Routers
     for router in intent.routers:
-        resources.append(_cr_router(router, ns))
+        resources.append(_cr_router(router, ns, design))
 
     # 15. IRB interfaces
     for irb in intent.irb_interfaces:
-        resources.append(_cr_irb_interface(irb, ns))
+        resources.append(_cr_irb_interface(irb, ns, design))
 
     # 16. VLANs
     for vlan in intent.vlans:
-        resources.append(_cr_vlan(vlan, ns))
+        resources.append(_cr_vlan(vlan, ns, design))
 
     # 17. Routed interfaces
     for ri in intent.routed_interfaces:
-        resources.append(_cr_routed_interface(ri, ns))
+        resources.append(_cr_routed_interface(ri, ns, design))
 
     # 18. Static routes
     for sr in intent.static_routes:
-        resources.append(_cr_static_route(sr, ns))
+        resources.append(_cr_static_route(sr, ns, design))
 
     # 19. Configlets
     for cfglet in intent.configlets:
-        resources.append(_cr_configlet(cfglet, ns))
+        resources.append(_cr_configlet(cfglet, ns, design))
 
     # 20. Default MTUs
     for mtu in intent.default_mtus:
-        resources.append(_cr_default_mtu(mtu, ns))
+        resources.append(_cr_default_mtu(mtu, ns, design))
 
     # 21. Banners
     for banner in intent.banners:
-        resources.append(_cr_banner(banner, ns))
-
-    # De-duplicate ISL interfaces (each endpoint appears once)
-    resources = _deduplicate(resources)
+        resources.append(_cr_banner(banner, ns, design))
 
     if output_dir:
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -254,7 +281,7 @@ def _wrap_cr(
     ns: str,
     spec: BaseModel,
     labels: dict[str, str] | None = None,
-    origin: str = "3-stage",
+    origin: str = "",
 ) -> dict:
     """Wrap a Pydantic spec model into a full EDA CR dict."""
     return {
@@ -276,7 +303,7 @@ def _wrap_cr_raw(
     ns: str,
     spec: dict,
     labels: dict[str, str] | None = None,
-    origin: str = "3-stage",
+    origin: str = "",
 ) -> dict:
     """Wrap a raw spec dict into a full EDA CR dict (for complex cases)."""
     return {
@@ -296,21 +323,21 @@ def _wrap_cr_raw(
 # ---------------------------------------------------------------------------
 
 
-def _cr_init(ns: str) -> dict:
+def _cr_init(ns: str, design: str) -> dict:
     spec = InitSpec(commit_save=True, mgmt=InitMgmt(ipv4_dhcp=True, ipv6_dhcp=True))
-    return _wrap_cr("bootstrap.eda.nokia.com/v1alpha1", "Init", "init-base", ns, spec)
+    return _wrap_cr(CR_INIT.api_version, CR_INIT.kind, "init-base", ns, spec, origin=design)
 
 
-def _cr_node_user(ns: str) -> dict:
+def _cr_node_user(ns: str, design: str, username: str = "admin", password: str = "NokiaSrl1!") -> dict:
     spec = NodeUserSpec(
-        username="admin",
-        password="NokiaSrl1!",
+        username=username,
+        password=password,
         group_bindings=[NodeUserGroupBindings(groups=["sudo"], node_selector=[""])],
     )
-    return _wrap_cr("core.eda.nokia.com/v1", "NodeUser", "admin", ns, spec)
+    return _wrap_cr(CR_NODE_USER.api_version, CR_NODE_USER.kind, username, ns, spec, origin=design)
 
 
-def _cr_node_profile(ns: str, profile_name: str, version: str) -> dict:
+def _cr_node_profile(ns: str, profile_name: str, version: str, design: str, username: str = "admin", password: str = "NokiaSrl1!") -> dict:
     ver_escaped = version.replace(".", "\\.")
     spec = NodeProfileSpec(
         images=[
@@ -320,9 +347,9 @@ def _cr_node_profile(ns: str, profile_name: str, version: str) -> dict:
             )
         ],
         llm_db=f"https://eda-asvr.eda-system.svc/eda-system/llm-dbs/llm-db-srlinux-ghcr-{version}/llm-embeddings-srl-{version.replace('.', '-')}.tar.gz",
-        node_user="admin",
-        onboarding_username="admin",
-        onboarding_password="NokiaSrl1!",
+        node_user=username,
+        onboarding_username=username,
+        onboarding_password=password,
         operating_system="srl",
         port=57410,
         version=version,
@@ -331,14 +358,14 @@ def _cr_node_profile(ns: str, profile_name: str, version: str) -> dict:
         yang=f"https://eda-asvr.eda-system.svc/eda-system/schemaprofiles/srlinux-ghcr-{version}/srlinux-{version}.zip",
         annotate=True,
     )
-    return _wrap_cr("core.eda.nokia.com/v1", "NodeProfile", profile_name, ns, spec)
+    return _wrap_cr(CR_NODE_PROFILE.api_version, CR_NODE_PROFILE.kind, profile_name, ns, spec, origin=design)
 
 
-def _cr_topo_node(node: NodeIntent, node_profile: str, ns: str) -> dict:
+def _cr_topo_node(node: NodeIntent, node_profile: str, ns: str, design: str) -> dict:
     """Generate a TopoNode CR for each node."""
     labels = _managed_labels(
         {"eda.nokia.com/name": node.name, **node.labels},
-        origin="3-stage",
+        origin=design,
     )
     if "eda.nokia.com/security-profile" not in labels:
         labels["eda.nokia.com/security-profile"] = "managed"
@@ -352,10 +379,10 @@ def _cr_topo_node(node: NodeIntent, node_profile: str, ns: str) -> dict:
         production_address=TopoNodeProductionAddress(ipv4=node.mgmt_ipv4, ipv6=""),
         npp=TopoNodeNpp(mode="normal"),
     )
-    return _wrap_cr("core.eda.nokia.com/v1", "TopoNode", node.name, ns, spec, labels)
+    return _wrap_cr(CR_TOPO_NODE.api_version, CR_TOPO_NODE.kind, node.name, ns, spec, labels)
 
 
-def _cr_interface_isl(node: str, interface: str, ns: str) -> dict:
+def _cr_interface_isl(node: str, interface: str, ns: str, design: str) -> dict:
     """Generate an ISL Interface CR."""
     name = f"{node}-{interface.replace('/', '-')}"
     spec = InterfaceSpec(
@@ -365,14 +392,14 @@ def _cr_interface_isl(node: str, interface: str, ns: str) -> dict:
         type="interface",
     )
     return _wrap_cr(
-        "interfaces.eda.nokia.com/v1alpha1", "Interface", name, ns, spec,
-        _managed_labels({"eda.nokia.com/role": "interSwitch"}, origin="3-stage"),
+        CR_INTERFACE.api_version, CR_INTERFACE.kind, name, ns, spec,
+        _managed_labels({"eda.nokia.com/role": "interSwitch"}, origin=design),
     )
 
 
-def _cr_interface_edge(ei: EdgeInterfaceIntent, ns: str) -> dict:
+def _cr_interface_edge(ei: EdgeInterfaceIntent, ns: str, design: str) -> dict:
     """Generate an edge Interface CR."""
-    labels = _managed_labels({**ei.labels, "eda.nokia.com/role": "edge"}, origin="3-stage")
+    labels = _managed_labels({**ei.labels, "eda.nokia.com/role": "edge"}, origin=design)
     spec = InterfaceSpec(
         enabled=True,
         lldp=True,
@@ -380,10 +407,10 @@ def _cr_interface_edge(ei: EdgeInterfaceIntent, ns: str) -> dict:
         type="interface",
         encap_type=ei.encap if ei.encap in ("dot1q", "null") else None,
     )
-    return _wrap_cr("interfaces.eda.nokia.com/v1alpha1", "Interface", ei.name, ns, spec, labels)
+    return _wrap_cr(CR_INTERFACE.api_version, CR_INTERFACE.kind, ei.name, ns, spec, labels)
 
 
-def _cr_interface_lag_member(node: str, interface: str, ns: str) -> dict:
+def _cr_interface_lag_member(node: str, interface: str, ns: str, design: str) -> dict:
     """Generate a LAG member Interface CR."""
     name = f"{node}-{interface.replace('/', '-')}"
     spec = InterfaceSpec(
@@ -394,14 +421,14 @@ def _cr_interface_lag_member(node: str, interface: str, ns: str) -> dict:
         type="interface",
     )
     return _wrap_cr(
-        "interfaces.eda.nokia.com/v1alpha1", "Interface", name, ns, spec,
-        _managed_labels({"eda.nokia.com/role": "edge"}, origin="3-stage"),
+        CR_INTERFACE.api_version, CR_INTERFACE.kind, name, ns, spec,
+        _managed_labels({"eda.nokia.com/role": "edge"}, origin=design),
     )
 
 
-def _cr_interface_lag(lag: LagIntent, ns: str) -> dict:
+def _cr_interface_lag(lag: LagIntent, ns: str, design: str) -> dict:
     """Generate a LAG Interface CR."""
-    labels = _managed_labels({**lag.labels, "eda.nokia.com/role": "edge"}, origin="3-stage")
+    labels = _managed_labels({**lag.labels, "eda.nokia.com/role": "edge"}, origin=design)
 
     members = [
         InterfaceMembers(
@@ -456,10 +483,10 @@ def _cr_interface_lag(lag: LagIntent, ns: str) -> dict:
         members=members,
         lag=lag_config,
     )
-    return _wrap_cr("interfaces.eda.nokia.com/v1alpha1", "Interface", lag.name, ns, spec, labels)
+    return _wrap_cr(CR_INTERFACE.api_version, CR_INTERFACE.kind, lag.name, ns, spec, labels)
 
 
-def _cr_topo_link(link: LinkIntent, ns: str) -> dict:
+def _cr_topo_link(link: LinkIntent, ns: str, design: str) -> dict:
     """Generate a TopoLink CR."""
     local_intf_name = f"{link.local_node}-{link.local_interface.replace('/', '-')}"
     remote_intf_name = f"{link.remote_node}-{link.remote_interface.replace('/', '-')}"
@@ -481,28 +508,28 @@ def _cr_topo_link(link: LinkIntent, ns: str) -> dict:
         ],
     )
     return _wrap_cr(
-        "core.eda.nokia.com/v1", "TopoLink", link.name, ns, spec,
-        _managed_labels({"eda.nokia.com/role": "interSwitch"}, origin="3-stage"),
+        CR_TOPO_LINK.api_version, CR_TOPO_LINK.kind, link.name, ns, spec,
+        _managed_labels({"eda.nokia.com/role": "interSwitch"}, origin=design),
     )
 
 
 def _cr_index_allocation_pool(
-    name: str, start: int, size: int, ns: str
+    name: str, start: int, size: int, ns: str, design: str
 ) -> dict:
     spec = IndexAllocationPoolSpec(
         segments=[IndexAllocationPoolSegments(start=start, size=size)]
     )
-    return _wrap_cr("core.eda.nokia.com/v1", "IndexAllocationPool", name, ns, spec)
+    return _wrap_cr(CR_INDEX_ALLOCATION_POOL.api_version, CR_INDEX_ALLOCATION_POOL.kind, name, ns, spec, origin=design)
 
 
-def _cr_ip_allocation_pool(name: str, subnet: str, ns: str) -> dict:
+def _cr_ip_allocation_pool(name: str, subnet: str, ns: str, design: str) -> dict:
     spec = IPAllocationPoolSpec(
         segments=[IPAllocationPoolSegments(subnet=subnet)]
     )
-    return _wrap_cr("core.eda.nokia.com/v1", "IPAllocationPool", name, ns, spec)
+    return _wrap_cr(CR_IP_ALLOCATION_POOL.api_version, CR_IP_ALLOCATION_POOL.kind, name, ns, spec, origin=design)
 
 
-def _cr_fabric(intent: FabricIntent, ns: str) -> dict:
+def _cr_fabric(intent: FabricIntent, ns: str, design: str) -> dict:
     """Generate the Fabric CR."""
     leaf_selector = []
     spine_selector = []
@@ -538,10 +565,10 @@ def _cr_fabric(intent: FabricIntent, ns: str) -> dict:
         leafs=FabricLeafs(asn_pool="leaf-asn", leaf_node_selector=leaf_selector),
         spines=FabricSpines(asn_pool="spine-asn", spine_node_selector=spine_selector),
     )
-    return _wrap_cr("fabrics.eda.nokia.com/v1alpha1", "Fabric", intent.fabric_name, ns, spec)
+    return _wrap_cr(CR_FABRIC.api_version, CR_FABRIC.kind, intent.fabric_name, ns, spec, origin=design)
 
 
-def _cr_bridge_domain(bd: BridgeDomainIntent, ns: str) -> dict:
+def _cr_bridge_domain(bd: BridgeDomainIntent, ns: str, design: str) -> dict:
     """Generate a BridgeDomain CR."""
     mac_dup = None
     if bd.mac_duplication:
@@ -560,18 +587,18 @@ def _cr_bridge_domain(bd: BridgeDomainIntent, ns: str) -> dict:
         mac_duplication_detection=mac_dup,
     )
     return _wrap_cr(
-        "services.eda.nokia.com/v1", "BridgeDomain", bd.name, ns, spec,
-        origin=bd.origin or "3-stage",
+        CR_BRIDGE_DOMAIN.api_version, CR_BRIDGE_DOMAIN.kind, bd.name, ns, spec,
+        origin=bd.origin or design,
     )
 
 
-def _cr_router(router: RouterIntent, ns: str) -> dict:
+def _cr_router(router: RouterIntent, ns: str, design: str) -> dict:
     """Generate a Router CR."""
     spec = RouterSpec(vni=router.vni, evi=router.evi, node_selector=router.node_selector)
-    return _wrap_cr("services.eda.nokia.com/v1", "Router", router.name, ns, spec)
+    return _wrap_cr(CR_ROUTER.api_version, CR_ROUTER.kind, router.name, ns, spec, origin=design)
 
 
-def _cr_irb_interface(irb: IrbInterfaceIntent, ns: str) -> dict:
+def _cr_irb_interface(irb: IrbInterfaceIntent, ns: str, design: str) -> dict:
     """Generate an IRBInterface CR."""
 
     # Build ipAddresses from either ip_addresses list or legacy ipv4 shorthand
@@ -633,22 +660,22 @@ def _cr_irb_interface(irb: IrbInterfaceIntent, ns: str) -> dict:
         host_route_populate=host_pop,
     )
     return _wrap_cr(
-        "services.eda.nokia.com/v1", "IRBInterface", irb.name, ns, spec,
-        origin=irb.origin or "3-stage",
+        CR_IRB_INTERFACE.api_version, CR_IRB_INTERFACE.kind, irb.name, ns, spec,
+        origin=irb.origin or design,
     )
 
 
-def _cr_vlan(vlan: VlanIntent, ns: str) -> dict:
+def _cr_vlan(vlan: VlanIntent, ns: str, design: str) -> dict:
     """Generate a VLAN CR."""
     spec = VLANSpec(
         bridge_domain=vlan.bridge_domain,
         interface_selector=vlan.interface_selector,
         vlan_id=vlan.vlan_id,
     )
-    return _wrap_cr("services.eda.nokia.com/v1", "VLAN", vlan.name, ns, spec)
+    return _wrap_cr(CR_VLAN.api_version, CR_VLAN.kind, vlan.name, ns, spec, origin=design)
 
 
-def _cr_routed_interface(ri: RoutedInterfaceIntent, ns: str) -> dict:
+def _cr_routed_interface(ri: RoutedInterfaceIntent, ns: str, design: str) -> dict:
     """Generate a RoutedInterface CR."""
     ipv4_addrs = [
         RoutedInterfaceIpv4Addresses(
@@ -666,10 +693,10 @@ def _cr_routed_interface(ri: RoutedInterfaceIntent, ns: str) -> dict:
         router=ri.router,
         ipv4_addresses=ipv4_addrs,
     )
-    return _wrap_cr("services.eda.nokia.com/v1", "RoutedInterface", ri.name, ns, spec)
+    return _wrap_cr(CR_ROUTED_INTERFACE.api_version, CR_ROUTED_INTERFACE.kind, ri.name, ns, spec, origin=design)
 
 
-def _cr_static_route(sr: StaticRouteIntent, ns: str) -> dict:
+def _cr_static_route(sr: StaticRouteIntent, ns: str, design: str) -> dict:
     """Generate a StaticRoute CR."""
     spec = StaticRouteSpec(
         nexthop_group=sr.nexthop_group,
@@ -677,10 +704,10 @@ def _cr_static_route(sr: StaticRouteIntent, ns: str) -> dict:
         router=sr.router,
         nodes=sr.nodes,
     )
-    return _wrap_cr("protocols.eda.nokia.com/v1", "StaticRoute", sr.name, ns, spec)
+    return _wrap_cr(CR_STATIC_ROUTE.api_version, CR_STATIC_ROUTE.kind, sr.name, ns, spec, origin=design)
 
 
-def _cr_configlet(cfglet: ConfigletIntent, ns: str) -> dict:
+def _cr_configlet(cfglet: ConfigletIntent, ns: str, design: str) -> dict:
     """Generate a Configlet CR from a ConfigletIntent."""
     spec = ConfigletSpec(
         endpoint_selector=cfglet.endpoint_selector or None,
@@ -697,12 +724,12 @@ def _cr_configlet(cfglet: ConfigletIntent, ns: str) -> dict:
         ],
     )
     return _wrap_cr(
-        "config.eda.nokia.com/v1alpha1", "Configlet", cfglet.name, ns, spec,
-        origin=cfglet.origin or "3-stage",
+        CR_CONFIGLET.api_version, CR_CONFIGLET.kind, cfglet.name, ns, spec,
+        origin=cfglet.origin or design,
     )
 
 
-def _cr_default_mtu(mtu: DefaultMtuIntent, ns: str) -> dict:
+def _cr_default_mtu(mtu: DefaultMtuIntent, ns: str, design: str) -> dict:
     """Generate a DefaultMTU CR."""
     spec = DefaultMTUSpec(
         interface_mtu=mtu.interface_mtu,
@@ -711,10 +738,10 @@ def _cr_default_mtu(mtu: DefaultMtuIntent, ns: str) -> dict:
         node_selector=mtu.node_selector or None,
         nodes=mtu.nodes or None,
     )
-    return _wrap_cr("siteinfo.eda.nokia.com/v1alpha1", "DefaultMTU", mtu.name, ns, spec)
+    return _wrap_cr(CR_DEFAULT_MTU.api_version, CR_DEFAULT_MTU.kind, mtu.name, ns, spec, origin=design)
 
 
-def _cr_banner(banner: BannerIntent, ns: str) -> dict:
+def _cr_banner(banner: BannerIntent, ns: str, design: str) -> dict:
     """Generate a Banner CR."""
     spec = BannerSpec(
         login_banner=banner.login_banner or None,
@@ -722,21 +749,6 @@ def _cr_banner(banner: BannerIntent, ns: str) -> dict:
         node_selector=banner.node_selector or None,
         nodes=banner.nodes or None,
     )
-    return _wrap_cr("siteinfo.eda.nokia.com/v1alpha1", "Banner", banner.name, ns, spec)
+    return _wrap_cr(CR_BANNER.api_version, CR_BANNER.kind, banner.name, ns, spec, origin=design)
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _deduplicate(resources: list[dict]) -> list[dict]:
-    """Remove duplicate CRs (same kind + metadata.name)."""
-    seen: set[str] = set()
-    result: list[dict] = []
-    for cr in resources:
-        key = f"{cr['kind']}:{cr['metadata']['name']}"
-        if key not in seen:
-            seen.add(key)
-            result.append(cr)
-    return result

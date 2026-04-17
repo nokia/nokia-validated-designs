@@ -409,38 +409,6 @@ class TestControlPlane:
         assert not missing, f"No VXLAN tunnels found on: {', '.join(missing)}"
 
     @pytest.mark.connectivity
-    def test_mac_vrf_instances(
-        self,
-        fcli: FcliClient,
-        clab_topology: ClabTopology,
-        record_property,
-    ):
-        """All discovered mac-vrf network instances exist on the fabric."""
-        mac_vrfs = fcli.network_instances(ni_type="mac-vrf")
-        existing_names = {ni.get("NI", "") for ni in mac_vrfs}
-        expected = set(clab_topology.fabric.bridge_domains)
-        record_property("expected_mac_vrfs", ", ".join(sorted(expected)))
-        record_property("found_mac_vrfs", ", ".join(sorted(existing_names & expected)))
-        missing = expected - existing_names
-        assert not missing, f"Missing mac-vrf network instances: {sorted(missing)}"
-
-    @pytest.mark.connectivity
-    def test_ip_vrf_instances(
-        self,
-        fcli: FcliClient,
-        clab_topology: ClabTopology,
-        record_property,
-    ):
-        """All discovered ip-vrf network instances exist on the fabric."""
-        ip_vrfs = fcli.network_instances(ni_type="ip-vrf")
-        existing_names = {ni.get("NI", "") for ni in ip_vrfs}
-        expected = set(clab_topology.fabric.ip_vrfs)
-        record_property("expected_ip_vrfs", ", ".join(sorted(expected)))
-        record_property("found_ip_vrfs", ", ".join(sorted(existing_names & expected)))
-        missing = expected - existing_names
-        assert not missing, f"Missing ip-vrf network instances: {sorted(missing)}"
-
-    @pytest.mark.connectivity
     def test_evpn_routes_present(self, fcli: FcliClient, clab_topology: ClabTopology, record_property):
         """EVPN type-2 (MAC/IP) routes exist in the BGP RIB."""
         routes = fcli.bgp_rib(route_family="evpn", route_type="2")

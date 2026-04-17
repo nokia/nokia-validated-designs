@@ -1,135 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "3-stage-evpn-vxlan/topology",
-  "title": "3-Stage EVPN VXLAN Topology Input",
-  "description": "Defines the physical topology for a 3-stage Clos fabric with EVPN VXLAN overlay.",
-  "type": "object",
-  "required": ["design", "fabric_name", "underlay", "spines", "leafs"],
-  "additionalProperties": false,
-  "properties": {
-    "design": {
-      "type": "string",
-      "const": "3-stage-evpn-vxlan",
-      "description": "Design identifier — must be '3-stage-evpn-vxlan'."
-    },
-    "fabric_name": {
-      "type": "string",
-      "pattern": "^[a-z0-9][a-z0-9-]*$",
-      "description": "Fabric name used as a prefix for generated resources."
-    },
-    "environment": {
-      "type": "string",
-      "enum": ["containerlab", "physical"],
-      "default": "containerlab",
-      "description": "Deployment environment."
-    },
-    "credentials": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Device credentials for node onboarding and Ansible connections. Defaults to admin/NokiaSrl1!.",
-      "properties": {
-        "username": {
-          "type": "string",
-          "default": "admin",
-          "description": "Device username."
-        },
-        "password": {
-          "type": "string",
-          "default": "NokiaSrl1!",
-          "description": "Device password."
-        }
-      }
-    },
-    "mgmt_subnet": {
-      "type": "string",
-      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$",
-      "description": "Management subnet CIDR for containerlab (e.g. '172.21.21.0/16'). Defaults to /24 derived from node mgmt IPs."
-    },
-    "underlay": {
-      "type": "object",
-      "required": ["spine_asn", "leaf_asn_start", "system0_prefix"],
-      "additionalProperties": false,
-      "properties": {
-        "spine_asn": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 4294967295,
-          "description": "BGP AS number for all spine nodes."
-        },
-        "leaf_asn_start": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 4294967295,
-          "description": "Starting BGP AS number for leaf nodes (incremented per leaf)."
-        },
-        "system0_prefix": {
-          "type": "string",
-          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$",
-          "description": "IPv4 prefix for system0 loopback allocation (e.g. 192.0.2.0/24)."
-        }
-      }
-    },
-    "spines": {
-      "$ref": "#/$defs/nodeGroup",
-      "description": "Spine node group definition."
-    },
-    "leafs": {
-      "$ref": "#/$defs/nodeGroup",
-      "description": "Leaf node group definition."
-    },
-    "nodes": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/nodeOverride" },
-      "description": "Per-node overrides for auto-generated nodes. Each entry matches a node by name and overrides specific properties."
-    },
-    "edge_interfaces": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/edgeInterface" },
-      "description": "Server-facing (edge) interfaces."
-    },
-    "lags": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/lag" },
-      "description": "LAG (Link Aggregation Group) interfaces."
-    },
-    "default_mtu": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/defaultMtu" },
-      "description": "Default MTU settings for fabric nodes."
-    },
-    "banners": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/banner" },
-      "description": "Login and MOTD banner settings for fabric nodes."
-    },
-    "eda": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "node_profile": {
-          "type": "string",
-          "description": "EDA NodeProfile name for node onboarding."
-        },
-        "namespace": {
-          "type": "string",
-          "default": "eda",
-          "description": "EDA namespace for all resources."
-        }
-      }
-    },
-    "extras": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Unconstrained additions that supplement the locked design. Resources here are labeled nvd-design:extras.",
-      "properties": {
-        "configlets": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/configlet" },
-          "description": "Additional or override configlets (raw SR Linux config patches)."
-        }
-      }
-    }
-  },
+  "$id": "common/topology-defs",
+  "title": "Shared Topology Schema Definitions",
+  "description": "Reusable $defs for topology schemas across all NVD designs.",
   "$defs": {
     "labels": {
       "type": "object",
@@ -138,88 +11,6 @@
       },
       "additionalProperties": false,
       "description": "Kubernetes-style label key/value pairs."
-    },
-    "nodeGroup": {
-      "type": "object",
-      "required": ["count", "platform", "version", "mgmt_base_ipv4"],
-      "additionalProperties": false,
-      "properties": {
-        "count": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 64,
-          "description": "Number of nodes in this group."
-        },
-        "platform": {
-          "type": "string",
-          "description": "Nokia SR Linux platform model (e.g. '7220 IXR-D3L')."
-        },
-        "version": {
-          "type": "string",
-          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
-          "description": "SR Linux software version (e.g. '24.10.2')."
-        },
-        "mgmt_base_ipv4": {
-          "type": "string",
-          "format": "ipv4",
-          "description": "Base management IPv4 address (incremented per node)."
-        },
-        "labels": {
-          "$ref": "#/$defs/labels"
-        },
-        "name_template": {
-          "type": "string",
-          "pattern": ".*\\{i[^}]*\\}.*",
-          "description": "Node name template with {i} placeholder for the sequence number. Supports Python format specs for leading zeros (e.g. leaf{i:02}). Defaults to leaf{i} / spine{i}."
-        },
-        "breakouts": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["port_range", "mode"],
-            "properties": {
-              "port_range": {
-                "type": "string",
-                "description": "Port range for breakout (e.g. '1-32')."
-              },
-              "mode": {
-                "type": "string",
-                "description": "Breakout mode (e.g. '4x10G', '4x25G')."
-              }
-            }
-          },
-          "description": "Port breakout configuration."
-        }
-      }
-    },
-    "nodeOverride": {
-      "type": "object",
-      "required": ["name"],
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$",
-          "description": "Name of the auto-generated node to override (must match a name produced by the name_template)."
-        },
-        "platform": {
-          "type": "string",
-          "description": "Override platform model for this node."
-        },
-        "version": {
-          "type": "string",
-          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
-          "description": "Override SR Linux version for this node."
-        },
-        "mgmt_ipv4": {
-          "type": "string",
-          "format": "ipv4",
-          "description": "Override management IPv4 address for this node."
-        },
-        "labels": {
-          "$ref": "#/$defs/labels"
-        }
-      }
     },
     "edgeInterface": {
       "type": "object",
@@ -476,6 +267,21 @@
               }
             }
           }
+        }
+      }
+    },
+    "eda": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "node_profile": {
+          "type": "string",
+          "description": "EDA NodeProfile name for node onboarding."
+        },
+        "namespace": {
+          "type": "string",
+          "default": "eda",
+          "description": "EDA namespace for all resources."
         }
       }
     }

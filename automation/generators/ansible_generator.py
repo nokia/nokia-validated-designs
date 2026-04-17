@@ -26,6 +26,7 @@ import re
 import textwrap
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -33,16 +34,17 @@ import yaml
 
 from automation.core.models import (
     BridgeDomainIntent,
-    ConfigletIntent,
-    DefaultMtuIntent,
     EdgeInterfaceIntent,
     FabricIntent,
     IrbInterfaceIntent,
     LagIntent,
+    LagMember,
+    LinkIntent,
     NodeIntent,
     RouterIntent,
     VlanIntent,
 )
+from automation.core.selectors import node_matches_selector
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +127,7 @@ def _resolve_configlets(intent: FabricIntent) -> dict[str, list[dict[str, Any]]]
 
         if cfglet.endpoint_selector:
             for name, node in node_map.items():
-                if _node_matches_selector(node, cfglet.endpoint_selector):
+                if node_matches_selector(node, cfglet.endpoint_selector):
                     target_nodes.add(name)
 
         entries: list[dict[str, Any]] = []
@@ -160,7 +162,7 @@ def _resolve_default_mtus(intent: FabricIntent) -> dict[str, dict[str, Any]]:
 
         if mtu.node_selector:
             for name, node in node_map.items():
-                if _node_matches_selector(node, mtu.node_selector):
+                if node_matches_selector(node, mtu.node_selector):
                     target_nodes.add(name)
 
         entry: dict[str, Any] = {}
@@ -179,6 +181,67 @@ def _resolve_default_mtus(intent: FabricIntent) -> dict[str, dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
+# Per-node intent index — built once, reused across all builders
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _IntentIndex:
+    """Pre-computed per-node views of a FabricIntent.
+
+    Built once in ``generate()`` and passed to every host-vars builder, so
+    lookups that would otherwise be N×M scans (``for ei in edges: if ei.node == ...``)
+    become O(1) dict hits.
+    """
+
+    edges_by_node: dict[str, list[EdgeInterfaceIntent]]
+    lag_member_ports_by_node: dict[str, set[tuple[str, str]]]
+    routed_ports_by_node: dict[str, set[tuple[str, str]]]
+    # Each entry: list of (lag, members-on-this-node) so builders don't
+    # re-filter members per LAG.
+    lags_by_node: dict[str, list[tuple[LagIntent, list[LagMember]]]]
+    links_by_node: dict[str, list[LinkIntent]]
+    node_map: dict[str, NodeIntent]
+
+
+def _build_intent_index(intent: FabricIntent) -> _IntentIndex:
+    edges_by_node: dict[str, list[EdgeInterfaceIntent]] = defaultdict(list)
+    for ei in intent.edge_interfaces:
+        edges_by_node[ei.node].append(ei)
+
+    lag_member_ports_by_node: dict[str, set[tuple[str, str]]] = defaultdict(set)
+    lags_by_node: dict[str, list[tuple[LagIntent, list[LagMember]]]] = defaultdict(list)
+    for lag in intent.lags:
+        by_node: dict[str, list[LagMember]] = defaultdict(list)
+        for m in lag.members:
+            by_node[m.node].append(m)
+            lag_member_ports_by_node[m.node].add((m.node, m.interface))
+        for node_name, members in by_node.items():
+            lags_by_node[node_name].append((lag, members))
+
+    ei_by_name: dict[str, EdgeInterfaceIntent] = {e.name: e for e in intent.edge_interfaces}
+    routed_ports_by_node: dict[str, set[tuple[str, str]]] = defaultdict(set)
+    for ri in intent.routed_interfaces:
+        ei = ei_by_name.get(ri.interface)
+        if ei:
+            routed_ports_by_node[ei.node].add((ei.node, ei.interface))
+
+    links_by_node: dict[str, list[LinkIntent]] = defaultdict(list)
+    for link in intent.links:
+        links_by_node[link.local_node].append(link)
+        links_by_node[link.remote_node].append(link)
+
+    return _IntentIndex(
+        edges_by_node=dict(edges_by_node),
+        lag_member_ports_by_node=dict(lag_member_ports_by_node),
+        routed_ports_by_node=dict(routed_ports_by_node),
+        lags_by_node=dict(lags_by_node),
+        links_by_node=dict(links_by_node),
+        node_map={n.name: n for n in intent.nodes},
+    )
+
+
+# ---------------------------------------------------------------------------
 # Service placement — resolve which services land on which node
 # ---------------------------------------------------------------------------
 
@@ -187,103 +250,36 @@ def _resolve_default_mtus(intent: FabricIntent) -> dict[str, dict[str, Any]]:
 class _NodeServices:
     """Accumulated service state for a single node."""
 
-    bridge_domains: list[dict[str, Any]] = field(default_factory=list)
-    routers: list[dict[str, Any]] = field(default_factory=list)
+    irb_interfaces: list[dict[str, Any]] = field(default_factory=list)
     routed_interfaces: list[dict[str, Any]] = field(default_factory=list)
     static_routes: list[dict[str, Any]] = field(default_factory=list)
 
 
 def _resolve_placement(intent: FabricIntent) -> dict[str, _NodeServices]:
-    """Determine which services land on each node.
+    """Determine which node-specific services land on each node.
+
+    Bridge domains, routers, and VLANs are now emitted as shared definitions
+    in group_vars and resolved at playbook time by the srl_config filter.
+    This function only resolves per-node resources: IRB interfaces (which
+    may have node-specific IP addresses), routed interfaces, and static routes.
 
     Returns a mapping of ``node_name -> _NodeServices``.
     """
     node_map: dict[str, NodeIntent] = {n.name: n for n in intent.nodes}
     ei_map: dict[str, EdgeInterfaceIntent] = {e.name: e for e in intent.edge_interfaces}
-    bd_map: dict[str, BridgeDomainIntent] = {b.name: b for b in intent.bridge_domains}
     router_map: dict[str, RouterIntent] = {r.name: r for r in intent.routers}
-    irb_by_bd: dict[str, IrbInterfaceIntent] = {
-        i.bridge_domain: i for i in intent.irb_interfaces
-    }
 
     svc: dict[str, _NodeServices] = {n.name: _NodeServices() for n in intent.nodes}
 
-    # --- Bridge domain placement via VLAN selectors ---
-    # node -> set of BD names placed on that node
-    node_bds: dict[str, set[str]] = defaultdict(set)
-    # node -> BD -> list of access attachments (interface + vlan_id)
-    node_bd_access: dict[str, dict[str, list[dict]]] = defaultdict(lambda: defaultdict(list))
-
-    for vlan in intent.vlans:
-        bd_name = vlan.bridge_domain
-        matched_nodes_intfs = _match_vlan_selectors(
-            vlan, intent.edge_interfaces, intent.lags,
-        )
-        for node_name, intf_name, is_lag in matched_nodes_intfs:
-            node_bds[node_name].add(bd_name)
-            node_bd_access[node_name][bd_name].append({
-                "interface": _intf_to_srl(intf_name) if not is_lag else intf_name,
-                "vlan": vlan.vlan_id,
-            })
-
-    # IRBs also place the BD on nodes matched by the router's node_selector
+    # --- IRB placement via router node_selector ---
     for irb in intent.irb_interfaces:
         router = router_map.get(irb.router)
         if not router:
             continue
+        irb_entry = _irb_host_entry(irb)
         for node_name, node in node_map.items():
-            if _node_matches_selector(node, router.node_selector):
-                node_bds[node_name].add(irb.bridge_domain)
-
-    # Build per-node bridge domain entries
-    for node_name, bd_names in node_bds.items():
-        for bd_name in sorted(bd_names):
-            bd = bd_map.get(bd_name)
-            if not bd:
-                continue
-            entry: dict[str, Any] = {
-                "name": bd.name,
-                "vni": bd.vni,
-                "evi": bd.evi,
-            }
-            # Track provenance for extras-originated resources
-            bd_origin = getattr(bd, "origin", "")
-            access = node_bd_access.get(node_name, {}).get(bd_name, [])
-            if access:
-                entry["access"] = access
-            irb = irb_by_bd.get(bd_name)
-            irb_origin = ""
-            if irb:
-                irb_origin = getattr(irb, "origin", "")
-                irb_entry: dict[str, Any] = {"anycast_gw": True}
-                if irb.ipv4:
-                    irb_entry["ipv4"] = irb.ipv4
-                elif irb.ip_addresses:
-                    for addr in irb.ip_addresses:
-                        if addr.ipv4:
-                            irb_entry["ipv4"] = addr.ipv4.get("ip_prefix", "")
-                            break
-                if irb.arp_timeout:
-                    irb_entry["arp_timeout"] = irb.arp_timeout
-                if irb.proxy_arp:
-                    irb_entry["proxy_arp"] = irb.proxy_arp
-                if irb.ip_mtu and irb.ip_mtu != 1500:
-                    irb_entry["ip_mtu"] = irb.ip_mtu
-                entry["irb"] = irb_entry
-                entry["router"] = irb.router
-            if bd_origin == "extras" or irb_origin == "extras":
-                entry["_origin"] = "extras"
-            svc[node_name].bridge_domains.append(entry)
-
-    # --- Router placement via node_selector ---
-    for router in intent.routers:
-        for node_name, node in node_map.items():
-            if _node_matches_selector(node, router.node_selector):
-                svc[node_name].routers.append({
-                    "name": router.name,
-                    "vni": router.vni,
-                    "evi": router.evi,
-                })
+            if node_matches_selector(node, router.node_selector):
+                svc[node_name].irb_interfaces.append(irb_entry)
 
     # --- Routed interfaces (placed on the owning edge interface's node) ---
     for ri in intent.routed_interfaces:
@@ -306,15 +302,18 @@ def _resolve_placement(intent: FabricIntent) -> dict[str, _NodeServices]:
             "ipv4_addresses": ipv4_addrs,
         })
 
-    # --- Static routes (placed on explicit nodes, or all nodes with the router) ---
+    # --- Static routes (placed on explicit nodes, or all nodes with matching router) ---
     for sr in intent.static_routes:
-        target_nodes = sr.nodes if sr.nodes else [
-            n.name for n in intent.nodes
-            if any(
-                r["name"] == sr.router
-                for r in svc[n.name].routers
-            )
-        ]
+        router = router_map.get(sr.router)
+        if sr.nodes:
+            target_nodes = sr.nodes
+        elif router:
+            target_nodes = [
+                n.name for n in intent.nodes
+                if node_matches_selector(n, router.node_selector)
+            ]
+        else:
+            target_nodes = []
         nhg = sr.nexthop_group
         nexthops = []
         for nh in nhg.get("nexthops", []):
@@ -338,72 +337,35 @@ def _resolve_placement(intent: FabricIntent) -> dict[str, _NodeServices]:
     return svc
 
 
-def _match_vlan_selectors(
-    vlan: VlanIntent,
-    edge_interfaces: list[EdgeInterfaceIntent],
-    lags: list[LagIntent],
-) -> list[tuple[str, str, bool]]:
-    """Match a VLAN's interface_selector against edges and LAGs.
+def _irb_host_entry(irb: IrbInterfaceIntent) -> dict[str, Any]:
+    """Build an IRB interface entry for host_vars."""
+    entry: dict[str, Any] = {
+        "bridge_domain": irb.bridge_domain,
+        "router": irb.router,
+    }
+    if irb.ipv4:
+        entry["ipv4"] = irb.ipv4
+    elif irb.ip_addresses:
+        for addr in irb.ip_addresses:
+            if addr.ipv4:
+                entry["ipv4"] = addr.ipv4.get("ip_prefix", "")
+                break
+    if irb.proxy_arp:
+        entry["proxy_arp"] = irb.proxy_arp
+    if irb.arp_timeout:
+        entry["arp_timeout"] = irb.arp_timeout
+    if irb.ip_mtu and irb.ip_mtu != 1500:
+        entry["ip_mtu"] = irb.ip_mtu
+    if irb.proxy_nd:
+        entry["proxy_nd"] = irb.proxy_nd
+    if irb.learn_unsolicited and irb.learn_unsolicited != "NONE":
+        entry["learn_unsolicited"] = irb.learn_unsolicited
+    if irb.evpn_route_advertisement_type is not None:
+        entry["evpn_route_advertisement_type"] = irb.evpn_route_advertisement_type
+    if irb.host_route_populate is not None:
+        entry["host_route_populate"] = irb.host_route_populate
+    return entry
 
-    Returns list of (node_name, interface_name, is_lag) tuples.
-    """
-    results: list[tuple[str, str, bool]] = []
-
-    for ei in edge_interfaces:
-        if _labels_match(vlan.interface_selector, ei.labels):
-            results.append((ei.node, ei.interface, False))
-
-    for lag in lags:
-        if _labels_match(vlan.interface_selector, lag.labels):
-            lag_id = _lag_aggregate_id(lag)
-            for member in lag.members:
-                results.append((member.node, f"lag{lag_id}", True))
-
-    return results
-
-
-def _labels_match(selectors: list[str], labels: dict[str, str]) -> bool:
-    """Check if any selector matches the labels (OR logic across selectors).
-
-    Handles both full EDA-prefixed keys (``eda.nokia.com/foo=bar``) and
-    short keys (``foo=bar``) by stripping whitespace and comparing directly.
-    """
-    for sel in selectors:
-        sel = sel.strip()
-        if "=" not in sel:
-            continue
-        key, value = sel.split("=", 1)
-        key = key.strip()
-        value = value.strip()
-        if labels.get(key) == value:
-            return True
-    return False
-
-
-def _node_matches_selector(node: NodeIntent, selectors: list[str]) -> bool:
-    """Check if a node matches a list of label selectors (OR logic).
-
-    A node matches if *any* selector matches (same semantics as EDA).
-    """
-    if not selectors:
-        return False
-    for sel in selectors:
-        sel = sel.strip()
-        if not sel or "=" not in sel:
-            continue
-        key, value = sel.split("=", 1)
-        key = key.strip()
-        value = value.strip()
-        if node.labels.get(key) == value:
-            return True
-    return False
-
-
-def _lag_aggregate_id(lag: LagIntent) -> str:
-    """Extract the aggregate_id from the first LAG member."""
-    if lag.members:
-        return lag.members[0].aggregate_id
-    return "1"
 
 
 # ---------------------------------------------------------------------------
@@ -415,17 +377,24 @@ def _build_leaf_host_vars(
     node: NodeIntent,
     intent: FabricIntent,
     node_svc: _NodeServices,
+    index: _IntentIndex | None = None,
 ) -> dict[str, Any]:
     """Build host_vars dict for a leaf node."""
+    if index is None:
+        index = _build_intent_index(intent)
+
     hv: dict[str, Any] = {}
 
-    # Node identity
-    hv["node"] = {
+    # Node identity with labels for runtime selector matching
+    node_entry: dict[str, Any] = {
         "hostname": node.name,
         "role": node.role,
         "router_id": node.system0_ipv4.split("/")[0],
         "asn": node.asn,
     }
+    if node.labels:
+        node_entry["labels"] = dict(node.labels)
+    hv["node"] = node_entry
 
     # Underlay interfaces
     spine_asn = intent.spine_asn
@@ -438,13 +407,11 @@ def _build_leaf_host_vars(
     if underlay:
         hv["underlay_interfaces"] = underlay
 
-    # Edge interfaces (non-LAG-member)
-    lag_member_ports = _lag_member_ports(intent, node.name)
-    routed_ports = _routed_ports(intent, node.name)
+    # Edge interfaces (non-LAG-member) with raw labels for selector matching
+    lag_member_ports = index.lag_member_ports_by_node.get(node.name, set())
+    routed_ports = index.routed_ports_by_node.get(node.name, set())
     edges = []
-    for ei in intent.edge_interfaces:
-        if ei.node != node.name:
-            continue
+    for ei in index.edges_by_node.get(node.name, []):
         if (ei.node, ei.interface) in lag_member_ports:
             continue
         if (ei.node, ei.interface) in routed_ports:
@@ -454,23 +421,19 @@ def _build_leaf_host_vars(
             "encap": ei.encap,
         }
         if ei.labels:
-            entry["labels"] = _format_labels(ei.labels)
+            entry["labels"] = dict(ei.labels)
         edges.append(entry)
     if edges:
         hv["edge_interfaces"] = edges
 
-    # LAGs
-    lags = _build_lag_entries(node, intent)
+    # LAGs with raw labels for selector matching
+    lags = _build_lag_entries(node, index)
     if lags:
         hv["lags"] = lags
 
-    # Bridge domains
-    if node_svc.bridge_domains:
-        hv["bridge_domains"] = node_svc.bridge_domains
-
-    # Routers
-    if node_svc.routers:
-        hv["routers"] = node_svc.routers
+    # IRB interfaces (pre-resolved per node, with node-specific IP addresses)
+    if node_svc.irb_interfaces:
+        hv["irb_interfaces"] = node_svc.irb_interfaces
 
     # Routed interfaces
     if node_svc.routed_interfaces:
@@ -481,7 +444,7 @@ def _build_leaf_host_vars(
         hv["static_routes"] = node_svc.static_routes
 
     # Event handler (node isolation) for leaves with LAG members
-    eh = _build_event_handler(node, intent)
+    eh = _build_event_handler(node, index)
     if eh:
         hv["event_handler"] = eh
 
@@ -491,8 +454,12 @@ def _build_leaf_host_vars(
 def _build_spine_host_vars(
     node: NodeIntent,
     intent: FabricIntent,
+    index: _IntentIndex | None = None,
 ) -> dict[str, Any]:
     """Build host_vars dict for a spine node."""
+    if index is None:
+        index = _build_intent_index(intent)
+
     hv: dict[str, Any] = {}
 
     hv["node"] = {
@@ -503,23 +470,19 @@ def _build_spine_host_vars(
     }
 
     # Spine underlay interfaces need per-leaf peer_asn
-    node_map = {n.name: n for n in intent.nodes}
     underlay = []
-    for link in sorted(intent.links, key=lambda l: l.name):
-        peer_node_name: str | None = None
-        intf: str | None = None
+    for link in sorted(index.links_by_node.get(node.name, []), key=lambda l: l.name):
         if link.local_node == node.name:
             peer_node_name = link.remote_node
             intf = link.local_interface
-        elif link.remote_node == node.name:
+        else:
             peer_node_name = link.local_node
             intf = link.remote_interface
-        if peer_node_name and intf:
-            peer = node_map.get(peer_node_name)
-            underlay.append({
-                "name": _intf_to_srl(intf),
-                "peer_asn": peer.asn if peer else intent.leaf_asn_start,
-            })
+        peer = index.node_map.get(peer_node_name)
+        underlay.append({
+            "name": _intf_to_srl(intf),
+            "peer_asn": peer.asn if peer else intent.leaf_asn_start,
+        })
 
     if underlay:
         hv["underlay_interfaces"] = underlay
@@ -527,14 +490,12 @@ def _build_spine_host_vars(
     return hv
 
 
-def _build_lag_entries(node: NodeIntent, intent: FabricIntent) -> list[dict[str, Any]]:
+def _build_lag_entries(
+    node: NodeIntent, index: _IntentIndex,
+) -> list[dict[str, Any]]:
     """Build LAG entries for a node's host_vars."""
     entries: list[dict[str, Any]] = []
-    for lag in intent.lags:
-        node_members = [m for m in lag.members if m.node == node.name]
-        if not node_members:
-            continue
-
+    for lag, node_members in index.lags_by_node.get(node.name, []):
         agg_id = node_members[0].aggregate_id
         lag_iface_name = f"lag{agg_id}"
         entry: dict[str, Any] = {
@@ -571,7 +532,7 @@ def _build_lag_entries(node: NodeIntent, intent: FabricIntent) -> list[dict[str,
                 entry["df_preference"] = 500
 
         if lag.labels:
-            entry["labels"] = _format_labels(lag.labels)
+            entry["labels"] = dict(lag.labels)
 
         members = []
         for m in sorted(node_members, key=lambda x: x.interface):
@@ -583,14 +544,13 @@ def _build_lag_entries(node: NodeIntent, intent: FabricIntent) -> list[dict[str,
 
 
 def _build_event_handler(
-    node: NodeIntent, intent: FabricIntent,
+    node: NodeIntent, index: _IntentIndex,
 ) -> dict[str, Any] | None:
     """Build event_handler config for node isolation on LAG leaves."""
     lag_member_intfs: list[str] = []
-    for lag in intent.lags:
-        for m in lag.members:
-            if m.node == node.name:
-                lag_member_intfs.append(_intf_to_srl(m.interface))
+    for _lag, members in index.lags_by_node.get(node.name, []):
+        for m in members:
+            lag_member_intfs.append(_intf_to_srl(m.interface))
 
     if not lag_member_intfs:
         return None
@@ -603,47 +563,6 @@ def _build_event_handler(
         },
     }
 
-
-def _lag_member_ports(
-    intent: FabricIntent, node_name: str,
-) -> set[tuple[str, str]]:
-    """Return set of (node, interface) pairs that are LAG members."""
-    ports: set[tuple[str, str]] = set()
-    for lag in intent.lags:
-        for m in lag.members:
-            if m.node == node_name:
-                ports.add((m.node, m.interface))
-    return ports
-
-
-def _routed_ports(
-    intent: FabricIntent, node_name: str,
-) -> set[tuple[str, str]]:
-    """Return set of (node, interface) for routed interface ports."""
-    ports: set[tuple[str, str]] = set()
-    for ri in intent.routed_interfaces:
-        for ei in intent.edge_interfaces:
-            if ei.name == ri.interface and ei.node == node_name:
-                ports.add((ei.node, ei.interface))
-    return ports
-
-
-def _format_labels(labels: dict[str, str]) -> dict[str, Any]:
-    """Format labels for YAML output.
-
-    Strips the ``eda.nokia.com/`` prefix and converts ``enabled`` -> ``true``.
-    Skips the ``role`` label since it's already captured in node identity.
-    """
-    out: dict[str, Any] = {}
-    for k, v in sorted(labels.items()):
-        if k.startswith("eda.nokia.com/"):
-            short_key = k.removeprefix("eda.nokia.com/")
-        else:
-            short_key = k
-        if short_key == "role":
-            continue
-        out[short_key] = True if v == "enabled" else v
-    return out
 
 
 # ---------------------------------------------------------------------------
@@ -660,14 +579,18 @@ def _build_group_vars_all(intent: FabricIntent) -> dict[str, Any]:
         "confirm_timeout": 0,
         "ansible_connection": "ansible.netcommon.httpapi",
         "ansible_network_os": "nokia.srlinux.srlinux",
-        "ansible_user": "admin",
-        "ansible_password": "NokiaSrl1!",
+        "ansible_user": intent.credentials.username,
+        "ansible_password": intent.credentials.password,
         "ansible_httpapi_validate_certs": False,
     }
 
 
-def _build_group_vars_leafs(intent: FabricIntent) -> dict[str, Any]:
-    """Build group_vars/leafs.yml with leaf-common BGP/BFD settings."""
+def _bgp_gv(intent: FabricIntent, multipath_max_paths: int) -> dict[str, Any]:
+    """Build the shared BGP/BFD/routing-policy group_vars block.
+
+    Only the ipv4/ipv6-unicast ``multipath_max_paths`` varies between roles
+    (2 for leafs, 6 for spines).
+    """
     return {
         "bgp": {
             "preference": {"ebgp": 170, "ibgp": 170},
@@ -682,13 +605,13 @@ def _build_group_vars_leafs(intent: FabricIntent) -> dict[str, Any]:
                     "rapid_update": True,
                 },
                 "ipv4_unicast": {
-                    "multipath_max_paths": 2,
+                    "multipath_max_paths": multipath_max_paths,
                     "advertise_ipv6_next_hops": True,
                     "receive_ipv6_next_hops": True,
                     "rapid_update": True,
                 },
                 "ipv6_unicast": {
-                    "multipath_max_paths": 2,
+                    "multipath_max_paths": multipath_max_paths,
                     "rapid_update": True,
                 },
             },
@@ -710,52 +633,65 @@ def _build_group_vars_leafs(intent: FabricIntent) -> dict[str, Any]:
             "import_policy": f"ebgp-isl-import-policy-{intent.fabric_name}",
         },
     }
+
+
+def _build_group_vars_leafs(intent: FabricIntent) -> dict[str, Any]:
+    """Build group_vars/leafs.yml with leaf-common BGP/BFD and shared services."""
+    gv = _bgp_gv(intent, multipath_max_paths=2)
+
+    if intent.bridge_domains:
+        gv["bridge_domains"] = [_bd_group_entry(bd) for bd in intent.bridge_domains]
+    if intent.routers:
+        gv["routers"] = [_router_group_entry(r) for r in intent.routers]
+    if intent.vlans:
+        gv["vlans"] = [_vlan_group_entry(v) for v in intent.vlans]
+
+    return gv
+
+
+def _bd_group_entry(bd: BridgeDomainIntent) -> dict[str, Any]:
+    """Build a bridge domain entry for group_vars (no access, no irb)."""
+    entry: dict[str, Any] = {
+        "name": bd.name,
+        "vni": bd.vni,
+        "evi": bd.evi,
+    }
+    if not bd.mac_learning:
+        entry["mac_learning"] = bd.mac_learning
+    if bd.mac_aging != 300:
+        entry["mac_aging"] = bd.mac_aging
+    if bd.mac_duplication is not None:
+        entry["mac_duplication"] = bd.mac_duplication
+    return entry
+
+
+def _router_group_entry(r: RouterIntent) -> dict[str, Any]:
+    """Build a router entry for group_vars (with node_selector)."""
+    entry: dict[str, Any] = {
+        "name": r.name,
+        "vni": r.vni,
+        "evi": r.evi,
+    }
+    if r.node_selector:
+        entry["node_selector"] = list(r.node_selector)
+    return entry
+
+
+def _vlan_group_entry(v: VlanIntent) -> dict[str, Any]:
+    """Build a VLAN entry for group_vars (with interface_selector)."""
+    entry: dict[str, Any] = {
+        "name": v.name,
+        "bridge_domain": v.bridge_domain,
+        "vlan_id": v.vlan_id,
+    }
+    if v.interface_selector:
+        entry["interface_selector"] = list(v.interface_selector)
+    return entry
 
 
 def _build_group_vars_spines(intent: FabricIntent) -> dict[str, Any]:
     """Build group_vars/spines.yml with spine-common BGP/BFD settings."""
-    return {
-        "bgp": {
-            "preference": {"ebgp": 170, "ibgp": 170},
-            "route_advertisement": {
-                "rapid_withdrawal": True,
-                "wait_for_fib_install": False,
-            },
-            "afi_safi": {
-                "evpn": {
-                    "multipath_max_paths": 64,
-                    "inter_as_vpn": True,
-                    "rapid_update": True,
-                },
-                "ipv4_unicast": {
-                    "multipath_max_paths": 6,
-                    "advertise_ipv6_next_hops": True,
-                    "receive_ipv6_next_hops": True,
-                    "rapid_update": True,
-                },
-                "ipv6_unicast": {
-                    "multipath_max_paths": 6,
-                    "rapid_update": True,
-                },
-            },
-            "group_name": f"bgpgroup-ebgp-{intent.fabric_name}",
-            "ebgp_default_policy": {
-                "import_reject_all": True,
-                "export_reject_all": True,
-            },
-        },
-        "bfd": {
-            "desired_min_transmit_interval": 1000000,
-            "required_min_receive": 1000000,
-            "detection_multiplier": 3,
-            "min_echo_receive_interval": 1000000,
-        },
-        "routing_policy": {
-            "prefix_set": f"prefixset-{intent.fabric_name}",
-            "export_policy": f"ebgp-isl-export-policy-{intent.fabric_name}",
-            "import_policy": f"ebgp-isl-import-policy-{intent.fabric_name}",
-        },
-    }
+    return _bgp_gv(intent, multipath_max_paths=6)
 
 
 # ---------------------------------------------------------------------------
@@ -1036,11 +972,21 @@ def _requirements_yml() -> dict[str, Any]:
     }
 
 
-def _readme(fabric_name: str) -> str:
+def _readme(fabric_name: str, generated_at: str = "") -> str:
+    staleness_note = ""
+    if generated_at:
+        staleness_note = textwrap.dedent(f"""\
+
+            > **Generated at:** {generated_at}
+            >
+            > This project resolves label selectors at generation time.
+            > If the topology or services inputs have changed since this timestamp,
+            > re-generate the project to pick up the latest intent.
+        """)
     return textwrap.dedent(f"""\
         # {fabric_name} — Ansible Project
 
-        Auto-generated by the NVD Ansible generator.
+        Auto-generated by the NVD Ansible generator.{staleness_note}
 
         ## Quick start
 
@@ -1196,8 +1142,10 @@ def generate(intent: FabricIntent, output_dir: Path | str | None = None) -> Path
         output_dir = Path(f"ansible-{intent.fabric_name}")
     output_dir = Path(output_dir)
 
+    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     logger.info("Generating Ansible project for fabric '%s'", intent.fabric_name)
 
+    index = _build_intent_index(intent)
     node_services = _resolve_placement(intent)
     node_overrides = _resolve_configlets(intent)
     node_mtus = _resolve_default_mtus(intent)
@@ -1216,9 +1164,9 @@ def generate(intent: FabricIntent, output_dir: Path | str | None = None) -> Path
     for node in intent.nodes:
         svc = node_services.get(node.name, _NodeServices())
         if node.role == "leaf":
-            hv = _build_leaf_host_vars(node, intent, svc)
+            hv = _build_leaf_host_vars(node, intent, svc, index)
         else:
-            hv = _build_spine_host_vars(node, intent)
+            hv = _build_spine_host_vars(node, intent, index)
         mtu = node_mtus.get(node.name)
         if mtu:
             hv["default_mtu"] = mtu
@@ -1231,9 +1179,15 @@ def generate(intent: FabricIntent, output_dir: Path | str | None = None) -> Path
     _generate_roles(output_dir)
 
     _write_yaml(output_dir / "playbook.yml", _playbook_yml(intent.fabric_name))
+    # Add generation timestamp as a comment to the playbook
+    playbook_path = output_dir / "playbook.yml"
+    existing = playbook_path.read_text()
+    playbook_path.write_text(
+        f"# Generated by NVD automation — {generated_at}\n{existing}"
+    )
     _write_text(output_dir / "ansible.cfg", _ansible_cfg())
     _write_yaml(output_dir / "requirements.yml", _requirements_yml())
-    _write_text(output_dir / "README.md", _readme(intent.fabric_name))
+    _write_text(output_dir / "README.md", _readme(intent.fabric_name, generated_at))
 
     node_count = len(intent.nodes)
     bd_count = len(intent.bridge_domains)

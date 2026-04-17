@@ -8,7 +8,7 @@ reusable across all Nokia Validated Designs.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -254,6 +254,18 @@ class BannerIntent(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Credentials
+# ---------------------------------------------------------------------------
+
+
+class Credentials(BaseModel):
+    """Device credentials used for node onboarding and Ansible connections."""
+
+    username: str = "admin"
+    password: str = "NokiaSrl1!"
+
+
+# ---------------------------------------------------------------------------
 # EDA-specific settings
 # ---------------------------------------------------------------------------
 
@@ -309,5 +321,57 @@ class FabricIntent(BaseModel):
     default_mtus: list[DefaultMtuIntent] = Field(default_factory=list)
     banners: list[BannerIntent] = Field(default_factory=list)
 
+    # Containerlab settings
+    mgmt_subnet: str = ""  # e.g. "172.21.21.0/16" — used by clab generator
+
+    # Credentials
+    credentials: Credentials = Field(default_factory=Credentials)
+
     # EDA settings
     eda: EdaSettings = Field(default_factory=EdaSettings)
+
+    @model_validator(mode="after")
+    def validate_cross_references(self) -> FabricIntent:
+        """Check that all name-based references resolve to existing objects."""
+        bd_names = {bd.name for bd in self.bridge_domains}
+        router_names = {r.name for r in self.routers}
+        edge_names = {e.name for e in self.edge_interfaces}
+        errors: list[str] = []
+
+        for irb in self.irb_interfaces:
+            if irb.bridge_domain not in bd_names:
+                errors.append(
+                    f"IRB '{irb.name}' references unknown bridge_domain '{irb.bridge_domain}'"
+                )
+            if irb.router not in router_names:
+                errors.append(
+                    f"IRB '{irb.name}' references unknown router '{irb.router}'"
+                )
+
+        for vlan in self.vlans:
+            if vlan.bridge_domain not in bd_names:
+                errors.append(
+                    f"VLAN '{vlan.name}' references unknown bridge_domain '{vlan.bridge_domain}'"
+                )
+
+        for ri in self.routed_interfaces:
+            if ri.interface not in edge_names:
+                errors.append(
+                    f"RoutedInterface '{ri.name}' references unknown interface '{ri.interface}'"
+                )
+            if ri.router not in router_names:
+                errors.append(
+                    f"RoutedInterface '{ri.name}' references unknown router '{ri.router}'"
+                )
+
+        for sr in self.static_routes:
+            if sr.router not in router_names:
+                errors.append(
+                    f"StaticRoute '{sr.name}' references unknown router '{sr.router}'"
+                )
+
+        if errors:
+            raise ValueError(
+                "Cross-reference errors:\n  " + "\n  ".join(errors)
+            )
+        return self

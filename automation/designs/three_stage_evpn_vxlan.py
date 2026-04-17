@@ -17,20 +17,16 @@ import ipaddress
 import logging
 
 from automation.core.models import (
-    BannerIntent,
     BridgeDomainIntent,
     BreakoutIntent,
     ConfigletConfigEntry,
     ConfigletIntent,
-    DefaultMtuIntent,
-    EdgeInterfaceIntent,
+    Credentials,
     EdaSettings,
     FabricIntent,
     IrbIpAddress,
     IrbInterfaceIntent,
-    LacpConfig,
     LagIntent,
-    LagMember,
     LinkIntent,
     NodeIntent,
     RoutedInterfaceIntent,
@@ -38,10 +34,21 @@ from automation.core.models import (
     StaticRouteIntent,
     VlanIntent,
 )
+from automation.core.extras import merge_by_name
 from automation.core.platforms import (
     expand_breakout,
     get_platform,
     interface_name,
+)
+from automation.designs._common_builders import (
+    build_banners as _build_banners,
+    build_default_mtus as _build_default_mtus,
+    build_edge_interfaces as _build_edge_interfaces,
+    build_lags as _build_lags,
+    build_routed_interfaces as _build_routed_interfaces,
+    build_routers as _build_routers,
+    build_static_routes as _build_static_routes,
+    build_vlans as _build_vlans,
 )
 
 logger = logging.getLogger(__name__)
@@ -91,6 +98,7 @@ def build(topology: dict, services: dict) -> FabricIntent:
         spine_asn=spine_asn,
         leaf_asn_start=leaf_asn_start,
         system0_prefix=system0_prefix,
+        node_overrides=topology.get("nodes"),
     )
 
     # -----------------------------------------------------------------------
@@ -164,10 +172,32 @@ def build(topology: dict, services: dict) -> FabricIntent:
             irb_interfaces, svc_extras["irb_interfaces"], default_ip_mtu
         )
 
+    if svc_extras.get("routers"):
+        routers = _merge_extras_routers(routers, svc_extras["routers"])
+
+    if svc_extras.get("vlans"):
+        vlans = _merge_extras_vlans(vlans, svc_extras["vlans"])
+
+    if svc_extras.get("routed_interfaces"):
+        routed_interfaces = _merge_extras_routed_interfaces(
+            routed_interfaces, svc_extras["routed_interfaces"]
+        )
+
+    if svc_extras.get("static_routes"):
+        static_routes = _merge_extras_static_routes(
+            static_routes, svc_extras["static_routes"]
+        )
+
     # -----------------------------------------------------------------------
     # Banners (optional)
     # -----------------------------------------------------------------------
     banners = _build_banners(topology.get("banners", []))
+
+    # -----------------------------------------------------------------------
+    # Credentials
+    # -----------------------------------------------------------------------
+    creds_cfg = topology.get("credentials", {})
+    credentials = Credentials(**creds_cfg) if creds_cfg else Credentials()
 
     # -----------------------------------------------------------------------
     # EDA settings
@@ -185,6 +215,7 @@ def build(topology: dict, services: dict) -> FabricIntent:
         spine_asn=spine_asn,
         leaf_asn_start=leaf_asn_start,
         system0_prefix=system0_prefix,
+        mgmt_subnet=topology.get("mgmt_subnet", ""),
         nodes=nodes,
         links=links,
         breakouts=breakouts,
@@ -199,6 +230,7 @@ def build(topology: dict, services: dict) -> FabricIntent:
         configlets=configlets,
         default_mtus=default_mtus,
         banners=banners,
+        credentials=credentials,
         eda=eda_settings,
     )
 
@@ -215,10 +247,14 @@ def _build_nodes(
     spine_asn: int,
     leaf_asn_start: int,
     system0_prefix: str,
+    node_overrides: list[dict] | None = None,
 ) -> list[NodeIntent]:
     """Generate leaf and spine NodeIntent objects."""
     network = ipaddress.IPv4Network(system0_prefix)
     nodes: list[NodeIntent] = []
+
+    leaf_template = leaf_cfg.get("name_template", "leaf{i}")
+    spine_template = spine_cfg.get("name_template", "spine{i}")
 
     # Leafs: IPs from .11 upward (offset 11)
     leaf_count = leaf_cfg["count"]
@@ -229,10 +265,11 @@ def _build_nodes(
         ip_offset = 10 + i  # leaf1=.11, leaf2=.12, ...
         sys0_ip = str(network.network_address + ip_offset)
         mgmt_ip = _increment_ip(leaf_mgmt_base, i - 1) if leaf_mgmt_base else ""
+        node_name = leaf_template.format(i=i)
 
         nodes.append(
             NodeIntent(
-                name=f"leaf{i}",
+                name=node_name,
                 role="leaf",
                 platform=leaf_cfg["platform"],
                 version=leaf_cfg.get("version", ""),
@@ -241,7 +278,7 @@ def _build_nodes(
                 mgmt_ipv4=mgmt_ip,
                 labels={
                     **leaf_labels,
-                    "eda.nokia.com/name": f"leaf{i}",
+                    "eda.nokia.com/name": node_name,
                     "eda.nokia.com/security-profile": "managed",
                 },
             )
@@ -256,10 +293,11 @@ def _build_nodes(
         ip_offset = 100 + i  # spine1=.101, spine2=.102, ...
         sys0_ip = str(network.network_address + ip_offset)
         mgmt_ip = _increment_ip(spine_mgmt_base, i - 1) if spine_mgmt_base else ""
+        node_name = spine_template.format(i=i)
 
         nodes.append(
             NodeIntent(
-                name=f"spine{i}",
+                name=node_name,
                 role="spine",
                 platform=spine_cfg["platform"],
                 version=spine_cfg.get("version", ""),
@@ -268,13 +306,76 @@ def _build_nodes(
                 mgmt_ipv4=mgmt_ip,
                 labels={
                     **spine_labels,
-                    "eda.nokia.com/name": f"spine{i}",
+                    "eda.nokia.com/name": node_name,
                     "eda.nokia.com/security-profile": "managed",
                 },
             )
         )
 
+    _validate_unique_names(nodes)
+
+    if node_overrides:
+        _apply_node_overrides(nodes, node_overrides)
+
+    _validate_mgmt_ips(nodes)
+
     return nodes
+
+
+def _validate_unique_names(nodes: list[NodeIntent]) -> None:
+    """Raise ValueError if any two nodes share the same name."""
+    seen: dict[str, int] = {}
+    for node in nodes:
+        if node.name in seen:
+            raise ValueError(
+                f"Duplicate node name '{node.name}': name_template must include "
+                f"{{i}} placeholder to produce unique names"
+            )
+        seen[node.name] = 1
+
+
+def _apply_node_overrides(
+    nodes: list[NodeIntent], overrides: list[dict]
+) -> None:
+    """Apply per-node overrides to auto-generated nodes (in-place).
+
+    Raises ValueError if an override references a node name that was not
+    auto-generated.
+    """
+    by_name = {n.name: n for n in nodes}
+
+    for ovr in overrides:
+        name = ovr["name"]
+        if name not in by_name:
+            raise ValueError(
+                f"Node override references unknown node '{name}'. "
+                f"Auto-generated nodes: {sorted(by_name)}"
+            )
+        node = by_name[name]
+
+        if "platform" in ovr:
+            node.platform = ovr["platform"]
+        if "version" in ovr:
+            node.version = ovr["version"]
+        if "mgmt_ipv4" in ovr:
+            node.mgmt_ipv4 = ovr["mgmt_ipv4"]
+        if "labels" in ovr:
+            node.labels = {**node.labels, **ovr["labels"]}
+
+
+def _validate_mgmt_ips(nodes: list[NodeIntent]) -> None:
+    """Raise ValueError if any two nodes share the same mgmt_ipv4."""
+    seen: dict[str, str] = {}
+    for node in nodes:
+        if not node.mgmt_ipv4:
+            continue
+        ip = str(ipaddress.IPv4Address(node.mgmt_ipv4))
+        if ip in seen:
+            raise ValueError(
+                f"Duplicate management IP {ip}: "
+                f"assigned to both '{seen[ip]}' and '{node.name}'"
+            )
+        seen[ip] = node.name
 
 
 # ---------------------------------------------------------------------------
@@ -389,69 +490,8 @@ def _build_isl_links(
 
 
 # ---------------------------------------------------------------------------
-# Edge interfaces
-# ---------------------------------------------------------------------------
-
-
-def _build_edge_interfaces(raw: list[dict]) -> list[EdgeInterfaceIntent]:
-    """Build edge interface intents from raw input."""
-    return [
-        EdgeInterfaceIntent(
-            name=ei["name"],
-            node=ei["node"],
-            interface=ei["interface"],
-            encap=ei.get("encap", "dot1q"),
-            labels=ei.get("labels", {}),
-        )
-        for ei in raw
-    ]
-
-
-# ---------------------------------------------------------------------------
-# LAGs
-# ---------------------------------------------------------------------------
-
-
-def _build_lags(raw: list[dict]) -> list[LagIntent]:
-    """Build LAG intents from raw input."""
-    lags = []
-    for lag in raw:
-        lacp_cfg = lag.get("lacp", {})
-        members = [
-            LagMember(
-                node=m["node"],
-                interface=m["interface"],
-                aggregate_id=m["aggregate_id"],
-                lacp_port_priority=m.get("lacp_port_priority", 32768),
-            )
-            for m in lag.get("members", [])
-        ]
-        lags.append(
-            LagIntent(
-                name=lag["name"],
-                type=lag.get("type", "lacp"),
-                multihoming_mode=lag.get("mode", "all-active"),
-                min_links=lag.get("min_links", 1),
-                lacp=LacpConfig(
-                    interval=lacp_cfg.get("interval", "fast"),
-                    system_id_mac=lacp_cfg.get("system_id_mac", ""),
-                    system_priority=lacp_cfg.get("system_priority", 32768),
-                    admin_key=lacp_cfg.get("admin_key"),
-                    fallback=lacp_cfg.get("fallback"),
-                ),
-                members=members,
-                labels=lag.get("labels", {}),
-                revertive=lag.get("revertive", False),
-                preferred_active_node=lag.get("preferred_active_node", ""),
-                standby_signaling=lag.get("standby_signaling", ""),
-                reload_delay_timer=lag.get("reload_delay_timer", 100),
-            )
-        )
-    return lags
-
-
-# ---------------------------------------------------------------------------
-# Services passthrough
+# Services passthrough (design-specific builders only — shared builders
+# are imported from automation.designs._common_builders at module top)
 # ---------------------------------------------------------------------------
 
 
@@ -478,18 +518,6 @@ def _build_bridge_domains(
             origin=origin,
         )
         for bd in raw
-    ]
-
-
-def _build_routers(raw: list[dict]) -> list[RouterIntent]:
-    return [
-        RouterIntent(
-            name=r["name"],
-            vni=r["vni"],
-            evi=r["evi"],
-            node_selector=r.get("node_selector", []),
-        )
-        for r in raw
     ]
 
 
@@ -529,46 +557,6 @@ def _build_irb_interfaces(
             origin=origin,
         )
         for irb in raw
-    ]
-
-
-def _build_vlans(raw: list[dict]) -> list[VlanIntent]:
-    return [
-        VlanIntent(
-            name=v["name"],
-            bridge_domain=v["bridge_domain"],
-            vlan_id=str(v["vlan_id"]),
-            interface_selector=v.get("interface_selector", []),
-        )
-        for v in raw
-    ]
-
-
-def _build_routed_interfaces(raw: list[dict]) -> list[RoutedInterfaceIntent]:
-    return [
-        RoutedInterfaceIntent(
-            name=ri["name"],
-            interface=ri["interface"],
-            router=ri["router"],
-            vlan_id=ri.get("vlan_id", "null"),
-            ipv4_addresses=ri.get("ipv4_addresses", []),
-            ip_mtu=ri.get("ip_mtu", 1500),
-            arp_timeout=ri.get("arp_timeout", 14400),
-        )
-        for ri in raw
-    ]
-
-
-def _build_static_routes(raw: list[dict]) -> list[StaticRouteIntent]:
-    return [
-        StaticRouteIntent(
-            name=sr["name"],
-            router=sr["router"],
-            nodes=sr.get("nodes", []),
-            prefixes=sr.get("prefixes", []),
-            nexthop_group=sr.get("nexthop_group", {}),
-        )
-        for sr in raw
     ]
 
 
@@ -693,45 +681,6 @@ def _build_configlets(lags: list[LagIntent]) -> list[ConfigletIntent]:
 
 
 # ---------------------------------------------------------------------------
-# Default MTU
-# ---------------------------------------------------------------------------
-
-
-def _build_default_mtus(raw: list[dict]) -> list[DefaultMtuIntent]:
-    """Build default MTU intents from raw input."""
-    return [
-        DefaultMtuIntent(
-            name=mtu["name"],
-            interface_mtu=mtu.get("interface_mtu"),
-            layer2_subif_mtu=mtu.get("layer2_subif_mtu"),
-            layer3_mtu=mtu.get("layer3_mtu"),
-            node_selector=mtu.get("node_selector", []),
-            nodes=mtu.get("nodes", []),
-        )
-        for mtu in raw
-    ]
-
-
-# ---------------------------------------------------------------------------
-# Banners
-# ---------------------------------------------------------------------------
-
-
-def _build_banners(raw: list[dict]) -> list[BannerIntent]:
-    """Build banner intents from raw input."""
-    return [
-        BannerIntent(
-            name=b["name"],
-            login_banner=b.get("login_banner", ""),
-            motd=b.get("motd", ""),
-            node_selector=b.get("node_selector", []),
-            nodes=b.get("nodes", []),
-        )
-        for b in raw
-    ]
-
-
-# ---------------------------------------------------------------------------
 # Extras merge — unconstrained additions/overrides
 # ---------------------------------------------------------------------------
 
@@ -769,31 +718,12 @@ def _merge_extras_configlets(
 def _merge_extras_bridge_domains(
     design: list[BridgeDomainIntent], extras_raw: list[dict]
 ) -> list[BridgeDomainIntent]:
-    """Merge extras bridge domain overrides into design-generated ones.
+    """Merge extras bridge domain overrides into design-generated ones."""
+    def _set_origin(fields: dict) -> dict:
+        fields["origin"] = "extras"
+        return fields
 
-    Extras fields are overlaid onto the matching design entry (by name).
-    New names are appended as fully extras-originated resources.
-    """
-    by_name = {bd.name: bd for bd in design}
-    for raw in extras_raw:
-        name = raw["name"]
-        if name in by_name:
-            existing = by_name[name]
-            by_name[name] = existing.model_copy(update={
-                **{k: v for k, v in raw.items() if k != "name"},
-                "origin": "extras",
-            })
-        else:
-            by_name[name] = BridgeDomainIntent(
-                name=name,
-                vni=raw["vni"],
-                evi=raw["evi"],
-                mac_learning=raw.get("mac_learning", True),
-                mac_aging=raw.get("mac_aging", 300),
-                mac_duplication=raw.get("mac_duplication"),
-                origin="extras",
-            )
-    return list(by_name.values())
+    return merge_by_name(design, extras_raw, BridgeDomainIntent, pre_process=_set_origin)
 
 
 def _merge_extras_irb_interfaces(
@@ -801,45 +731,45 @@ def _merge_extras_irb_interfaces(
     extras_raw: list[dict],
     default_ip_mtu: int = 1500,
 ) -> list[IrbInterfaceIntent]:
-    """Merge extras IRB overrides into design-generated ones.
-
-    Extras fields are overlaid onto the matching design entry (by name).
-    New names are appended as fully extras-originated resources.
-    """
-    by_name = {irb.name: irb for irb in design}
-    for raw in extras_raw:
-        name = raw["name"]
-        update: dict = {k: v for k, v in raw.items() if k != "name"}
-        if "ip_addresses" in update:
-            update["ip_addresses"] = [
-                IrbIpAddress(**a) for a in update["ip_addresses"]
+    """Merge extras IRB overrides into design-generated ones."""
+    def _pre_process(fields: dict) -> dict:
+        if "ip_addresses" in fields:
+            fields["ip_addresses"] = [
+                IrbIpAddress(**a) for a in fields["ip_addresses"]
             ]
-        update["origin"] = "extras"
+        fields.setdefault("ip_mtu", default_ip_mtu)
+        fields["origin"] = "extras"
+        return fields
 
-        if name in by_name:
-            by_name[name] = by_name[name].model_copy(update=update)
-        else:
-            by_name[name] = IrbInterfaceIntent(
-                name=name,
-                bridge_domain=raw["bridge_domain"],
-                router=raw["router"],
-                ipv4=raw.get("ipv4", ""),
-                ip_addresses=[
-                    IrbIpAddress(**a) for a in raw.get("ip_addresses", [])
-                ],
-                description=raw.get("description", ""),
-                proxy_arp=raw.get("proxy_arp", True),
-                proxy_nd=raw.get("proxy_nd", False),
-                arp_timeout=raw.get("arp_timeout", 280),
-                ip_mtu=raw.get("ip_mtu", default_ip_mtu),
-                learn_unsolicited=raw.get("learn_unsolicited", "NONE"),
-                evpn_route_advertisement_type=raw.get(
-                    "evpn_route_advertisement_type"
-                ),
-                host_route_populate=raw.get("host_route_populate"),
-                origin="extras",
-            )
-    return list(by_name.values())
+    return merge_by_name(design, extras_raw, IrbInterfaceIntent, pre_process=_pre_process)
+
+
+def _merge_extras_routers(
+    design: list[RouterIntent], extras_raw: list[dict]
+) -> list[RouterIntent]:
+    """Merge extras router overrides into design-generated ones."""
+    return merge_by_name(design, extras_raw, RouterIntent)
+
+
+def _merge_extras_vlans(
+    design: list[VlanIntent], extras_raw: list[dict]
+) -> list[VlanIntent]:
+    """Merge extras VLAN overrides into design-generated ones."""
+    return merge_by_name(design, extras_raw, VlanIntent)
+
+
+def _merge_extras_routed_interfaces(
+    design: list[RoutedInterfaceIntent], extras_raw: list[dict]
+) -> list[RoutedInterfaceIntent]:
+    """Merge extras routed interface overrides into design-generated ones."""
+    return merge_by_name(design, extras_raw, RoutedInterfaceIntent)
+
+
+def _merge_extras_static_routes(
+    design: list[StaticRouteIntent], extras_raw: list[dict]
+) -> list[StaticRouteIntent]:
+    """Merge extras static route overrides into design-generated ones."""
+    return merge_by_name(design, extras_raw, StaticRouteIntent)
 
 
 # ---------------------------------------------------------------------------

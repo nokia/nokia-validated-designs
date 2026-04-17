@@ -33,6 +33,7 @@ from automation.core.models import (
     RoutedInterfaceIntent,
     VlanIntent,
 )
+from automation.core.selectors import labels_match
 
 logger = logging.getLogger(__name__)
 
@@ -177,14 +178,13 @@ def _derive_clients(intent: FabricIntent) -> list[ClientNode]:
             lag_member_ports.add((m.node, m.interface))
 
     # Collect routed interface ports → separate dedicated clients
-    routed_ports: dict[str, RoutedInterfaceIntent] = {}
+    ei_by_name: dict[str, EdgeInterfaceIntent] = {e.name: e for e in intent.edge_interfaces}
+    routed_ports: dict[tuple[str, str], RoutedInterfaceIntent] = {}
     for ri in intent.routed_interfaces:
         # ri.interface is the EDA resource name, e.g., "leaf1-ethernet-1-4"
-        # Find the edge interface to get the (node, physical_interface)
-        for ei in intent.edge_interfaces:
-            if ei.name == ri.interface:
-                routed_ports[(ei.node, ei.interface)] = ri
-                break
+        ei = ei_by_name.get(ri.interface)
+        if ei:
+            routed_ports[(ei.node, ei.interface)] = ri
 
     # --- Single-homed clients ---
     # Group edge interfaces by node (excluding LAG members and routed ports)
@@ -322,7 +322,7 @@ def _match_vlans_to_clients(clients: list[ClientNode], intent: FabricIntent) -> 
 
         for link in links_to_match:
             for vlan in intent.vlans:
-                if _labels_match(vlan.interface_selector, link.labels):
+                if labels_match(vlan.interface_selector, link.labels):
                     irb = irb_by_bd.get(vlan.bridge_domain)
                     subnet = ""
                     gateway = ""
@@ -354,15 +354,6 @@ def _match_vlans_to_clients(clients: list[ClientNode], intent: FabricIntent) -> 
                         )
                     )
 
-
-def _labels_match(selectors: list[str], labels: dict[str, str]) -> bool:
-    """Check if any selector matches the labels (OR logic)."""
-    for sel in selectors:
-        if "=" in sel:
-            key, value = sel.split("=", 1)
-            if labels.get(key) == value:
-                return True
-    return False
 
 
 # ---------------------------------------------------------------------------
@@ -1031,7 +1022,13 @@ def _allocate_client_mgmt_ips(
 
 
 def _derive_mgmt_subnet(intent: FabricIntent) -> str:
-    """Derive the management subnet from node mgmt IPs."""
+    """Derive the management subnet from intent or node mgmt IPs.
+
+    If ``intent.mgmt_subnet`` is set, use it directly.  Otherwise,
+    fall back to inferring a /24 from the first node's mgmt IPv4.
+    """
+    if intent.mgmt_subnet:
+        return intent.mgmt_subnet
     for node in intent.nodes:
         if node.mgmt_ipv4:
             try:

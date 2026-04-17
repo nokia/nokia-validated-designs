@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --extra test
+
+      - name: Run unit tests
+        run: uv run python -m pytest tests/unit/ -v --tb=short
+
+  generate-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Generate EDA CRs (3-stage-evpn-vxlan)
+        run: |
+          uv run nvd --design validated-designs/3-stage-evpn-vxlan --mode eda --generate-only
+
+      - name: Generate Ansible project (3-stage-evpn-vxlan)
+        run: |
+          uv run nvd --design validated-designs/3-stage-evpn-vxlan --mode ansible
+
+      - name: Generate containerlab topology (3-stage-evpn-vxlan)
+        run: |
+          uv run nvd --design validated-designs/3-stage-evpn-vxlan --mode eda --generate-clab --generate-only
+
+      - name: Generate EDA CRs (unconstrained-3-stage)
+        run: |
+          uv run nvd --design validated-designs/unconstrained-3-stage --mode eda --generate-only
+
+      - name: Verify generated outputs exist
+        run: |
+          test -f validated-designs/3-stage-evpn-vxlan/build/eda_transaction.json
+          test -f validated-designs/unconstrained-3-stage/build/eda_transaction.json
+          echo "All expected outputs generated successfully"

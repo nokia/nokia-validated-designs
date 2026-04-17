@@ -8,8 +8,6 @@ import importlib
 
 _BUILDER_CACHE: dict = {}
 
-KNOWN_VERSIONS: dict = {}
-
 
 def get_builder(version: str):
     """Return the best-matching payload builder module for an SR Linux version.

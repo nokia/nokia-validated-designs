@@ -20,10 +20,37 @@ class FcliError(Exception):
     """Raised when an fcli command fails."""
 
 
+def _parse_json(raw: str) -> Any | None:
+    """Try to extract a JSON array or object from *raw*.
+
+    fcli sometimes emits non-JSON preamble (warnings, ANSI codes,
+    progress text) before the actual JSON payload.  We first try the
+    full string, then scan for the first ``[`` or ``{`` and parse from
+    there.  Returns ``None`` if no valid JSON can be found.
+    """
+    text = raw.strip()
+    if not text:
+        return None
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    for i, ch in enumerate(text):
+        if ch in ("[", "{"):
+            try:
+                return json.loads(text[i:])
+            except json.JSONDecodeError:
+                continue
+    return None
+
+
 def fcli_query(
     command: str,
     *,
     topo_path: str = "",
+    gnmi_port: int | None = None,
     inventory_filter: str = "",
     field_filter: str = "",
     extra_args: list[str] | None = None,
@@ -35,6 +62,7 @@ def fcli_query(
     Args:
         command: fcli command (e.g. "bgp-peers", "mac", "vxlan")
         topo_path: path to .clab.yaml topology file
+        gnmi_port: override gNMI port (fcli -p); None keeps the fcli default
         inventory_filter: node filter (e.g. "name=leaf1", "role=spine")
         field_filter: row filter (e.g. "State=established")
         extra_args: additional CLI arguments
@@ -46,6 +74,8 @@ def fcli_query(
     cmd = ["fcli"]
     if topo_path:
         cmd.extend(["-t", topo_path])
+    if gnmi_port is not None:
+        cmd.extend(["-p", str(gnmi_port)])
     if inventory_filter:
         cmd.extend(["-i", inventory_filter])
     cmd.extend(["-o", "json"])
@@ -72,10 +102,14 @@ def fcli_query(
     if not result.stdout.strip():
         return []
 
-    try:
-        data = json.loads(result.stdout)
-    except json.JSONDecodeError as e:
-        raise FcliError(f"Failed to parse fcli JSON output: {e}") from e
+    raw = result.stdout
+    data = _parse_json(raw)
+    if data is None:
+        preview = raw[:500] + ("…" if len(raw) > 500 else "")
+        raise FcliError(
+            f"Failed to parse fcli JSON output for '{' '.join(cmd)}'.\n"
+            f"stdout: {preview}\nstderr: {result.stderr.strip()}"
+        )
 
     if isinstance(data, list):
         return data
@@ -95,9 +129,12 @@ class FcliClient:
     """
 
     topo_path: str
+    gnmi_port: int | None = None
 
     def _query(self, command: str, **kwargs) -> list[dict[str, Any]]:
-        return fcli_query(command, topo_path=self.topo_path, **kwargs)
+        return fcli_query(
+            command, topo_path=self.topo_path, gnmi_port=self.gnmi_port, **kwargs
+        )
 
     def bgp_peers(
         self, *, node: str = "", state: str = "",
@@ -144,6 +181,10 @@ class FcliClient:
         inv = f"name={node}" if node else ""
         filt = f"type={ni_type}" if ni_type else ""
         return self._query("ni", inventory_filter=inv, field_filter=filt)
+
+    def subinterfaces(self, *, node: str = "") -> list[dict[str, Any]]:
+        inv = f"name={node}" if node else ""
+        return self._query("subif", inventory_filter=inv)
 
     def lldp(self, *, node: str = "") -> list[dict[str, Any]]:
         inv = f"name={node}" if node else ""

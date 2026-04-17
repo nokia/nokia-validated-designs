@@ -11,6 +11,7 @@ from __future__ import annotations
 import ipaddress
 import logging
 import re
+import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,8 @@ from tests.helpers.fcli import FcliClient
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_GNMI_PORT = 57400
+
 
 # ---------------------------------------------------------------------------
 # CLI options
@@ -34,8 +37,18 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     group.addoption(
         "--clab-topo",
         dest="clab_topo",
-        required=True,
-        help="Path to the containerlab .clab.yml topology file",
+        default=None,
+        help="Path to the containerlab .clab.yml topology file (required for integration tests)",
+    )
+    group.addoption(
+        "--gnmi-port",
+        dest="gnmi_port",
+        type=int,
+        default=None,
+        help=(
+            "gNMI port for SR Linux nodes (fcli -p). "
+            "If omitted, auto-detected from a running srlinux container."
+        ),
     )
 
 
@@ -83,6 +96,7 @@ class ClabTopology:
     topo_path: str
     topo_name: str
     topo_prefix: str = ""
+    gnmi_port: int | None = None
     nodes: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     leaf_nodes: list[str] = field(default_factory=list)
@@ -114,6 +128,8 @@ class ClabTopology:
 
 _topology_cache: dict[str, ClabTopology] = {}
 
+_GNMI_PORT_RE = re.compile(r"port\s+(\d+)")
+
 _IP_ADDR_RE = re.compile(
     r"ip\s+addr\s+add\s+(\d+\.\d+\.\d+\.\d+)/(\d+)\s+dev\s+(\S+)"
 )
@@ -122,7 +138,38 @@ _DEFAULT_ROUTE_RE = re.compile(
 )
 
 
-def _discover_topology(topo_file: str) -> ClabTopology:
+def _detect_gnmi_port(container: str) -> int:
+    """Detect the gNMI port from a running SR Linux container.
+
+    Tries two schema paths because SRL renamed the tree:
+      - ``/system grpc-server *``  (25.x+)
+      - ``/system gnmi-server *``  (older releases)
+
+    Falls back to ``DEFAULT_GNMI_PORT`` on any failure.
+    """
+    cli_commands = [
+        "info flat /system grpc-server *",
+        "info flat /system gnmi-server *",
+    ]
+    for cli_cmd in cli_commands:
+        cmd = ["docker", "exec", container, "sr_cli", "-e", cli_cmd]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            if result.returncode != 0 or not result.stdout.strip():
+                continue
+            m = _GNMI_PORT_RE.search(result.stdout)
+            if m:
+                port = int(m.group(1))
+                logger.info("Auto-detected gNMI port %d from %s", port, container)
+                return port
+        except Exception as exc:
+            logger.debug("gNMI port detection failed for %s: %s", container, exc)
+
+    logger.info("Using default gNMI port %d", DEFAULT_GNMI_PORT)
+    return DEFAULT_GNMI_PORT
+
+
+def _discover_topology(topo_file: str, gnmi_port: int | None = None) -> ClabTopology:
     """
     Build a complete ClabTopology from a .clab.yml file by:
       1. Parsing the YAML for nodes, links, and prefix
@@ -154,7 +201,7 @@ def _discover_topology(topo_file: str) -> ClabTopology:
 
     topo = ClabTopology(
         topo_path=topo_path, topo_name=topo_name,
-        topo_prefix=topo_prefix, nodes=nodes,
+        topo_prefix=topo_prefix, gnmi_port=gnmi_port, nodes=nodes,
     )
 
     # 1. Classify nodes
@@ -231,7 +278,12 @@ def _discover_topology(topo_file: str) -> ClabTopology:
                 "client": a_node,
             })
 
-    # 3. Discover client IPs from startup scripts
+    # 3. Auto-detect gNMI port if not explicitly provided
+    if topo.gnmi_port is None and topo.srlinux_nodes:
+        container = topo.container_name(topo.srlinux_nodes[0])
+        topo.gnmi_port = _detect_gnmi_port(container)
+
+    # 4. Discover client IPs from startup scripts
     _discover_clients(topo)
 
     _topology_cache[topo_path] = topo
@@ -266,7 +318,7 @@ def _discover_clients(topo: ClabTopology) -> None:
     ni_data: list[dict] = []
 
     try:
-        fcli = FcliClient(topo_path=topo.topo_path)
+        fcli = FcliClient(topo_path=topo.topo_path, gnmi_port=topo.gnmi_port)
         ni_data.extend(fcli.network_instances())
 
         bd_names: set[str] = set()
@@ -422,7 +474,8 @@ def _build_topology_from_metafunc(metafunc) -> ClabTopology | None:
     topo_file = metafunc.config.getoption("clab_topo")
     if not topo_file:
         return None
-    return _discover_topology(topo_file)
+    gnmi_port = metafunc.config.getoption("gnmi_port")
+    return _discover_topology(topo_file, gnmi_port=gnmi_port)
 
 
 # ---------------------------------------------------------------------------
@@ -436,14 +489,17 @@ def clab_topology(request: pytest.FixtureRequest) -> ClabTopology:
     topo_file = request.config.getoption("clab_topo")
     if not topo_file:
         pytest.skip("--clab-topo not provided")
-    topo = _discover_topology(topo_file)
+    gnmi_port = request.config.getoption("gnmi_port")
+    topo = _discover_topology(topo_file, gnmi_port=gnmi_port)
     return topo
 
 
 @pytest.fixture(scope="session")
 def fcli(clab_topology: ClabTopology) -> FcliClient:
     """Session-scoped fcli client bound to the running topology."""
-    return FcliClient(topo_path=clab_topology.topo_path)
+    return FcliClient(
+        topo_path=clab_topology.topo_path, gnmi_port=clab_topology.gnmi_port,
+    )
 
 
 @pytest.fixture
@@ -469,8 +525,9 @@ def pytest_configure(config):
     if not topo_file:
         return
 
+    gnmi_port = config.getoption("gnmi_port", default=None)
     try:
-        topo = _discover_topology(topo_file)
+        topo = _discover_topology(topo_file, gnmi_port=gnmi_port)
     except Exception:
         return
 
@@ -482,6 +539,7 @@ def pytest_configure(config):
 
     md["Topology file"] = topo.topo_path
     md["Topology name"] = topo.topo_name
+    md["gNMI port"] = str(topo.gnmi_port or DEFAULT_GNMI_PORT)
     md["Leaf nodes"] = f"{len(topo.leaf_nodes)} ({', '.join(topo.leaf_nodes)})"
     md["Spine nodes"] = f"{len(topo.spine_nodes)} ({', '.join(topo.spine_nodes)})"
     md["Client containers"] = f"{len(topo.client_containers)} ({', '.join(topo.client_containers)})"

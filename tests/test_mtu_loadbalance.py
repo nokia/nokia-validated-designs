@@ -2,16 +2,10 @@
 MTU and load-balancing tests.
 
 MTU tests:
-  Verify end-to-end jumbo frame support by querying the fabric's
-  configured MTU and probing the actual data-plane path MTU.
-
-  The tests query fcli for the overlay (mac-vrf / ip-vrf) and underlay
-  (default NI) MTU values, compute the expected cross-leaf path MTU
-  accounting for VXLAN overhead, then validate with DF-bit pings.
-
-  Key assertion: if the overlay is configured for jumbo (>1500B) but
-  the underlay ISL MTU is only 1500B, cross-leaf jumbo frames will
-  be silently dropped.  The test detects this mismatch.
+  Verify that each SR Linux interface's port-mtu is large enough to
+  carry the configured ip-mtu plus Ethernet framing (14B header + 4B
+  optional VLAN tag).  Then probe the actual data-plane path MTU with
+  DF-bit pings from client containers.
 
 Load-balancing tests:
   Generate multiple bidirectional iperf3 flows across the fabric and
@@ -23,6 +17,7 @@ Load-balancing tests:
 from __future__ import annotations
 
 import logging
+import re
 import subprocess
 import time
 from collections import defaultdict
@@ -36,67 +31,87 @@ from tests.helpers.iperf import kill_server, start_server
 
 logger = logging.getLogger(__name__)
 
-# VXLAN encapsulation overhead:
-# 14 outer Ethernet + 20 outer IP + 8 UDP + 8 VXLAN + 14 inner Ethernet = 64B
-# Conservative estimate; some implementations use 50B (without inner Ethernet
-# in the overhead calculation).  We use 50 for the IP-level overhead since
-# the inner Ethernet header is part of the inner frame that the overlay MTU
-# already accounts for.
-VXLAN_OVERHEAD = 50
+ETH_HEADER = 14
+VLAN_TAG = 4
 
 
 @dataclass
-class FabricMTU:
-    """Discovered MTU configuration from the live fabric."""
+class InterfaceMTU:
+    """Port-mtu and ip-mtu pair for a single sub-interface."""
 
-    underlay_mtu: int = 0       # default NI sub-interface MTU (ISL path)
-    overlay_l2_mtu: int = 0     # mac-vrf sub-interface MTU
-    overlay_l3_mtu: int = 0     # ip-vrf sub-interface MTU (excluding mgmt)
-    expected_cross_leaf: int = 0 # max inner IP frame that fits through VXLAN
-    jumbo_capable: bool = False  # True if underlay can carry jumbo VXLAN frames
-    mismatch: bool = False       # True if overlay expects jumbo but underlay can't
+    node: str
+    interface: str
+    subinterface: str
+    port_mtu: int
+    ip_mtu: int
+    vlan_tagged: bool = False
+
+    @property
+    def required_port_mtu(self) -> int:
+        overhead = ETH_HEADER + (VLAN_TAG if self.vlan_tagged else 0)
+        return self.ip_mtu + overhead
 
 
-def _discover_fabric_mtu(fcli: FcliClient) -> FabricMTU:
-    """Query fcli to discover the fabric's configured MTU values."""
-    ni_data = fcli.network_instances()
+def _get_port_mtu(container: str) -> dict[str, int]:
+    """Query port-mtu for every interface on *container* via sr_cli.
 
-    underlay_mtus: list[int] = []
-    overlay_l2_mtus: list[int] = []
-    overlay_l3_mtus: list[int] = []
-
-    for entry in ni_data:
-        ni_type = entry.get("type", "")
-        ni_name = entry.get("NI", "")
-        mtu = entry.get("mtu")
-        if not mtu or not isinstance(mtu, (int, float)):
-            continue
-        mtu = int(mtu)
-
-        if ni_type == "default":
-            underlay_mtus.append(mtu)
-        elif ni_type == "mac-vrf":
-            overlay_l2_mtus.append(mtu)
-        elif ni_type == "ip-vrf" and ni_name != "mgmt":
-            overlay_l3_mtus.append(mtu)
-
-    result = FabricMTU()
-    if underlay_mtus:
-        result.underlay_mtu = min(underlay_mtus)
-    if overlay_l2_mtus:
-        result.overlay_l2_mtu = max(overlay_l2_mtus)
-    if overlay_l3_mtus:
-        result.overlay_l3_mtu = max(overlay_l3_mtus)
-
-    if result.underlay_mtu > 0:
-        result.expected_cross_leaf = result.underlay_mtu - VXLAN_OVERHEAD
-    result.jumbo_capable = result.underlay_mtu > 1500
-    required_underlay = max(result.overlay_l2_mtu, result.overlay_l3_mtu) + VXLAN_OVERHEAD
-    result.mismatch = (
-        result.underlay_mtu > 0
-        and result.underlay_mtu < required_underlay
-    )
+    Returns ``{"ethernet-1/3": 9412, ...}``.
+    """
+    cmd = [
+        "docker", "exec", container, "sr_cli", "-e",
+        "info from state /interface * mtu",
+    ]
+    result: dict[str, int] = {}
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        if proc.returncode != 0:
+            return result
+        current_intf = ""
+        for line in proc.stdout.splitlines():
+            stripped = line.strip()
+            m = re.match(r"interface\s+(\S+)", stripped)
+            if m:
+                current_intf = m.group(1)
+            m2 = re.match(r"mtu\s+(\d+)", stripped)
+            if m2 and current_intf:
+                result[current_intf] = int(m2.group(1))
+    except Exception as exc:
+        logger.debug("Failed to query port-mtu on %s: %s", container, exc)
     return result
+
+
+def _discover_interface_mtus(
+    fcli: FcliClient, topo: ClabTopology,
+) -> list[InterfaceMTU]:
+    """Collect (port-mtu, ip-mtu) for every routed sub-interface."""
+    subifs = fcli.subinterfaces()
+
+    port_mtu_cache: dict[str, dict[str, int]] = {}
+    for node in topo.srlinux_nodes:
+        container = topo.container_name(node)
+        port_mtu_cache[node] = _get_port_mtu(container)
+
+    entries: list[InterfaceMTU] = []
+    for row in subifs:
+        node = row.get("Node", "")
+        parent = row.get("Itf", "")
+        subif = row.get("Subitf", "")
+        ip_mtu = row.get("ip-mtu")
+        if not ip_mtu or not isinstance(ip_mtu, (int, float)):
+            continue
+        ip_mtu = int(ip_mtu)
+
+        port_mtu = port_mtu_cache.get(node, {}).get(parent, 0)
+        if not port_mtu:
+            continue
+
+        vlan_tagged = isinstance(row.get("vlan"), int)
+
+        entries.append(InterfaceMTU(
+            node=node, interface=parent, subinterface=subif,
+            port_mtu=port_mtu, ip_mtu=ip_mtu, vlan_tagged=vlan_tagged,
+        ))
+    return entries
 
 
 # ---------------------------------------------------------------------------
@@ -260,53 +275,47 @@ def _get_client_link_mtu(container: str) -> int:
 
 
 # ---------------------------------------------------------------------------
-# Underlay / overlay MTU mismatch detection
+# Port-MTU vs IP-MTU configuration check
 # ---------------------------------------------------------------------------
 
 
 class TestMTUFabricConfig:
-    """Verify that underlay MTU is large enough to carry overlay jumbo frames."""
+    """Verify port-mtu >= ip-mtu + Ethernet framing on every interface."""
 
     @pytest.mark.connectivity
-    def test_underlay_supports_overlay_mtu(
+    def test_port_mtu_covers_ip_mtu(
         self,
         fcli: FcliClient,
         clab_topology: ClabTopology,
         record_property,
     ):
         """
-        The underlay (ISL) MTU must be large enough to carry the overlay
-        MTU plus VXLAN encapsulation overhead (~50B).
-
-        If mac-vrfs are configured with 9232B MTU but the default NI
-        (underlay) sub-interfaces are 1500B, cross-leaf jumbo frames
-        will be silently dropped.
+        For every routed sub-interface, the parent interface's port-mtu
+        must be at least ip-mtu + 14B (Ethernet) + 4B (VLAN tag, if
+        the interface is VLAN-tagged).
         """
-        mtu = _discover_fabric_mtu(fcli)
+        entries = _discover_interface_mtus(fcli, clab_topology)
+        record_property("interfaces_checked", len(entries))
 
-        record_property("underlay_mtu", f"{mtu.underlay_mtu}B")
-        record_property("overlay_l2_mtu (mac-vrf)", f"{mtu.overlay_l2_mtu}B")
-        record_property("overlay_l3_mtu (ip-vrf)", f"{mtu.overlay_l3_mtu}B")
-        record_property("vxlan_overhead", f"{VXLAN_OVERHEAD}B")
-        record_property("expected_cross_leaf_ip_mtu", f"{mtu.expected_cross_leaf}B")
-        record_property("jumbo_capable", mtu.jumbo_capable)
-        record_property("mismatch_detected", mtu.mismatch)
+        violations: list[str] = []
+        for e in entries:
+            if e.port_mtu < e.required_port_mtu:
+                tag = " +4B VLAN" if e.vlan_tagged else ""
+                violations.append(
+                    f"{e.node} {e.subinterface}: port-mtu={e.port_mtu}B < "
+                    f"ip-mtu({e.ip_mtu}) + {ETH_HEADER}B ETH{tag} = "
+                    f"{e.required_port_mtu}B"
+                )
 
-        max_overlay = max(mtu.overlay_l2_mtu, mtu.overlay_l3_mtu)
-        required_underlay = max_overlay + VXLAN_OVERHEAD
-        record_property("required_underlay_mtu", f"{required_underlay}B")
-
-        assert mtu.underlay_mtu >= required_underlay, (
-            f"Underlay/overlay MTU mismatch: overlay MTU is "
-            f"{max_overlay}B (L2={mtu.overlay_l2_mtu}B, L3={mtu.overlay_l3_mtu}B) "
-            f"but underlay (ISL) MTU is only {mtu.underlay_mtu}B. "
-            f"Required underlay MTU: >= {required_underlay}B "
-            f"(overlay {max_overlay} + VXLAN overhead {VXLAN_OVERHEAD}). "
-            f"Cross-leaf jumbo frames will be silently dropped."
+        record_property("violations", len(violations))
+        assert not violations, (
+            f"{len(violations)} interface(s) where port-mtu cannot carry "
+            f"the configured ip-mtu:\n"
+            + "\n".join(f"  - {v}" for v in violations)
         )
         logger.info(
-            "Underlay MTU %dB supports overlay MTU %dB (required >= %dB)",
-            mtu.underlay_mtu, max_overlay, required_underlay,
+            "Port-MTU check passed: %d interfaces, all port-mtu >= ip-mtu + framing",
+            len(entries),
         )
 
 
@@ -316,7 +325,7 @@ class TestMTUFabricConfig:
 
 
 class TestMTUGateway:
-    """Verify jumbo frames reach the IRB anycast gateway (single hop, no VXLAN)."""
+    """Verify jumbo frames reach the IRB anycast gateway (single hop)."""
 
     @pytest.mark.connectivity
     def test_gateway_mtu(
@@ -326,12 +335,12 @@ class TestMTUGateway:
         mtu_gw_att: ClientAttachment,
         record_property,
     ):
-        mtu = _discover_fabric_mtu(fcli)
-
         record_property("source", f"{mtu_gw_att.client_container} ({mtu_gw_att.client_ip})")
         record_property("destination", f"{mtu_gw_att.gateway} (IRB gateway)")
         record_property("bridge_domain", mtu_gw_att.bridge_domain)
-        record_property("configured_overlay_mtu", f"{mtu.overlay_l2_mtu}B")
+
+        client_mtu = _get_client_link_mtu(mtu_gw_att.client_container)
+        record_property("client_link_mtu", f"{client_mtu}B")
 
         max_payload = _discover_path_mtu(
             mtu_gw_att.client_container, mtu_gw_att.gateway,
@@ -346,14 +355,14 @@ class TestMTUGateway:
             f"Expected at least 1500B frames."
         )
         logger.info(
-            "Gateway MTU: %s -> %s = %dB (configured overlay: %dB)",
+            "Gateway MTU: %s -> %s = %dB (client link MTU: %dB)",
             mtu_gw_att.client_container, mtu_gw_att.gateway,
-            frame_size, mtu.overlay_l2_mtu,
+            frame_size, client_mtu,
         )
 
 
 # ---------------------------------------------------------------------------
-# MTU tests -- L2 intra-BD across leaves (VXLAN path)
+# MTU tests -- L2 intra-BD across leaves
 # ---------------------------------------------------------------------------
 
 
@@ -369,7 +378,6 @@ class TestMTUL2IntraBD:
         mtu_l2_b: ClientAttachment,
         record_property,
     ):
-        mtu = _discover_fabric_mtu(fcli)
         client_mtu_a = _get_client_link_mtu(mtu_l2_a.client_container)
         client_mtu_b = _get_client_link_mtu(mtu_l2_b.client_container)
         client_mtu = min(client_mtu_a, client_mtu_b)
@@ -377,17 +385,7 @@ class TestMTUL2IntraBD:
         record_property("bridge_domain", mtu_l2_a.bridge_domain)
         record_property("source", f"{mtu_l2_a.client_container} ({mtu_l2_a.client_ip}, link MTU {client_mtu_a}B)")
         record_property("destination", f"{mtu_l2_b.client_container} ({mtu_l2_b.client_ip}, link MTU {client_mtu_b}B)")
-        record_property("underlay_mtu", f"{mtu.underlay_mtu}B")
-        record_property("overlay_l2_mtu", f"{mtu.overlay_l2_mtu}B")
         record_property("client_link_mtu", f"{client_mtu}B")
-
-        assert mtu.overlay_l2_mtu >= client_mtu, (
-            f"Fabric overlay L2 MTU ({mtu.overlay_l2_mtu}B) is smaller than "
-            f"client link MTU ({client_mtu}B). The fabric cannot carry the "
-            f"client's maximum frames. "
-            f"Path: {mtu_l2_a.client_container} -> {mtu_l2_b.client_container} "
-            f"in {mtu_l2_a.bridge_domain}"
-        )
 
         max_payload = _discover_path_mtu(
             mtu_l2_a.client_container, mtu_l2_b.client_ip,
@@ -400,21 +398,20 @@ class TestMTUL2IntraBD:
         assert max_payload >= expected_payload, (
             f"L2 cross-leaf path MTU too low: actual {frame_size}B vs "
             f"client link MTU {client_mtu}B. "
-            f"Fabric overlay is {mtu.overlay_l2_mtu}B, underlay is {mtu.underlay_mtu}B. "
             f"Path: {mtu_l2_a.client_container} -> {mtu_l2_b.client_container} "
             f"in {mtu_l2_a.bridge_domain}"
         )
 
         logger.info(
-            "L2 MTU [%s]: %s -> %s = %dB (client=%dB, underlay=%dB, overlay=%dB)",
+            "L2 MTU [%s]: %s -> %s = %dB (client link MTU=%dB)",
             mtu_l2_a.bridge_domain,
             mtu_l2_a.client_container, mtu_l2_b.client_container,
-            frame_size, client_mtu, mtu.underlay_mtu, mtu.overlay_l2_mtu,
+            frame_size, client_mtu,
         )
 
 
 # ---------------------------------------------------------------------------
-# MTU tests -- L3 inter-subnet across VRFs (routed VXLAN path)
+# MTU tests -- L3 inter-subnet across VRFs
 # ---------------------------------------------------------------------------
 
 
@@ -430,7 +427,6 @@ class TestMTUL3InterSubnet:
         mtu_l3_b: ClientAttachment,
         record_property,
     ):
-        mtu = _discover_fabric_mtu(fcli)
         client_mtu_a = _get_client_link_mtu(mtu_l3_a.client_container)
         client_mtu_b = _get_client_link_mtu(mtu_l3_b.client_container)
         client_mtu = min(client_mtu_a, client_mtu_b)
@@ -438,17 +434,7 @@ class TestMTUL3InterSubnet:
         record_property("source", f"{mtu_l3_a.client_container} ({mtu_l3_a.client_ip}, link MTU {client_mtu_a}B) [{mtu_l3_a.bridge_domain}]")
         record_property("destination", f"{mtu_l3_b.client_container} ({mtu_l3_b.client_ip}, link MTU {client_mtu_b}B) [{mtu_l3_b.bridge_domain}]")
         record_property("router", mtu_l3_a.router)
-        record_property("underlay_mtu", f"{mtu.underlay_mtu}B")
-        record_property("overlay_l3_mtu", f"{mtu.overlay_l3_mtu}B")
         record_property("client_link_mtu", f"{client_mtu}B")
-
-        assert mtu.overlay_l3_mtu >= client_mtu, (
-            f"Fabric overlay L3 MTU ({mtu.overlay_l3_mtu}B) is smaller than "
-            f"client link MTU ({client_mtu}B). The fabric cannot carry the "
-            f"client's maximum frames. "
-            f"Path: {mtu_l3_a.client_container}({mtu_l3_a.bridge_domain}) -> "
-            f"{mtu_l3_b.client_container}({mtu_l3_b.bridge_domain})"
-        )
 
         max_payload = _discover_path_mtu(
             mtu_l3_a.client_container, mtu_l3_b.client_ip,
@@ -461,17 +447,16 @@ class TestMTUL3InterSubnet:
         assert max_payload >= expected_payload, (
             f"L3 cross-leaf path MTU too low: actual {frame_size}B vs "
             f"client link MTU {client_mtu}B. "
-            f"Fabric overlay is {mtu.overlay_l3_mtu}B, underlay is {mtu.underlay_mtu}B. "
             f"Path: {mtu_l3_a.client_container}({mtu_l3_a.bridge_domain}) -> "
             f"{mtu_l3_b.client_container}({mtu_l3_b.bridge_domain})"
         )
 
         logger.info(
-            "L3 MTU [%s]: %s(%s) -> %s(%s) = %dB (client=%dB, underlay=%dB, overlay=%dB)",
+            "L3 MTU [%s]: %s(%s) -> %s(%s) = %dB (client link MTU=%dB)",
             mtu_l3_a.router,
             mtu_l3_a.client_container, mtu_l3_a.bridge_domain,
             mtu_l3_b.client_container, mtu_l3_b.bridge_domain,
-            frame_size, client_mtu, mtu.underlay_mtu, mtu.overlay_l3_mtu,
+            frame_size, client_mtu,
         )
 
 

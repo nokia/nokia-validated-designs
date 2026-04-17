@@ -23,6 +23,22 @@ bridge_domains:
   - name: macvrf-v60
     vni: 10060
     evi: 60
+  - name: macvrf-v99
+    vni: 10099
+    evi: 99
+# Bridge domain with all optional fields (override via extras):
+#   - name: macvrf-example
+#     vni: 99999
+#     evi: 999
+#     # Design defaults applied automatically — override via extras:
+#     # mac_learning: true
+#     # mac_aging: 300                        # seconds (0 = disabled)
+#     # mac_duplication:
+#     #   enabled: true
+#     #   hold_down_time: 9
+#     #   monitoring_window: 3
+#     #   action: StopLearning               # StopLearning | Blackhole | UseNetInstanceAction
+#     #   num_moves: 5
 
 # Routers (ip-vrfs)
 routers:
@@ -81,6 +97,22 @@ irb_interfaces:
     ipv4: 172.16.60.254/24
     proxy_arp: true
     arp_timeout: 280
+# IRB interface with all optional fields (override via extras):
+#   - name: irb-example
+#     bridge_domain: macvrf-example
+#     router: vrf1
+#     ipv4: 172.16.99.254/24
+#     proxy_arp: true
+#     arp_timeout: 280
+#     # Design defaults applied automatically — override via extras:
+#     # description: "VLAN 99 gateway"
+#     # proxy_nd: false
+#     # ip_mtu: 9394                          # defaults to layer3_mtu from default_mtu
+#     # learn_unsolicited: NONE               # NONE | GLOBAL
+#     # Dual-stack addressing (alternative to ipv4 shorthand):
+#     # ip_addresses:
+#     #   - ipv4: { ip_prefix: "172.16.99.254/24", primary: true }
+#     #     ipv6: { ip_prefix: "2001:db8:99::1/64", primary: true }
 
 # VLAN services — attach bridge domains to interfaces via label selectors
 vlans:
@@ -131,7 +163,11 @@ vlans:
     vlan_id: untagged
     interface_selector:
       - eda.nokia.com/untagged-v60=enabled
-
+#  - name: tagged-v99
+#    bridge_domain: macvrf-v99
+#    vlan_id: "99"
+#    interface_selector:
+#      - eda.nokia.com/tagged-v99=enabled
 # Routed interfaces (L3 interfaces on specific ports)
 routed_interfaces:
   - name: leaf-s5
@@ -161,3 +197,57 @@ static_routes:
       nexthops:
         - resolve: false
           ipPrefix: 172.16.100.1
+
+# ─────────────────────────────────────────────────────────────────────
+# Extras — override design defaults or add new resources
+# Extras use merge-by-name: if the name matches an existing resource,
+# only the specified fields are overridden. New names are appended.
+# ─────────────────────────────────────────────────────────────────────
+# extras:
+#   # Override MAC settings on an existing bridge domain
+#   bridge_domains:
+#     - name: macvrf-v10
+#       mac_learning: false
+#       mac_aging: 600
+#
+#   # Override IRB MTU or add dual-stack addressing
+#   irb_interfaces:
+#     - name: irb-v10
+#       ip_mtu: 1500
+#       proxy_nd: true
+#       ip_addresses:
+#         - ipv4: { ip_prefix: "172.16.10.254/24", primary: true }
+#           ipv6: { ip_prefix: "2001:db8:10::1/64", primary: true }
+#
+#   # Override or add a router
+#   routers:
+#     - name: vrf1
+#       node_selector:
+#         - eda.nokia.com/role=leaf
+#         - eda.nokia.com/name=spine1          # extend to spine1
+#
+#   # Override or add a VLAN binding
+#   vlans:
+#     - name: tagged-v10
+#       vlan_id: "100"                          # change VLAN ID
+#
+#   # Add a new routed interface
+#   routed_interfaces:
+#     - name: leaf2-uplink
+#       interface: leaf2-ethernet-1-4
+#       router: vrf1
+#       vlan_id: "null"
+#       ip_mtu: 9000
+#       ipv4_addresses:
+#         - ipPrefix: 172.16.101.0/31
+#           primary: true
+#
+#   # Add a new static route
+#   static_routes:
+#     - name: default-route-vrf2
+#       router: vrf2
+#       nodes: [leaf1, leaf2]
+#       prefixes: ["0.0.0.0/0"]
+#       nexthop_group:
+#         nexthops:
+#           - ipPrefix: 172.16.40.1

@@ -51,6 +51,26 @@
           "type": "array",
           "items": { "$ref": "#/$defs/extendedIrbInterface" },
           "description": "Override or add IRB interfaces with full field access."
+        },
+        "routers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/extendedRouter" },
+          "description": "Override or add routers (ip-vrfs) with full field access."
+        },
+        "vlans": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/extendedVlan" },
+          "description": "Override or add VLAN bindings with full field access."
+        },
+        "routed_interfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/extendedRoutedInterface" },
+          "description": "Override or add routed interfaces with full field access."
+        },
+        "static_routes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/extendedStaticRoute" },
+          "description": "Override or add static routes with full field access."
         }
       }
     }
@@ -138,10 +158,31 @@
           "default": true,
           "description": "Enable proxy ARP on this IRB."
         },
+        "proxy_nd": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable proxy ND on this IRB."
+        },
         "arp_timeout": {
           "type": "integer",
           "minimum": 1,
           "description": "ARP timeout in seconds."
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description for this IRB."
+        },
+        "ip_mtu": {
+          "type": "integer",
+          "minimum": 1280,
+          "maximum": 9500,
+          "description": "IP MTU for this IRB interface. Defaults to layer3_mtu from default_mtu."
+        },
+        "learn_unsolicited": {
+          "type": "string",
+          "enum": ["NONE", "GLOBAL"],
+          "default": "NONE",
+          "description": "ARP/ND unsolicited learning mode."
         }
       }
     },
@@ -375,6 +416,108 @@
         "host_route_populate": {
           "type": "boolean",
           "description": "Populate host routes from ARP/ND entries."
+        }
+      }
+    },
+    "extendedRouter": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "description": "Extended router with full field access for extras overrides.",
+      "properties": {
+        "name": { "type": "string", "description": "Router name (must match an existing entry to override, or be new)." },
+        "vni": { "type": "integer", "minimum": 1, "maximum": 16777215, "description": "VXLAN Network Identifier." },
+        "evi": { "type": "integer", "minimum": 1, "maximum": 65535, "description": "EVPN Instance identifier." },
+        "node_selector": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-zA-Z0-9_./-]+=.+$" },
+          "minItems": 1,
+          "description": "Label selectors to match nodes for this router."
+        }
+      }
+    },
+    "extendedVlan": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "description": "Extended VLAN with full field access for extras overrides.",
+      "properties": {
+        "name": { "type": "string", "description": "VLAN name (must match an existing entry to override, or be new)." },
+        "bridge_domain": { "type": "string", "description": "Bridge domain this VLAN belongs to." },
+        "vlan_id": { "type": "string", "pattern": "^(untagged|[0-9]+)$", "description": "VLAN ID ('untagged' or numeric string)." },
+        "interface_selector": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-zA-Z0-9_./-]+=.+$" },
+          "minItems": 1,
+          "description": "Label selectors to match interfaces for this VLAN."
+        }
+      }
+    },
+    "extendedRoutedInterface": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "description": "Extended routed interface with full field access for extras overrides.",
+      "properties": {
+        "name": { "type": "string", "description": "Routed interface name (must match an existing entry to override, or be new)." },
+        "interface": { "type": "string", "description": "Interface resource name." },
+        "router": { "type": "string", "description": "Router (ip-vrf) this interface is bound to." },
+        "vlan_id": { "type": "string", "description": "VLAN ID for the sub-interface ('null' for untagged)." },
+        "ip_mtu": { "type": "integer", "minimum": 1280, "maximum": 9500, "description": "IP MTU for the routed interface." },
+        "arp_timeout": { "type": "integer", "minimum": 1, "description": "ARP timeout in seconds." },
+        "ipv4_addresses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["ipPrefix"],
+            "additionalProperties": false,
+            "properties": {
+              "ipPrefix": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$" },
+              "primary": { "type": "boolean" }
+            }
+          },
+          "description": "IPv4 address assignments."
+        }
+      }
+    },
+    "extendedStaticRoute": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "description": "Extended static route with full field access for extras overrides.",
+      "properties": {
+        "name": { "type": "string", "description": "Static route name (must match an existing entry to override, or be new)." },
+        "router": { "type": "string", "description": "Router (ip-vrf) for the static route." },
+        "nodes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Nodes on which to install this route."
+        },
+        "prefixes": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$" },
+          "description": "Destination prefixes."
+        },
+        "nexthop_group": {
+          "type": "object",
+          "required": ["nexthops"],
+          "additionalProperties": false,
+          "properties": {
+            "blackhole": { "type": "boolean", "default": false },
+            "resolve": { "type": "boolean", "default": false },
+            "nexthops": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["ipPrefix"],
+                "additionalProperties": false,
+                "properties": {
+                  "ipPrefix": { "type": "string", "description": "Next-hop IP address." },
+                  "resolve": { "type": "boolean" }
+                }
+              }
+            }
+          }
         }
       }
     }

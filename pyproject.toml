@@ -33,6 +33,7 @@ markers = [
     "connectivity: steady-state connectivity tests",
     "convergence: failure/recovery convergence tests",
     "slow: tests that take more than 30 seconds",
+    "unit: fast unit tests that require no live lab",
 ]
 log_cli = true
 log_cli_level = "INFO"

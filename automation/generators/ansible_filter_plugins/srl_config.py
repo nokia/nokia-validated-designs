@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import os
 import sys
+from collections import defaultdict
 
 
 def _ensure_builders_importable() -> None:
@@ -70,6 +71,85 @@ def _split_by_op(entries: list[dict]) -> dict[str, list[dict]]:
     return buckets
 
 
+def _labels_match(selectors: list[str], labels: dict[str, str]) -> bool:
+    """Return True if any selector matches the labels (OR semantics).
+
+    Each selector is a ``key=value`` string.  A match occurs when the
+    label dict contains the key with the exact value.
+    """
+    for sel in selectors:
+        key, _, value = sel.strip().partition("=")
+        if labels.get(key.strip()) == value.strip():
+            return True
+    return False
+
+
+def _resolve_services(hv: dict) -> dict:
+    """Resolve selector-based group_vars services into per-node format.
+
+    When ``vlans`` is present in *hv*, the function performs selector-based
+    resolution of bridge_domains, routers, and VLANs, producing the same
+    per-node ``bridge_domains`` format (with ``access``, ``irb``, ``router``)
+    that the srl_builder already expects.
+
+    When ``vlans`` is absent (legacy pre-resolved projects), returns *hv*
+    unchanged for full backward compatibility.
+    """
+    if "vlans" not in hv:
+        return hv
+
+    hv = dict(hv)
+    node_labels = hv.get("node", {}).get("labels", {})
+    edges = hv.get("edge_interfaces", [])
+    lags = hv.get("lags", [])
+    vlans = hv.get("vlans", [])
+    irb_by_bd = {i["bridge_domain"]: i for i in hv.get("irb_interfaces", [])}
+
+    routers = [
+        r for r in hv.get("routers", [])
+        if _labels_match(r.get("node_selector", []), node_labels)
+    ]
+    router_names = {r["name"] for r in routers}
+    hv["routers"] = routers
+
+    bd_access: dict[str, list[dict]] = defaultdict(list)
+    for vlan in vlans:
+        selectors = vlan.get("interface_selector", [])
+        for ei in edges:
+            if _labels_match(selectors, ei.get("labels", {})):
+                bd_access[vlan["bridge_domain"]].append(
+                    {"interface": ei["name"], "vlan": vlan["vlan_id"]}
+                )
+        for lag in lags:
+            if _labels_match(selectors, lag.get("labels", {})):
+                bd_access[vlan["bridge_domain"]].append(
+                    {"interface": lag["name"], "vlan": vlan["vlan_id"]}
+                )
+
+    resolved_bds = []
+    for bd in hv.get("bridge_domains", []):
+        bd_name = bd["name"]
+        irb = irb_by_bd.get(bd_name)
+        has_access = bd_name in bd_access
+        has_irb_on_this_node = irb is not None and irb.get("router") in router_names
+        if not has_access and not has_irb_on_this_node:
+            continue
+        entry = dict(bd)
+        if has_access:
+            entry["access"] = bd_access[bd_name]
+        if irb and has_irb_on_this_node:
+            entry["irb"] = {
+                k: v for k, v in irb.items()
+                if k not in ("name", "bridge_domain", "router")
+            }
+            entry["router"] = irb["router"]
+        resolved_bds.append(entry)
+    hv["bridge_domains"] = resolved_bds
+
+    del hv["vlans"]
+    return hv
+
+
 def srl_config(
     host_vars: dict,
     sw_version: str = "24.10.2",
@@ -92,6 +172,7 @@ def srl_config(
     _ensure_builders_importable()
     from srl_builders import get_builder
 
+    host_vars = _resolve_services(host_vars)
     builder = get_builder(sw_version)
 
     if phase == "topology":
@@ -126,6 +207,7 @@ def srl_config_deletes(
     _ensure_builders_importable()
     from srl_builders import get_builder
 
+    host_vars = _resolve_services(host_vars)
     builder = get_builder(sw_version)
     raw = builder.build_prune_deletes(host_vars, device_state)
     return [{"path": e["path"]} for e in raw]
