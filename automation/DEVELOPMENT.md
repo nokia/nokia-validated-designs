@@ -166,6 +166,13 @@ appropriate top-level property (or from `extras`):
 **Files:** `automation/designs/three_stage_evpn_vxlan.py` and/or
 `automation/designs/unconstrained_3_stage.py`
 
+If the new resource maps 1:1 from input dict to intent model, add the
+builder to `automation/designs/_common_builders.py` so both designs can
+share it (edge interfaces, lags, routers, vlans, routed interfaces,
+static routes, default MTUs, and banners live there today). Keep
+design-specific variants (e.g. ones that enrich from topology defaults
+or generate synthetic entries) in the per-design module.
+
 Add a `_build_acls()` function that maps raw input dicts to
 `AclIntent` objects, and call it from `build()`:
 

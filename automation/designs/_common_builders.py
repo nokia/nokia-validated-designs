@@ -19,8 +19,14 @@ from automation.core.models import (
     LacpConfig,
     LagIntent,
     LagMember,
+    PolicyAction,
+    PolicyMatch,
+    PolicyStatementIntent,
+    PrefixEntry,
+    PrefixSetIntent,
     RoutedInterfaceIntent,
     RouterIntent,
+    RoutingPolicyIntent,
     StaticRouteIntent,
     VlanIntent,
 )
@@ -161,3 +167,52 @@ def build_banners(raw: list[dict]) -> list[BannerIntent]:
         )
         for b in raw
     ]
+
+
+def build_prefix_sets(raw: list[dict]) -> list[PrefixSetIntent]:
+    """Build prefix-set intents from raw input."""
+    return [
+        PrefixSetIntent(
+            name=ps["name"],
+            prefixes=[
+                PrefixEntry(
+                    ip_prefix=p["ip_prefix"],
+                    mask_length_range=p.get("mask_length_range", "exact"),
+                )
+                for p in ps.get("prefixes", [])
+            ],
+        )
+        for ps in raw
+    ]
+
+
+def build_routing_policies(raw: list[dict]) -> list[RoutingPolicyIntent]:
+    """Build routing-policy intents from raw input."""
+    result: list[RoutingPolicyIntent] = []
+    for rp in raw:
+        statements: list[PolicyStatementIntent] = []
+        for stmt in rp.get("statements", []):
+            m = stmt.get("match", {}) or {}
+            a = stmt.get("action", {}) or {}
+            statements.append(
+                PolicyStatementIntent(
+                    name=str(stmt["name"]),
+                    match=PolicyMatch(
+                        prefix_set=m.get("prefix_set"),
+                        protocol=m.get("protocol"),
+                        bgp_evpn_route_types=m.get("bgp_evpn_route_types"),
+                    ),
+                    action=PolicyAction(
+                        result=a.get("result", "accept"),
+                        set_local_preference=a.get("set_local_preference"),
+                    ),
+                )
+            )
+        result.append(
+            RoutingPolicyIntent(
+                name=rp["name"],
+                default_action=rp.get("default_action", "reject"),
+                statements=statements,
+            )
+        )
+    return result

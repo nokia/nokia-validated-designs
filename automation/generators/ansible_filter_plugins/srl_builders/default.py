@@ -924,21 +924,169 @@ def _collect_static_routes(
 # Routing policy
 # ---------------------------------------------------------------------------
 
+_PROTOCOL_MAP = {
+    "local": "local",
+    "bgp": "bgp",
+    "aggregate": "aggregate",
+    "bgp_evpn": "bgp-evpn",
+    "static": "static",
+}
+
+
+def _local_pref_legacy(n: int) -> dict[str, Any]:
+    """24.x/25.x shape: ``{"set": N}``."""
+    return {"set": n}
+
+
+def _local_pref_v26(n: int) -> dict[str, Any]:
+    """26.x shape: ``{"value": N, "operation": "set"}``."""
+    return {"value": n, "operation": "set"}
+
+
+def _render_prefix_set(ps: dict) -> dict[str, Any]:
+    """Translate a serialized PrefixSetIntent into SR Linux prefix-set payload."""
+    return {
+        "name": ps["name"],
+        "prefix": [
+            {
+                "ip-prefix": p["ip_prefix"],
+                "mask-length-range": p.get("mask_length_range", "exact"),
+            }
+            for p in ps.get("prefixes", [])
+        ],
+    }
+
+
+def _render_statement(
+    stmt: dict,
+    *,
+    local_pref_shape,
+    nested_prefix_set: bool,
+) -> dict[str, Any]:
+    """Translate a serialized PolicyStatementIntent into SR Linux statement payload."""
+    match = stmt.get("match", {}) or {}
+    action = stmt.get("action", {}) or {}
+
+    match_out: dict[str, Any] = {}
+    ps = match.get("prefix_set")
+    if ps:
+        if nested_prefix_set:
+            match_out["prefix"] = {"prefix-set": ps}
+        else:
+            match_out["prefix-set"] = ps
+    proto = match.get("protocol")
+    if proto:
+        match_out["protocol"] = _PROTOCOL_MAP.get(proto, proto)
+    rtypes = match.get("bgp_evpn_route_types")
+    if rtypes:
+        match_out["bgp"] = {"evpn": {"route-type": list(rtypes)}}
+
+    action_out: dict[str, Any] = {
+        "policy-result": action.get("result", "accept"),
+    }
+    lp = action.get("set_local_preference")
+    if lp is not None:
+        action_out["bgp"] = {"local-preference": local_pref_shape(lp)}
+
+    return {"name": str(stmt["name"]), "match": match_out, "action": action_out}
+
+
+def _expand_policy_statements(
+    policy: dict,
+    *,
+    local_pref_shape,
+    nested_prefix_set: bool,
+) -> list[dict[str, Any]]:
+    """Expand a single policy's statements.
+
+    A statement with ``bgp_evpn_route_types=[a,b,c]`` is expanded to one
+    SR Linux statement per route-type, preserving the 24.10.x behavior
+    (one statement per EVPN route-type). When the intent already stores
+    one route-type per statement (the default synthesized shape), this
+    is a no-op fan-out.
+    """
+    out: list[dict[str, Any]] = []
+    for stmt in policy.get("statements", []):
+        match = stmt.get("match", {}) or {}
+        rtypes = match.get("bgp_evpn_route_types") or []
+        if len(rtypes) > 1:
+            for rt in rtypes:
+                sub = dict(stmt)
+                sub["match"] = {**match, "bgp_evpn_route_types": [rt]}
+                out.append(
+                    _render_statement(
+                        sub,
+                        local_pref_shape=local_pref_shape,
+                        nested_prefix_set=nested_prefix_set,
+                    )
+                )
+        else:
+            out.append(
+                _render_statement(
+                    stmt,
+                    local_pref_shape=local_pref_shape,
+                    nested_prefix_set=nested_prefix_set,
+                )
+            )
+    return out
+
+
 def _build_routing_policy(
     hv: dict,
     *,
-    local_pref: dict[str, Any],
+    local_pref_shape,
     nested_prefix_set: bool = False,
 ) -> list[dict[str, Any]]:
-    """Parameterized routing-policy builder shared across SR Linux versions.
+    """Routing-policy builder shared across SR Linux versions.
 
-    Args:
-        hv: Host variables dict.
-        local_pref: local-preference dict shape
-            (24.x/25.x: ``{"set": 100}``, 26.x: ``{"value": 100, "operation": "set"}``).
-        nested_prefix_set: If True, use 25.x+ ``match.prefix.prefix-set``
-            nesting; otherwise use 24.x ``match.prefix-set``.
+    Reads ``hv["routing_policy"]["prefix_sets"]`` and ``["policies"]`` —
+    serialized ``PrefixSetIntent`` / ``RoutingPolicyIntent`` payloads from
+    the Ansible generator — and renders SR Linux routing-policy JSON-RPC
+    updates. Per-version shape differences are controlled by the callable
+    ``local_pref_shape`` and the ``nested_prefix_set`` flag.
+
+    Back-compat: when the intent-derived keys are absent (e.g. this builder
+    is invoked outside NVD), falls back to a hardcoded 3-stage EVPN policy.
     """
+    rp_cfg = hv.get("routing_policy", {})
+    prefix_sets = rp_cfg.get("prefix_sets") or []
+    policies = rp_cfg.get("policies") or []
+
+    if not prefix_sets and not policies:
+        return _build_routing_policy_legacy(
+            hv,
+            local_pref_shape=local_pref_shape,
+            nested_prefix_set=nested_prefix_set,
+        )
+
+    value: dict[str, Any] = {
+        "prefix-set": [_render_prefix_set(ps) for ps in prefix_sets],
+        "policy": [
+            {
+                "name": p["name"],
+                "default-action": {
+                    "policy-result": p.get("default_action", "reject"),
+                },
+                "statement": _expand_policy_statements(
+                    p,
+                    local_pref_shape=local_pref_shape,
+                    nested_prefix_set=nested_prefix_set,
+                ),
+            }
+            for p in policies
+        ],
+    }
+
+    return [{"path": "/routing-policy", "value": value, "op": "replace"}]
+
+
+def _build_routing_policy_legacy(
+    hv: dict,
+    *,
+    local_pref_shape,
+    nested_prefix_set: bool = False,
+) -> list[dict[str, Any]]:
+    """Legacy hardcoded 3-stage EVPN policy — used when intent data is absent."""
     rp_cfg = hv.get("routing_policy", {})
     fabric_name = hv.get("fabric_name", "dc1")
 
@@ -948,6 +1096,8 @@ def _build_routing_policy(
 
     export_name = f"ebgp-isl-export-policy-{fabric_name}"
     import_name = f"ebgp-isl-import-policy-{fabric_name}"
+
+    local_pref = local_pref_shape(100)
 
     if nested_prefix_set:
         prefix_match: dict[str, Any] = {"prefix": {"prefix-set": prefix_set_name}}
@@ -1041,7 +1191,9 @@ def _build_routing_policy(
 
 def build_routing_policy_updates(hv: dict) -> list[dict[str, Any]]:
     """Build /routing-policy (24.10.x schema: flat prefix-set, ``{"set": N}`` local-pref)."""
-    return _build_routing_policy(hv, local_pref={"set": 100}, nested_prefix_set=False)
+    return _build_routing_policy(
+        hv, local_pref_shape=_local_pref_legacy, nested_prefix_set=False,
+    )
 
 
 # ---------------------------------------------------------------------------

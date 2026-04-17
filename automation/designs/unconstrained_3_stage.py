@@ -32,8 +32,10 @@ from automation.designs._common_builders import (
     build_default_mtus as _build_default_mtus,
     build_edge_interfaces as _build_edge_interfaces,
     build_lags as _build_lags,
+    build_prefix_sets as _build_prefix_sets,
     build_routed_interfaces as _build_routed_interfaces,
     build_routers as _build_routers,
+    build_routing_policies as _build_routing_policies,
     build_static_routes as _build_static_routes,
     build_vlans as _build_vlans,
 )
@@ -125,6 +127,14 @@ def build(topology: dict, services: dict) -> FabricIntent:
     static_routes = _build_static_routes(services.get("static_routes", []))
 
     # -----------------------------------------------------------------------
+    # Routing policy (passthrough — no synthesis in unconstrained design)
+    # -----------------------------------------------------------------------
+    prefix_sets = _build_prefix_sets(topology.get("prefix_sets", []))
+    routing_policies = _build_routing_policies(services.get("routing_policies", []))
+    fabric_export_policies = topology.get("fabric_export_policies", [])
+    fabric_import_policies = topology.get("fabric_import_policies", [])
+
+    # -----------------------------------------------------------------------
     # EDA settings
     # -----------------------------------------------------------------------
     eda_cfg = topology.get("eda", {})
@@ -158,6 +168,10 @@ def build(topology: dict, services: dict) -> FabricIntent:
         configlets=configlets,
         default_mtus=default_mtus,
         banners=banners,
+        prefix_sets=prefix_sets,
+        routing_policies=routing_policies,
+        fabric_export_policies=fabric_export_policies,
+        fabric_import_policies=fabric_import_policies,
         credentials=credentials,
         eda=eda_settings,
     )

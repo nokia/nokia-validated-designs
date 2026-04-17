@@ -88,12 +88,17 @@ CONFIGLET = CRType("config.eda.nokia.com/v1alpha1", "Configlet", "configlets")
 DEFAULT_MTU = CRType("siteinfo.eda.nokia.com/v1alpha1", "DefaultMTU", "defaultmtus")
 BANNER = CRType("siteinfo.eda.nokia.com/v1alpha1", "Banner", "banners")
 
+# --- Routing policies ---
+POLICY = CRType("routingpolicies.eda.nokia.com/v1alpha1", "Policy", "policys")
+PREFIX_SET = CRType("routingpolicies.eda.nokia.com/v1alpha1", "PrefixSet", "prefixsets")
+
 ALL_TYPES: list[CRType] = [
     INIT, NODE_USER, NODE_PROFILE, TOPO_NODE, TOPO_LINK,
     INDEX_ALLOCATION_POOL, IP_ALLOCATION_POOL,
     INTERFACE, FABRIC,
     BRIDGE_DOMAIN, ROUTER, IRB_INTERFACE, VLAN, ROUTED_INTERFACE,
     STATIC_ROUTE, CONFIGLET, DEFAULT_MTU, BANNER,
+    POLICY, PREFIX_SET,
 ]
 
 BY_KIND: dict[str, CRType] = {t.kind: t for t in ALL_TYPES}

@@ -350,6 +350,8 @@ def _irb_host_entry(irb: IrbInterfaceIntent) -> dict[str, Any]:
             if addr.ipv4:
                 entry["ipv4"] = addr.ipv4.get("ip_prefix", "")
                 break
+    if irb.anycast_gw:
+        entry["anycast_gw"] = irb.anycast_gw
     if irb.proxy_arp:
         entry["proxy_arp"] = irb.proxy_arp
     if irb.arp_timeout:
@@ -627,11 +629,47 @@ def _bgp_gv(intent: FabricIntent, multipath_max_paths: int) -> dict[str, Any]:
             "detection_multiplier": 3,
             "min_echo_receive_interval": 1000000,
         },
-        "routing_policy": {
-            "prefix_set": f"prefixset-{intent.fabric_name}",
-            "export_policy": f"ebgp-isl-export-policy-{intent.fabric_name}",
-            "import_policy": f"ebgp-isl-import-policy-{intent.fabric_name}",
-        },
+        "routing_policy": _routing_policy_gv(intent),
+    }
+
+
+def _routing_policy_gv(intent: FabricIntent) -> dict[str, Any]:
+    """Build the routing_policy group_vars block from intent.
+
+    Emits:
+      * ``prefix_set`` / ``export_policy`` / ``import_policy`` — first name
+        from the fabric-level refs (the SRL builder's existing scalar API).
+      * ``prefix_sets`` — full PrefixSet definitions (serialized intent).
+      * ``policies`` — full Policy definitions (serialized intent).
+    The SRL builder renders the routing-policy tree directly from these.
+    """
+    default_ps = f"prefixset-{intent.fabric_name}"
+    default_export = f"ebgp-isl-export-policy-{intent.fabric_name}"
+    default_import = f"ebgp-isl-import-policy-{intent.fabric_name}"
+
+    prefix_set_name = (
+        intent.prefix_sets[0].name if intent.prefix_sets else default_ps
+    )
+    export_name = (
+        intent.fabric_export_policies[0]
+        if intent.fabric_export_policies
+        else default_export
+    )
+    import_name = (
+        intent.fabric_import_policies[0]
+        if intent.fabric_import_policies
+        else default_import
+    )
+
+    prefix_sets = [ps.model_dump(exclude_none=True) for ps in intent.prefix_sets]
+    policies = [rp.model_dump(exclude_none=True) for rp in intent.routing_policies]
+
+    return {
+        "prefix_set": prefix_set_name,
+        "export_policy": export_name,
+        "import_policy": import_name,
+        "prefix_sets": prefix_sets,
+        "policies": policies,
     }
 
 

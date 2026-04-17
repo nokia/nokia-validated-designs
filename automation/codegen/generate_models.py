@@ -56,6 +56,10 @@ RESOURCE_MAP: dict[str, tuple[str, list[str]]] = {
         "bootstrap",
         ["Init"],
     ),
+    "routingpolicies_eda_nokia_com_v1alpha1.json": (
+        "routingpolicies",
+        ["Policy", "PrefixSet"],
+    ),
 }
 
 

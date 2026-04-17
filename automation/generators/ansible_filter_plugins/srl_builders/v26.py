@@ -27,6 +27,7 @@ from .default import (
     _get_lag_bridge_domains,
     _irb_index_map,
     _lag_lookup,
+    _local_pref_v26,
     _sorted_bridge_domains,
     _vxlan_index_map,
 )
@@ -143,7 +144,7 @@ def build_routing_policy_updates(hv: dict) -> list[dict[str, Any]]:
     """Build /routing-policy with 26.x ``local-preference`` and ``match.prefix`` schemas."""
     return _build_routing_policy(
         hv,
-        local_pref={"value": 100, "operation": "set"},
+        local_pref_shape=_local_pref_v26,
         nested_prefix_set=True,
     )
 

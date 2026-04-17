@@ -102,6 +102,21 @@
       "items": { "$ref": "#/$defs/banner" },
       "description": "Login and MOTD banner settings for fabric nodes."
     },
+    "prefix_sets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/prefixSet" },
+      "description": "Prefix sets referenced by routing policies. Overrides design-generated 'prefixset-{fabric_name}' when a name matches."
+    },
+    "fabric_export_policies": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Names of routing policies to attach to the fabric's default eBGP group as export policies. Defaults to the design-generated 'ebgp-isl-export-policy-{fabric_name}'."
+    },
+    "fabric_import_policies": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Names of routing policies to attach to the fabric's default eBGP group as import policies. Defaults to the design-generated 'ebgp-isl-import-policy-{fabric_name}'."
+    },
     "eda": {
       "type": "object",
       "additionalProperties": false,
@@ -424,6 +439,37 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "Explicit list of nodes on which to configure the banners."
+        }
+      }
+    },
+    "prefixSet": {
+      "type": "object",
+      "required": ["name", "prefixes"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique prefix-set name."
+        },
+        "prefixes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["ip_prefix"],
+            "additionalProperties": false,
+            "properties": {
+              "ip_prefix": {
+                "type": "string",
+                "description": "IPv4 or IPv6 prefix in CIDR notation."
+              },
+              "mask_length_range": {
+                "type": "string",
+                "default": "exact",
+                "description": "Mask-length range (e.g. '32..32', 'exact')."
+              }
+            }
+          }
         }
       }
     },

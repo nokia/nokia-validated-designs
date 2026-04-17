@@ -34,6 +34,7 @@ automation/
     selectors.py         # Label selector matching (K8s-style)
     platforms.py         # Platform definitions (port counts, breakout modes)
   designs/
+    _common_builders.py        # Shared passthrough builders (edges, lags, routers, vlans, etc.)
     three_stage_evpn_vxlan.py  # Constrained builder — auto-generates from counts
     unconstrained_3_stage.py   # Passthrough builder — explicit node/link input
   generators/

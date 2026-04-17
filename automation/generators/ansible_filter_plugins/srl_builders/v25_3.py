@@ -24,7 +24,7 @@ from __future__ import annotations
 from typing import Any
 
 from . import default as _base
-from .default import _build_routing_policy, _get
+from .default import _build_routing_policy, _get, _local_pref_legacy
 
 PROTECTED_NIS = _base.PROTECTED_NIS
 PROTECTED_INTERFACES = _base.PROTECTED_INTERFACES
@@ -208,7 +208,9 @@ def _build_default_ni(hv: dict, updates: list[dict]) -> None:
 
 def build_routing_policy_updates(hv: dict) -> list[dict[str, Any]]:
     """Build /routing-policy with the 25.3.x ``match.prefix.prefix-set`` schema."""
-    return _build_routing_policy(hv, local_pref={"set": 100}, nested_prefix_set=True)
+    return _build_routing_policy(
+        hv, local_pref_shape=_local_pref_legacy, nested_prefix_set=True,
+    )
 
 
 # ---------------------------------------------------------------------------

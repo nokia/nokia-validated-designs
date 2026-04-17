@@ -37,6 +37,11 @@
       "items": { "$ref": "#/$defs/staticRoute" },
       "description": "Static route entries."
     },
+    "routing_policies": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/routingPolicy" },
+      "description": "Routing policies attached to the fabric eBGP group. Overrides design-generated 'ebgp-isl-export/import-policy-{fabric_name}' when a name matches."
+    },
     "extras": {
       "type": "object",
       "additionalProperties": false,
@@ -514,6 +519,61 @@
                 "properties": {
                   "ipPrefix": { "type": "string", "description": "Next-hop IP address." },
                   "resolve": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "routingPolicy": {
+      "type": "object",
+      "required": ["name", "statements"],
+      "additionalProperties": false,
+      "description": "Routing policy definition. Overrides design-generated policy when name matches.",
+      "properties": {
+        "name": { "type": "string", "description": "Routing policy name (e.g. 'ebgp-isl-export-policy-dc1')." },
+        "default_action": {
+          "type": "string",
+          "enum": ["accept", "reject"],
+          "default": "reject",
+          "description": "Action applied when no statement matches."
+        },
+        "statements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string", "description": "Statement identifier (e.g. '10', '25')." },
+              "match": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "prefix_set": { "type": "string", "description": "Reference to a PrefixSet by name." },
+                  "protocol": {
+                    "type": "string",
+                    "enum": ["local", "bgp", "aggregate", "bgp_evpn", "static"],
+                    "description": "Source protocol to match."
+                  },
+                  "bgp_evpn_route_types": {
+                    "type": "array",
+                    "items": { "type": "integer", "minimum": 1, "maximum": 5 },
+                    "description": "BGP EVPN route types (subset of 1..5)."
+                  }
+                }
+              },
+              "action": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "result": {
+                    "type": "string",
+                    "enum": ["accept", "reject"],
+                    "default": "accept"
+                  },
+                  "set_local_preference": { "type": "integer", "minimum": 0 }
                 }
               }
             }

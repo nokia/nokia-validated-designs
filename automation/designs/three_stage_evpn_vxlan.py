@@ -29,8 +29,14 @@ from automation.core.models import (
     LagIntent,
     LinkIntent,
     NodeIntent,
+    PolicyAction,
+    PolicyMatch,
+    PolicyStatementIntent,
+    PrefixEntry,
+    PrefixSetIntent,
     RoutedInterfaceIntent,
     RouterIntent,
+    RoutingPolicyIntent,
     StaticRouteIntent,
     VlanIntent,
 )
@@ -45,8 +51,10 @@ from automation.designs._common_builders import (
     build_default_mtus as _build_default_mtus,
     build_edge_interfaces as _build_edge_interfaces,
     build_lags as _build_lags,
+    build_prefix_sets as _build_prefix_sets,
     build_routed_interfaces as _build_routed_interfaces,
     build_routers as _build_routers,
+    build_routing_policies as _build_routing_policies,
     build_static_routes as _build_static_routes,
     build_vlans as _build_vlans,
 )
@@ -194,6 +202,31 @@ def build(topology: dict, services: dict) -> FabricIntent:
     banners = _build_banners(topology.get("banners", []))
 
     # -----------------------------------------------------------------------
+    # Routing policies (design defaults + user overrides merged by name)
+    # -----------------------------------------------------------------------
+    default_ps, default_export, default_import = _default_routing_policies(
+        fabric_name, system0_prefix
+    )
+    prefix_sets = merge_by_name(
+        [default_ps],
+        topology.get("prefix_sets", []),
+        PrefixSetIntent,
+        pre_process=_normalize_prefix_set_update,
+    )
+    routing_policies = merge_by_name(
+        [default_export, default_import],
+        services.get("routing_policies", []),
+        RoutingPolicyIntent,
+        pre_process=_normalize_policy_update,
+    )
+    fabric_export_policies = topology.get(
+        "fabric_export_policies", [default_export.name]
+    )
+    fabric_import_policies = topology.get(
+        "fabric_import_policies", [default_import.name]
+    )
+
+    # -----------------------------------------------------------------------
     # Credentials
     # -----------------------------------------------------------------------
     creds_cfg = topology.get("credentials", {})
@@ -230,6 +263,10 @@ def build(topology: dict, services: dict) -> FabricIntent:
         configlets=configlets,
         default_mtus=default_mtus,
         banners=banners,
+        prefix_sets=prefix_sets,
+        routing_policies=routing_policies,
+        fabric_export_policies=fabric_export_policies,
+        fabric_import_policies=fabric_import_policies,
         credentials=credentials,
         eda=eda_settings,
     )
@@ -770,6 +807,132 @@ def _merge_extras_static_routes(
 ) -> list[StaticRouteIntent]:
     """Merge extras static route overrides into design-generated ones."""
     return merge_by_name(design, extras_raw, StaticRouteIntent)
+
+
+# ---------------------------------------------------------------------------
+# Routing-policy defaults
+# ---------------------------------------------------------------------------
+
+
+def _normalize_policy_update(fields: dict) -> dict:
+    """Pre-process hook for merging user-supplied routing policies.
+
+    ``merge_by_name`` uses ``model_copy(update=...)`` for the overlay path,
+    which does *not* validate nested values. Convert raw statement dicts
+    (as they appear in YAML) into ``PolicyStatementIntent`` models so the
+    resulting ``RoutingPolicyIntent`` has a consistent field type.
+    """
+    if "statements" in fields and fields["statements"]:
+        converted: list[PolicyStatementIntent] = []
+        for stmt in fields["statements"]:
+            if isinstance(stmt, PolicyStatementIntent):
+                converted.append(stmt)
+                continue
+            m = stmt.get("match", {}) or {}
+            a = stmt.get("action", {}) or {}
+            converted.append(
+                PolicyStatementIntent(
+                    name=str(stmt["name"]),
+                    match=PolicyMatch(
+                        prefix_set=m.get("prefix_set"),
+                        protocol=m.get("protocol"),
+                        bgp_evpn_route_types=m.get("bgp_evpn_route_types"),
+                    ),
+                    action=PolicyAction(
+                        result=a.get("result", "accept"),
+                        set_local_preference=a.get("set_local_preference"),
+                    ),
+                )
+            )
+        fields["statements"] = converted
+    return fields
+
+
+def _normalize_prefix_set_update(fields: dict) -> dict:
+    """Pre-process hook for merging user-supplied prefix sets."""
+    if "prefixes" in fields and fields["prefixes"]:
+        converted: list[PrefixEntry] = []
+        for p in fields["prefixes"]:
+            if isinstance(p, PrefixEntry):
+                converted.append(p)
+                continue
+            converted.append(
+                PrefixEntry(
+                    ip_prefix=p["ip_prefix"],
+                    mask_length_range=p.get("mask_length_range", "exact"),
+                )
+            )
+        fields["prefixes"] = converted
+    return fields
+
+
+def _default_routing_policies(
+    fabric_name: str, system0_prefix: str
+) -> tuple[PrefixSetIntent, RoutingPolicyIntent, RoutingPolicyIntent]:
+    """Return the three routing-policy artifacts the 3-stage design requires.
+
+    - ``prefixset-{fabric}`` matches the system0 loopback supernet on a /32 key.
+    - ``ebgp-isl-export-policy-{fabric}`` accepts local/bgp/aggregate and the
+      five EVPN route-types, setting local-preference to 100.
+    - ``ebgp-isl-import-policy-{fabric}`` accepts bgp and the five EVPN
+      route-types, setting local-preference to 100.
+
+    Both policies default-reject. Users can override any entry by name via
+    ``topology.prefix_sets`` / ``services.routing_policies`` in input YAML.
+    """
+    prefix_set_name = f"prefixset-{fabric_name}"
+    export_name = f"ebgp-isl-export-policy-{fabric_name}"
+    import_name = f"ebgp-isl-import-policy-{fabric_name}"
+
+    ps = PrefixSetIntent(
+        name=prefix_set_name,
+        prefixes=[PrefixEntry(ip_prefix=system0_prefix, mask_length_range="32..32")],
+    )
+
+    accept = PolicyAction(result="accept", set_local_preference=100)
+    export_statements = [
+        PolicyStatementIntent(
+            name="10",
+            match=PolicyMatch(prefix_set=prefix_set_name, protocol="local"),
+            action=accept,
+        ),
+        PolicyStatementIntent(
+            name="15", match=PolicyMatch(protocol="bgp"), action=accept
+        ),
+        PolicyStatementIntent(
+            name="20", match=PolicyMatch(protocol="aggregate"), action=accept
+        ),
+    ]
+    for stmt_id, rt in (("25", 1), ("30", 2), ("35", 3), ("40", 4), ("45", 5)):
+        export_statements.append(
+            PolicyStatementIntent(
+                name=stmt_id,
+                match=PolicyMatch(bgp_evpn_route_types=[rt]),
+                action=accept,
+            )
+        )
+
+    import_statements = [
+        PolicyStatementIntent(
+            name="10", match=PolicyMatch(protocol="bgp"), action=accept
+        ),
+    ]
+    for stmt_id, rt in (("25", 1), ("30", 2), ("35", 3), ("40", 4), ("45", 5)):
+        import_statements.append(
+            PolicyStatementIntent(
+                name=stmt_id,
+                match=PolicyMatch(bgp_evpn_route_types=[rt]),
+                action=accept,
+            )
+        )
+
+    export = RoutingPolicyIntent(
+        name=export_name, default_action="reject", statements=export_statements
+    )
+    imp = RoutingPolicyIntent(
+        name=import_name, default_action="reject", statements=import_statements
+    )
+    return ps, export, imp
 
 
 # ---------------------------------------------------------------------------

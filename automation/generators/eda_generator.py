@@ -39,6 +39,8 @@ from automation.eda_models.registry import (
     CONFIGLET as CR_CONFIGLET,
     DEFAULT_MTU as CR_DEFAULT_MTU,
     BANNER as CR_BANNER,
+    POLICY as CR_POLICY,
+    PREFIX_SET as CR_PREFIX_SET,
 )
 from automation.core.models import (
     BannerIntent,
@@ -52,8 +54,11 @@ from automation.core.models import (
     LagIntent,
     LinkIntent,
     NodeIntent,
+    PolicyStatementIntent,
+    PrefixSetIntent,
     RoutedInterfaceIntent,
     RouterIntent,
+    RoutingPolicyIntent,
     StaticRouteIntent,
     VlanIntent,
 )
@@ -207,7 +212,13 @@ def generate(intent: FabricIntent, output_dir: Path | None = None) -> list[dict]
         _cr_ip_allocation_pool("system0", intent.system0_prefix, ns, design)
     )
 
-    # 12. Fabric
+    # 12. Routing policy — PrefixSets + Policies before Fabric (Fabric refs them)
+    for ps in intent.prefix_sets:
+        resources.append(_cr_prefix_set(ps, ns, design))
+    for rp in intent.routing_policies:
+        resources.append(_cr_policy(rp, ns, design))
+
+    # 13. Fabric
     resources.append(_cr_fabric(intent, ns, design))
 
     # 13. Bridge domains
@@ -547,7 +558,11 @@ def _cr_fabric(intent: FabricIntent, ns: str, design: str) -> dict:
     spec = FabricSpec(
         underlay_protocol=FabricUnderlayProtocol(
             protocol=["EBGP"],
-            bgp=FabricBgp(asn_pool="asn-pool"),
+            bgp=FabricBgp(
+                asn_pool="asn-pool",
+                export_policy=intent.fabric_export_policies or None,
+                import_policy=intent.fabric_import_policies or None,
+            ),
             bfd=FabricUnderlayProtocolBfd(
                 enabled=True,
                 desired_min_transmit_int=1000000,
@@ -566,6 +581,97 @@ def _cr_fabric(intent: FabricIntent, ns: str, design: str) -> dict:
         spines=FabricSpines(asn_pool="spine-asn", spine_node_selector=spine_selector),
     )
     return _wrap_cr(CR_FABRIC.api_version, CR_FABRIC.kind, intent.fabric_name, ns, spec, origin=design)
+
+
+# ---------------------------------------------------------------------------
+# Routing-policy CR builders
+# ---------------------------------------------------------------------------
+
+_PROTOCOL_TO_EDA = {
+    "local": "LOCAL",
+    "bgp": "BGP",
+    "aggregate": "AGGREGATE",
+    "bgp_evpn": "BGP_EVPN",
+    "static": "STATIC",
+}
+
+
+def _prefix_set_entries(ps: PrefixSetIntent) -> list[dict]:
+    """Convert PrefixEntry list to EDA prefix-set spec entries."""
+    entries: list[dict] = []
+    for p in ps.prefixes:
+        entry: dict = {"prefix": p.ip_prefix}
+        mlr = (p.mask_length_range or "").strip()
+        if not mlr or mlr == "exact":
+            entry["exact"] = True
+        elif ".." in mlr:
+            lo, hi = mlr.split("..", 1)
+            entry["startRange"] = int(lo)
+            entry["endRange"] = int(hi)
+        else:
+            # Single length value — treat as a fixed range of that length
+            length = int(mlr)
+            entry["startRange"] = length
+            entry["endRange"] = length
+        entries.append(entry)
+    return entries
+
+
+def _cr_prefix_set(ps: PrefixSetIntent, ns: str, design: str) -> dict:
+    """Generate a PrefixSet CR."""
+    spec = {"prefix": _prefix_set_entries(ps)}
+    return _wrap_cr_raw(
+        CR_PREFIX_SET.api_version,
+        CR_PREFIX_SET.kind,
+        ps.name,
+        ns,
+        spec,
+        origin=design,
+    )
+
+
+def _render_policy_statement(stmt: PolicyStatementIntent) -> dict:
+    """Render one PolicyStatementIntent into an EDA Policy.statement[] dict.
+
+    Protocol values are mapped from intent lowercase (``local``, ``bgp``,
+    ``aggregate``, ``bgp_evpn``, ``static``) to EDA's uppercase enum.
+    ``bgp_evpn_route_types`` are emitted under ``match.bgp.evpnRouteType``.
+    """
+    match: dict = {}
+    if stmt.match.prefix_set:
+        match["prefixSet"] = stmt.match.prefix_set
+    if stmt.match.protocol:
+        match["protocol"] = _PROTOCOL_TO_EDA.get(
+            stmt.match.protocol, stmt.match.protocol.upper()
+        )
+    if stmt.match.bgp_evpn_route_types:
+        match["bgp"] = {"evpnRouteType": list(stmt.match.bgp_evpn_route_types)}
+
+    action: dict = {"policyResult": stmt.action.result}
+    if stmt.action.set_local_preference is not None:
+        action["bgp"] = {"localPreference": stmt.action.set_local_preference}
+
+    out: dict = {"name": stmt.name}
+    if match:
+        out["match"] = match
+    out["action"] = action
+    return out
+
+
+def _cr_policy(rp: RoutingPolicyIntent, ns: str, design: str) -> dict:
+    """Generate a routing-policy Policy CR."""
+    spec: dict = {
+        "defaultAction": {"policyResult": rp.default_action},
+        "statement": [_render_policy_statement(s) for s in rp.statements],
+    }
+    return _wrap_cr_raw(
+        CR_POLICY.api_version,
+        CR_POLICY.kind,
+        rp.name,
+        ns,
+        spec,
+        origin=design,
+    )
 
 
 def _cr_bridge_domain(bd: BridgeDomainIntent, ns: str, design: str) -> dict:

@@ -8,6 +8,8 @@ reusable across all Nokia Validated Designs.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -154,6 +156,12 @@ class IrbInterfaceIntent(BaseModel):
     # Legacy shorthand — used by 3-stage-evpn-vxlan design
     ipv4: str = ""  # e.g. "172.16.10.254/24"
 
+    # Anycast gateway — required for EVPN-VXLAN IRBs where the same IP is
+    # configured on every participating leaf. Default True because a
+    # non-anycast IP replicated across leaves triggers duplicate-address
+    # detection and all ICMP/IP traffic to the gateway is discarded.
+    anycast_gw: bool = True
+
     # L3 proxy
     proxy_arp: bool = True
     proxy_nd: bool = False
@@ -254,6 +262,59 @@ class BannerIntent(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Routing policy
+# ---------------------------------------------------------------------------
+
+
+class PrefixEntry(BaseModel):
+    """A single prefix inside a prefix-set."""
+
+    ip_prefix: str  # e.g. "192.168.254.0/24"
+    mask_length_range: str = "exact"  # e.g. "32..32", "exact"
+
+
+class PrefixSetIntent(BaseModel):
+    """A named set of prefixes that routing policies can match on."""
+
+    name: str  # e.g. "prefixset-dc1"
+    prefixes: list[PrefixEntry] = Field(default_factory=list)
+
+
+Protocol = Literal["local", "bgp", "aggregate", "bgp_evpn", "static"]
+
+
+class PolicyMatch(BaseModel):
+    """Match criteria for a routing-policy statement."""
+
+    prefix_set: str | None = None  # ref to PrefixSetIntent.name
+    protocol: Protocol | None = None
+    bgp_evpn_route_types: list[int] | None = None  # subset of [1..5]
+
+
+class PolicyAction(BaseModel):
+    """Action for a routing-policy statement."""
+
+    result: Literal["accept", "reject"] = "accept"
+    set_local_preference: int | None = None
+
+
+class PolicyStatementIntent(BaseModel):
+    """A single numbered statement in a routing policy."""
+
+    name: str  # e.g. "10", "25"
+    match: PolicyMatch = Field(default_factory=PolicyMatch)
+    action: PolicyAction = Field(default_factory=PolicyAction)
+
+
+class RoutingPolicyIntent(BaseModel):
+    """A named routing policy made up of ordered statements."""
+
+    name: str  # e.g. "ebgp-isl-export-policy-dc1"
+    default_action: Literal["accept", "reject"] = "reject"
+    statements: list[PolicyStatementIntent] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
 # Credentials
 # ---------------------------------------------------------------------------
 
@@ -321,6 +382,13 @@ class FabricIntent(BaseModel):
     default_mtus: list[DefaultMtuIntent] = Field(default_factory=list)
     banners: list[BannerIntent] = Field(default_factory=list)
 
+    # Routing policy
+    prefix_sets: list[PrefixSetIntent] = Field(default_factory=list)
+    routing_policies: list[RoutingPolicyIntent] = Field(default_factory=list)
+    # Names of RoutingPolicies attached to the fabric's default eBGP group
+    fabric_export_policies: list[str] = Field(default_factory=list)
+    fabric_import_policies: list[str] = Field(default_factory=list)
+
     # Containerlab settings
     mgmt_subnet: str = ""  # e.g. "172.21.21.0/16" — used by clab generator
 
@@ -368,6 +436,29 @@ class FabricIntent(BaseModel):
             if sr.router not in router_names:
                 errors.append(
                     f"StaticRoute '{sr.name}' references unknown router '{sr.router}'"
+                )
+
+        prefix_set_names = {ps.name for ps in self.prefix_sets}
+        policy_names = {rp.name for rp in self.routing_policies}
+
+        for rp in self.routing_policies:
+            for stmt in rp.statements:
+                ps = stmt.match.prefix_set
+                if ps and ps not in prefix_set_names:
+                    errors.append(
+                        f"RoutingPolicy '{rp.name}' statement '{stmt.name}' "
+                        f"references unknown prefix_set '{ps}'"
+                    )
+
+        for name in self.fabric_export_policies:
+            if name not in policy_names:
+                errors.append(
+                    f"fabric_export_policies references unknown routing_policy '{name}'"
+                )
+        for name in self.fabric_import_policies:
+            if name not in policy_names:
+                errors.append(
+                    f"fabric_import_policies references unknown routing_policy '{name}'"
                 )
 
         if errors:
