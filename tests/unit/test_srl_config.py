@@ -5,6 +5,8 @@ import pytest
 from automation.generators.ansible_filter_plugins.srl_config import (
     _labels_match,
     _resolve_services,
+    _split_by_op,
+    srl_config,
 )
 
 
@@ -457,3 +459,191 @@ class TestResolveServicesEndToEnd:
             assert "access" in bd
             assert "irb" in bd
             assert bd["router"] == "vrf1"
+
+
+# ---------------------------------------------------------------------------
+# _split_by_op
+# ---------------------------------------------------------------------------
+
+
+class TestSplitByOp:
+    def test_update_on_interface_parent_stays_in_update(self):
+        # Regression: when the builder emits /interface[name=X] as op:update
+        # (edge interface parent, underlay, system0, LAG members), _split_by_op
+        # must leave it in the update bucket. Promoting to replace wipes the
+        # subinterface children the NI still references, which the device
+        # rejects at commit time with "subinterface X.Y not found".
+        entries = [
+            {
+                "path": "/interface[name=ethernet-1/6]",
+                "value": {"admin-state": "enable", "vlan-tagging": True},
+                "op": "update",
+            },
+        ]
+        buckets = _split_by_op(entries)
+        assert buckets["update"] == [
+            {
+                "path": "/interface[name=ethernet-1/6]",
+                "value": {"admin-state": "enable", "vlan-tagging": True},
+            }
+        ]
+        assert buckets["replace"] == []
+        assert buckets["delete"] == []
+
+    def test_replace_on_interface_parent_goes_to_replace(self):
+        entries = [
+            {
+                "path": "/interface[name=lag1]",
+                "value": {"admin-state": "enable"},
+                "op": "replace",
+            },
+        ]
+        buckets = _split_by_op(entries)
+        assert buckets["replace"] and not buckets["update"]
+
+    def test_replace_on_non_infra_path_goes_to_replace(self):
+        entries = [
+            {
+                "path": "/network-instance[name=macvrf-v60]",
+                "value": {"type": "mac-vrf"},
+                "op": "replace",
+            },
+            {
+                "path": "/routing-policy",
+                "value": {},
+                "op": "replace",
+            },
+        ]
+        buckets = _split_by_op(entries)
+        paths = [e["path"] for e in buckets["replace"]]
+        assert "/network-instance[name=macvrf-v60]" in paths
+        assert "/routing-policy" in paths
+        assert buckets["update"] == []
+
+    def test_delete_bucket(self):
+        entries = [{"path": "/interface[name=x]/subinterface[index=10]", "op": "delete"}]
+        buckets = _split_by_op(entries)
+        assert buckets["delete"] == [{"path": "/interface[name=x]/subinterface[index=10]"}]
+        assert buckets["update"] == [] and buckets["replace"] == []
+
+    def test_missing_op_falls_back_to_prefix_heuristic(self):
+        entries = [
+            {"path": "/interface[name=e-1/1]", "value": {"a": 1}},
+            {"path": "/system/name", "value": {"host-name": "leaf1"}},
+        ]
+        buckets = _split_by_op(entries)
+        assert buckets["replace"][0]["path"] == "/interface[name=e-1/1]"
+        assert buckets["update"][0]["path"] == "/system/name"
+
+
+# ---------------------------------------------------------------------------
+# End-to-end: removing a VLAN must not cascade-wipe the edge interface
+# ---------------------------------------------------------------------------
+
+
+def _intent_with_edge_and_bd(*, include_vlan: bool) -> dict:
+    """Build a minimal merged-hostvars dict resembling the 3-stage design.
+
+    leaf1 has edge ``ethernet-1/6`` labelled for ``untagged-v60``. The VLAN
+    resource bound to ``macvrf-v60`` is only present when ``include_vlan``
+    is True — this simulates the operator removing the VLAN from group_vars.
+
+    The BD has an IRB on this leaf so it survives ``_resolve_services``
+    even when the VLAN is absent — which is exactly the live failure mode
+    that produced the "subinterface ethernet-1/6.4096 not found" error.
+    """
+    vlans = []
+    if include_vlan:
+        vlans.append({
+            "name": "untagged-v60",
+            "bridge_domain": "macvrf-v60",
+            "vlan_id": "untagged",
+            "interface_selector": ["eda.nokia.com/untagged-v60=enabled"],
+        })
+
+    return {
+        "node": {
+            "hostname": "leaf1",
+            "role": "leaf",
+            "router_id": "192.168.254.11",
+            "asn": 65411,
+            "labels": {"eda.nokia.com/role": "leaf"},
+        },
+        "edge_interfaces": [
+            {
+                "name": "ethernet-1/6",
+                "encap": "dot1q",
+                "labels": {"eda.nokia.com/untagged-v60": "enabled"},
+            },
+        ],
+        "bridge_domains": [
+            {"name": "macvrf-v60", "vni": 100601, "evi": 60},
+        ],
+        "routers": [
+            {
+                "name": "vrf1",
+                "vni": 10500,
+                "evi": 500,
+                "node_selector": ["eda.nokia.com/role=leaf"],
+            },
+        ],
+        "irb_interfaces": [
+            {
+                "bridge_domain": "macvrf-v60",
+                "router": "vrf1",
+                "ipv4": "172.16.60.254/24",
+                "anycast_gw": True,
+                "proxy_arp": True,
+                "arp_timeout": 280,
+            },
+        ],
+        "vlans": vlans,
+    }
+
+
+class TestVlanRemovalDoesNotCascade:
+    def test_edge_interface_update_survives_vlan_removal(self):
+        # When the operator removes untagged-v60 but keeps macvrf-v60 in the
+        # intent, the builder must still emit:
+        #   - /interface[name=ethernet-1/6] as an UPDATE (merge), not a replace
+        #     that would wipe any surviving subinterfaces on the device
+        #   - /network-instance[name=macvrf-v60] in the replace bucket
+        hv = _intent_with_edge_and_bd(include_vlan=False)
+        out = srl_config(hv, sw_version="25.10.1", phase="services")
+
+        edge_update = [
+            e for e in out["update"]
+            if e["path"] == "/interface[name=ethernet-1/6]"
+        ]
+        edge_replace = [
+            e for e in out["replace"]
+            if e["path"] == "/interface[name=ethernet-1/6]"
+        ]
+        assert len(edge_update) == 1, (
+            "edge interface parent must stay in update bucket "
+            "so children (subinterfaces) are not wiped"
+        )
+        assert edge_replace == []
+
+        macvrf_paths = [
+            e["path"] for e in out["replace"]
+            if e["path"] == "/network-instance[name=macvrf-v60]"
+        ]
+        assert macvrf_paths, "macvrf-v60 must still be declared in replace bucket"
+
+    def test_edge_interface_update_also_survives_with_vlan(self):
+        # Sanity: with the VLAN present, the edge parent is still an update
+        # (children subif[4096] is emitted separately as op:replace).
+        hv = _intent_with_edge_and_bd(include_vlan=True)
+        out = srl_config(hv, sw_version="25.10.1", phase="services")
+
+        edge_update = [
+            e for e in out["update"]
+            if e["path"] == "/interface[name=ethernet-1/6]"
+        ]
+        subif = [
+            e for e in out["replace"]
+            if e["path"] == "/interface[name=ethernet-1/6]/subinterface[index=4096]"
+        ]
+        assert len(edge_update) == 1
+        assert len(subif) == 1

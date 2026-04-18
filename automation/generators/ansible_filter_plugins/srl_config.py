@@ -30,11 +30,19 @@ from collections import defaultdict
 
 
 def _ensure_builders_importable() -> None:
-    """Add the project root (parent of filter_plugins/) to sys.path."""
+    """Make ``srl_builders`` importable from both layouts.
+
+    In the deployed Ansible role, ``srl_builders/`` sits next to the
+    ``filter_plugins/`` dir (parent of this file). In the source repo, it
+    sits *alongside* this file under
+    ``automation/generators/ansible_filter_plugins/``. Both locations are
+    added to ``sys.path``.
+    """
     plugin_dir = os.path.dirname(os.path.abspath(__file__))
     project_dir = os.path.dirname(plugin_dir)
-    if project_dir not in sys.path:
-        sys.path.insert(0, project_dir)
+    for path in (plugin_dir, project_dir):
+        if path not in sys.path:
+            sys.path.insert(0, path)
 
 
 _INFRA_PATH_PREFIXES = ("/interface", "/tunnel-interface")
@@ -45,25 +53,28 @@ def _split_by_op(entries: list[dict]) -> dict[str, list[dict]]:
 
     Returns ``{"update": [...], "replace": [...], "delete": [...]}``.
 
-    The ``nokia.srlinux.config`` module processes operations in the order
-    **delete -> replace -> update** within a single JSON-RPC candidate.
-    We exploit this by routing infrastructure paths (interfaces,
-    subinterfaces, tunnel-interfaces) into the ``replace`` bucket so they
-    are created/replaced *before* the ``update`` entries that depend on
-    them (BFD, network-instances, ES, etc.).
+    The per-entry ``op`` is authoritative: builders know whether a given
+    path should merge (``update``) or overwrite children (``replace``),
+    and upgrading an ``update`` to a ``replace`` on a parent path like
+    ``/interface[name=ethernet-1/6]`` wipes unmodelled children (e.g.
+    subinterfaces still referenced by a network-instance), which the
+    device then rejects at commit time.
 
-    Non-infrastructure entries are always placed in ``update`` regardless
-    of their original ``op`` tag, because the prune/delete flow handles
-    stale-resource cleanup separately.
+    The prefix-based routing is kept only as a fallback for legacy
+    entries missing an ``op`` field.
     """
     buckets: dict[str, list[dict]] = {"update": [], "replace": [], "delete": []}
     for entry in entries:
-        op = entry.get("op", "update")
+        op = entry.get("op")
         item = {"path": entry["path"]}
         if "value" in entry:
             item["value"] = entry["value"]
         if op == "delete":
             buckets["delete"].append(item)
+        elif op == "replace":
+            buckets["replace"].append(item)
+        elif op == "update":
+            buckets["update"].append(item)
         elif any(entry["path"].startswith(p) for p in _INFRA_PATH_PREFIXES):
             buckets["replace"].append(item)
         else:
