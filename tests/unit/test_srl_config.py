@@ -647,3 +647,152 @@ class TestVlanRemovalDoesNotCascade:
         ]
         assert len(edge_update) == 1
         assert len(subif) == 1
+
+
+# ---------------------------------------------------------------------------
+# Stable irb0 / vxlan0 subinterface indexing
+# ---------------------------------------------------------------------------
+
+
+def _intent_with_bds_and_irbs(*, include_v10_irb: bool) -> dict:
+    """Leaf-like hv with IRBs on macvrf-v10 and macvrf-v20.
+
+    Dropping the v10 IRB simulates the operator removing the IRB tied to
+    macvrf-v10 / vrf1 from group_vars. macvrf-v10 is dropped from the
+    resolved hv (no IRB on this node, and the edge label does not bind
+    it) while macvrf-v20's index must stay stable.
+    """
+    return {
+        "node": {
+            "hostname": "leaf1",
+            "role": "leaf",
+            "router_id": "192.168.254.11",
+            "asn": 65411,
+            "labels": {"eda.nokia.com/role": "leaf"},
+        },
+        "edge_interfaces": [
+            {
+                "name": "ethernet-1/1",
+                "encap": "dot1q",
+                "labels": {"eda.nokia.com/tagged-v20": "enabled"},
+            },
+        ],
+        "bridge_domains": [
+            {"name": "macvrf-v10", "vni": 100101, "evi": 10},
+            {"name": "macvrf-v20", "vni": 100201, "evi": 20},
+        ],
+        "routers": [
+            {
+                "name": "vrf1",
+                "vni": 10500,
+                "evi": 500,
+                "node_selector": ["eda.nokia.com/role=leaf"],
+            },
+        ],
+        "irb_interfaces": (
+            [
+                {
+                    "bridge_domain": "macvrf-v10",
+                    "router": "vrf1",
+                    "ipv4": "172.16.10.254/24",
+                    "anycast_gw": True,
+                },
+                {
+                    "bridge_domain": "macvrf-v20",
+                    "router": "vrf1",
+                    "ipv4": "172.16.20.254/24",
+                    "anycast_gw": True,
+                },
+            ]
+            if include_v10_irb
+            else [
+                {
+                    "bridge_domain": "macvrf-v20",
+                    "router": "vrf1",
+                    "ipv4": "172.16.20.254/24",
+                    "anycast_gw": True,
+                },
+            ]
+        ),
+        "vlans": [
+            {
+                "name": "tagged-v20",
+                "bridge_domain": "macvrf-v20",
+                "vlan_id": "20",
+                "interface_selector": ["eda.nokia.com/tagged-v20=enabled"],
+            },
+        ],
+    }
+
+
+def _macvrf_members(out: dict, bd_name: str) -> list[str]:
+    """Extract the interface members SR Linux will bind to a mac-vrf NI."""
+    path = f"/network-instance[name={bd_name}]"
+    entries = [e for e in out["replace"] if e["path"] == path]
+    assert len(entries) == 1, f"expected one NI replace for {bd_name}"
+    return [i["name"] for i in entries[0]["value"]["interface"]]
+
+
+class TestStableSubinterfaceIndexing:
+    def test_irb_index_stable_when_other_bd_removed(self):
+        # Regression: removing the IRB for macvrf-v10 must not reshuffle
+        # macvrf-v20's irb0.X index. Before the fix, positional allocation
+        # made v20 jump from irb0.1 -> irb0.0, which SRL rejects with:
+        #   "subinterface irb0.0 is already bound to macvrf-v10"
+        before = srl_config(
+            _intent_with_bds_and_irbs(include_v10_irb=True),
+            sw_version="25.10.1", phase="services",
+        )
+        after = srl_config(
+            _intent_with_bds_and_irbs(include_v10_irb=False),
+            sw_version="25.10.1", phase="services",
+        )
+
+        def irb_index_for(out: dict, bd_name: str) -> int:
+            for member in _macvrf_members(out, bd_name):
+                if member.startswith("irb0."):
+                    return int(member.split(".", 1)[1])
+            raise AssertionError(f"no irb0.* member found on {bd_name}")
+
+        assert irb_index_for(before, "macvrf-v20") == irb_index_for(after, "macvrf-v20")
+
+    def test_irb_index_equals_evi(self):
+        out = srl_config(
+            _intent_with_bds_and_irbs(include_v10_irb=True),
+            sw_version="25.10.1", phase="services",
+        )
+        # EVI 10 -> irb0.10, EVI 20 -> irb0.20
+        assert "irb0.10" in _macvrf_members(out, "macvrf-v10")
+        assert "irb0.20" in _macvrf_members(out, "macvrf-v20")
+
+    def test_vxlan_index_stable_when_other_service_removed(self):
+        before = srl_config(
+            _intent_with_bds_and_irbs(include_v10_irb=True),
+            sw_version="25.10.1", phase="services",
+        )
+        after = srl_config(
+            _intent_with_bds_and_irbs(include_v10_irb=False),
+            sw_version="25.10.1", phase="services",
+        )
+
+        def vxlan_index_for(out: dict, bd_name: str) -> int:
+            path = f"/network-instance[name={bd_name}]"
+            entries = [e for e in out["replace"] if e["path"] == path]
+            members = [i["name"] for i in entries[0]["value"]["vxlan-interface"]]
+            vx = next(m for m in members if m.startswith("vxlan0."))
+            return int(vx.split(".", 1)[1])
+
+        assert vxlan_index_for(before, "macvrf-v20") == vxlan_index_for(
+            after, "macvrf-v20"
+        )
+
+    def test_vxlan_index_equals_vni(self):
+        out = srl_config(
+            _intent_with_bds_and_irbs(include_v10_irb=True),
+            sw_version="25.10.1", phase="services",
+        )
+        # VNI is used directly as the vxlan-interface index.
+        for tun in out["replace"]:
+            if tun["path"].startswith("/tunnel-interface[name=vxlan0]/vxlan-interface"):
+                idx = int(tun["path"].split("index=", 1)[1].rstrip("]"))
+                assert idx == tun["value"]["ingress"]["vni"]

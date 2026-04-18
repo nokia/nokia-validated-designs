@@ -47,23 +47,39 @@ def _sorted_routers(hv: dict) -> list[dict]:
 
 
 def _irb_index_map(hv: dict) -> dict[str, int]:
-    """Map bridge-domain name -> IRB subinterface index (sequential from 0)."""
-    return {bd["name"]: idx for idx, bd in enumerate(_sorted_bridge_domains(hv))}
+    """Map bridge-domain name -> IRB subinterface index (derived from EVI).
+
+    Deriving from ``evi`` keeps each BD's ``irb0.<idx>`` stable across
+    additions and removals of other BDs. Positional allocation
+    (``0, 1, 2, ...``) used to re-shuffle every index whenever a BD was
+    removed, which clashed with any stale BD-to-subinterface binding still
+    on the device (SRL rejects with
+    ``subinterface irb0.N is already bound to .network-instance{...}``).
+
+    EVI is schema-constrained to 1..65535 and unique per BD, so it is
+    safe as a subinterface index and does not collide with other BDs.
+    """
+    return {bd["name"]: int(bd["evi"]) for bd in hv.get("bridge_domains", [])}
 
 
 def _vxlan_index_map(hv: dict) -> dict[str, int]:
-    """Map service name -> vxlan-interface index (sequential from 500).
+    """Map service name -> vxlan-interface index (derived from VNI).
 
-    All services (bridge_domains + routers) are sorted by name, then assigned
-    indices starting at 500.
+    Using the VNI as the vxlan-interface index keeps the mapping stable
+    across additions and removals of other services. VNI is schema-
+    constrained to 1..16777215 and globally unique per service (BDs +
+    routers share the namespace), so there is no collision risk.
+
+    Positional allocation (``500 + N``) used to renumber every service
+    on every add/remove, producing spurious device rejections whenever
+    the new intent disagreed with stale state already on the device.
     """
-    services: list[dict] = []
+    m: dict[str, int] = {}
     for bd in hv.get("bridge_domains", []):
-        services.append({"name": bd["name"], "type": "bridged"})
+        m[bd["name"]] = int(bd["vni"])
     for r in hv.get("routers", []):
-        services.append({"name": r["name"], "type": "routed"})
-    services.sort(key=lambda s: s["name"])
-    return {s["name"]: 500 + idx for idx, s in enumerate(services)}
+        m[r["name"]] = int(r["vni"])
+    return m
 
 
 def _vxlan_type_map(hv: dict) -> dict[str, str]:
