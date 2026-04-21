@@ -278,6 +278,7 @@ class PrefixSetIntent(BaseModel):
 
     name: str  # e.g. "prefixset-dc1"
     prefixes: list[PrefixEntry] = Field(default_factory=list)
+    internal: bool = False  # True for fabric-internal defaults; EDA skips emission
 
 
 Protocol = Literal["local", "bgp", "aggregate", "bgp_evpn", "static"]
@@ -312,6 +313,7 @@ class RoutingPolicyIntent(BaseModel):
     name: str  # e.g. "ebgp-isl-export-policy-dc1"
     default_action: Literal["accept", "reject"] = "reject"
     statements: list[PolicyStatementIntent] = Field(default_factory=list)
+    internal: bool = False  # True for fabric-internal defaults; EDA skips emission
 
 
 # ---------------------------------------------------------------------------

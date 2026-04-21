@@ -1,5 +1,5 @@
 # routed interface on spine2
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: RoutedInterface
 metadata:
   name: spine2-ixia-1
@@ -17,7 +17,7 @@ spec:
   router: vrf1
   vlanID: "100"
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: RoutedInterface
 metadata:
   name: spine1-l3-1

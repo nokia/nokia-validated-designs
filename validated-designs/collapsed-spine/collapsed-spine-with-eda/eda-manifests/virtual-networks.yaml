@@ -1,6 +1,6 @@
 # VRFs (Routers in EDA)
 # deployed without nodeSelector, gets pushed based on BD reference 
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: Router
 metadata:
   name: vrf1
@@ -12,7 +12,7 @@ spec:
   tunnelIndexPool: tunnel-index-pool
 ---
 # EVPN VXLAN BDs
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: BridgeDomain
 metadata:
   name: macvrf-v10
@@ -30,7 +30,7 @@ spec:
     action: StopLearning
     numMoves: 5
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: BridgeDomain
 metadata:
   name: macvrf-v20
@@ -48,7 +48,7 @@ spec:
     action: StopLearning
     numMoves: 5
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: BridgeDomain
 metadata:
   name: macvrf-v30
@@ -66,7 +66,7 @@ spec:
     action: StopLearning
     numMoves: 5
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: BridgeDomain
 metadata:
   name: macvrf-v40
@@ -84,7 +84,7 @@ spec:
     action: StopLearning
     numMoves: 5
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: BridgeDomain
 metadata:
   name: macvrf-v50
@@ -102,7 +102,7 @@ spec:
     action: StopLearning
     numMoves: 5
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: BridgeDomain
 metadata:
   name: macvrf-v70
@@ -121,7 +121,7 @@ spec:
     numMoves: 5
 ---
 # Simple BDs for ToRs
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: BridgeDomain
 metadata:
   name: v10-simple
@@ -136,7 +136,7 @@ spec:
     action: StopLearning
     numMoves: 5
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: BridgeDomain
 metadata:
   name: v50-simple
@@ -151,7 +151,7 @@ spec:
     action: StopLearning
     numMoves: 5
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: BridgeDomain
 metadata:
   name: v70-simple
@@ -167,7 +167,7 @@ spec:
     numMoves: 5
 ---
 # IRB interfaces
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: IRBInterface
 metadata:
   name: irb-v10
@@ -196,7 +196,7 @@ spec:
     proxyARP: true
     proxyND: true
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: IRBInterface
 metadata:
   name: irb-v20
@@ -225,7 +225,7 @@ spec:
     proxyARP: true
     proxyND: true
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: IRBInterface
 metadata:
   name: irb-v30
@@ -254,7 +254,7 @@ spec:
     proxyARP: true
     proxyND: true
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: IRBInterface
 metadata:
   name: irb-v40
@@ -283,7 +283,7 @@ spec:
     proxyARP: true
     proxyND: true
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: IRBInterface
 metadata:
   name: irb-v50
@@ -312,7 +312,7 @@ spec:
     proxyARP: true
     proxyND: true
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: IRBInterface
 metadata:
   name: irb-v70
@@ -342,7 +342,7 @@ spec:
     proxyND: true
 ---
 # VLANs untagged for EVPN VXLAN BDs
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: VLAN
 metadata:
   name: untagged-v10
@@ -354,7 +354,7 @@ spec:
   vlanID: untagged
 ---
 # VLANs untagged for SIMPLE BDs
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: VLAN
 metadata:
   name: untagged-v10-tor
@@ -366,7 +366,7 @@ spec:
   vlanID: untagged
 ---
 # VLANs tagged for EVPN VXLAN BDs
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: VLAN
 metadata:
   name: tagged-v10
@@ -377,7 +377,7 @@ spec:
     - eda.nokia.com/tagged-v10=enabled
   vlanID: '10'
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: VLAN
 metadata:
   name: tagged-v20
@@ -388,7 +388,7 @@ spec:
     - eda.nokia.com/tagged-v20=enabled
   vlanID: '20'
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: VLAN
 metadata:
   name: tagged-v30
@@ -399,7 +399,7 @@ spec:
     - eda.nokia.com/tagged-v30=enabled
   vlanID: '30'
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: VLAN
 metadata:
   name: tagged-v40
@@ -410,7 +410,7 @@ spec:
     - eda.nokia.com/tagged-v40=enabled
   vlanID: '40'
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: VLAN
 metadata:
   name: tagged-v50
@@ -421,7 +421,7 @@ spec:
     - eda.nokia.com/tagged-v50=enabled
   vlanID: '50'
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: VLAN
 metadata:
   name: tagged-v70
@@ -433,7 +433,7 @@ spec:
   vlanID: '70'
 ---
 # VLANs tagged for SIMPLE BDs
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: VLAN
 metadata:
   name: tagged-v50-tor
@@ -444,7 +444,7 @@ spec:
     - eda.nokia.com/tagged-v50-simple=enabled
   vlanID: '50'
 ---
-apiVersion: services.eda.nokia.com/v1alpha1
+apiVersion: services.eda.nokia.com/v1
 kind: VLAN
 metadata:
   name: tagged-v70-tor

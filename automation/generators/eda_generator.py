@@ -212,10 +212,17 @@ def generate(intent: FabricIntent, output_dir: Path | None = None) -> list[dict]
         _cr_ip_allocation_pool("system0", intent.system0_prefix, ns, design)
     )
 
-    # 12. Routing policy — PrefixSets + Policies before Fabric (Fabric refs them)
+    # 12. Routing policy — PrefixSets + Policies before Fabric (Fabric refs them).
+    # Skip ``internal`` entries: they are fabric control-plane defaults handled
+    # natively by EDA's Fabric reconciler and must not be materialized as
+    # standalone Policy/PrefixSet CRs.
     for ps in intent.prefix_sets:
+        if ps.internal:
+            continue
         resources.append(_cr_prefix_set(ps, ns, design))
     for rp in intent.routing_policies:
+        if rp.internal:
+            continue
         resources.append(_cr_policy(rp, ns, design))
 
     # 13. Fabric
@@ -555,13 +562,21 @@ def _cr_fabric(intent: FabricIntent, ns: str, design: str) -> dict:
             if sel not in spine_selector:
                 spine_selector.append(sel)
 
+    internal_policy_names = {rp.name for rp in intent.routing_policies if rp.internal}
+    export_policy = [
+        n for n in intent.fabric_export_policies if n not in internal_policy_names
+    ]
+    import_policy = [
+        n for n in intent.fabric_import_policies if n not in internal_policy_names
+    ]
+
     spec = FabricSpec(
         underlay_protocol=FabricUnderlayProtocol(
             protocol=["EBGP"],
             bgp=FabricBgp(
                 asn_pool="asn-pool",
-                export_policy=intent.fabric_export_policies or None,
-                import_policy=intent.fabric_import_policies or None,
+                export_policy=export_policy or None,
+                import_policy=import_policy or None,
             ),
             bfd=FabricUnderlayProtocolBfd(
                 enabled=True,

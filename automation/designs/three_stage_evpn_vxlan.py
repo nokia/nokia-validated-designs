@@ -821,7 +821,11 @@ def _normalize_policy_update(fields: dict) -> dict:
     which does *not* validate nested values. Convert raw statement dicts
     (as they appear in YAML) into ``PolicyStatementIntent`` models so the
     resulting ``RoutingPolicyIntent`` has a consistent field type.
+
+    Also force ``internal=False`` so a user override of a design default
+    (which has ``internal=True``) becomes a regular user-declared policy.
     """
+    fields["internal"] = False
     if "statements" in fields and fields["statements"]:
         converted: list[PolicyStatementIntent] = []
         for stmt in fields["statements"]:
@@ -849,7 +853,12 @@ def _normalize_policy_update(fields: dict) -> dict:
 
 
 def _normalize_prefix_set_update(fields: dict) -> dict:
-    """Pre-process hook for merging user-supplied prefix sets."""
+    """Pre-process hook for merging user-supplied prefix sets.
+
+    Forces ``internal=False`` so a user override of a design default
+    (``internal=True``) becomes a regular user-declared prefix set.
+    """
+    fields["internal"] = False
     if "prefixes" in fields and fields["prefixes"]:
         converted: list[PrefixEntry] = []
         for p in fields["prefixes"]:
@@ -887,6 +896,7 @@ def _default_routing_policies(
     ps = PrefixSetIntent(
         name=prefix_set_name,
         prefixes=[PrefixEntry(ip_prefix=system0_prefix, mask_length_range="32..32")],
+        internal=True,
     )
 
     accept = PolicyAction(result="accept", set_local_preference=100)
@@ -927,10 +937,16 @@ def _default_routing_policies(
         )
 
     export = RoutingPolicyIntent(
-        name=export_name, default_action="reject", statements=export_statements
+        name=export_name,
+        default_action="reject",
+        statements=export_statements,
+        internal=True,
     )
     imp = RoutingPolicyIntent(
-        name=import_name, default_action="reject", statements=import_statements
+        name=import_name,
+        default_action="reject",
+        statements=import_statements,
+        internal=True,
     )
     return ps, export, imp
 

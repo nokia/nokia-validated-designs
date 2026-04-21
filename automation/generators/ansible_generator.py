@@ -661,8 +661,12 @@ def _routing_policy_gv(intent: FabricIntent) -> dict[str, Any]:
         else default_import
     )
 
-    prefix_sets = [ps.model_dump(exclude_none=True) for ps in intent.prefix_sets]
-    policies = [rp.model_dump(exclude_none=True) for rp in intent.routing_policies]
+    prefix_sets = [
+        ps.model_dump(exclude_none=True, exclude={"internal"}) for ps in intent.prefix_sets
+    ]
+    policies = [
+        rp.model_dump(exclude_none=True, exclude={"internal"}) for rp in intent.routing_policies
+    ]
 
     return {
         "prefix_set": prefix_set_name,

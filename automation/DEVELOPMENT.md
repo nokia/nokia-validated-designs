@@ -70,6 +70,27 @@ change structure:
    file can be removed from `openapi_specs/` and the old entry removed from
    `RESOURCE_MAP`. The new spec file replaces it.
 
+#### Known codegen drift — re-apply after regen
+
+The generator collapses inline sub-schemas with the same property name
+into a single class, and only keeps the fields from one side. When a
+schema appears in two places with different fields (e.g. `underlayProtocol.bgp`
+vs `overlayProtocol.bgp`), fields unique to one side are silently dropped
+from the emitted model — and Pydantic's default `extra="ignore"` then drops
+them again at construction time, so the bug is invisible at build time and
+only surfaces as a missing field in the deployed CR.
+
+Currently patched by hand (search for `MANUAL PATCH` in `eda_models/`):
+
+- `FabricBgp.asn_pool` (`asnPool`) — present on underlay.bgp only; dropping
+  it leaves `underlayProtocol.bgp: {}` on the Fabric CR, which stops EDA's
+  reconciler from generating the derived eBGP underlay policies and leaves
+  the fabric with BGP sessions up but zero routes exchanged.
+
+After every codegen run, grep for `MANUAL PATCH` and re-apply. The real
+fix is a generator change that merges inline sub-schemas by full JSON
+pointer rather than by leaf property name.
+
 ### 1c. Update the executor if endpoint paths changed
 
 **File:** `automation/executors/eda.py`

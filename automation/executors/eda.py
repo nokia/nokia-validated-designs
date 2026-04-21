@@ -36,6 +36,7 @@ from automation.eda_models.registry import (
     INTERFACE, FABRIC,
     BRIDGE_DOMAIN, ROUTER, IRB_INTERFACE, VLAN, ROUTED_INTERFACE,
     STATIC_ROUTE, CONFIGLET, DEFAULT_MTU, BANNER,
+    POLICY, PREFIX_SET,
     CRType,
 )
 
@@ -64,9 +65,14 @@ PHASE_KINDS: dict[str, set[str]] = {
         "TopoNode", "TopoLink", "DefaultMTU", "Banner",
     },
     PHASE_FABRIC: {"Fabric"},
+    # Policy/PrefixSet ship with services: they are user-declared policies
+    # consumed by service CRs (e.g. Router import/export). Fabric's
+    # underlay/overlay policies are handled natively by EDA's Fabric
+    # reconciler and are not emitted as standalone CRs.
     PHASE_SERVICES: {
         "BridgeDomain", "Router", "IRBInterface",
         "VLAN", "RoutedInterface", "StaticRoute", "Configlet",
+        "Policy", "PrefixSet",
     },
 }
 
@@ -90,6 +96,7 @@ DESTROY_PHASE_KINDS: dict[str, set[str]] = {
     PHASE_SERVICES: {
         "BridgeDomain", "Router", "IRBInterface",
         "VLAN", "RoutedInterface", "StaticRoute", "Configlet",
+        "Policy", "PrefixSet",
     },
     PHASE_FABRIC: {"Fabric"},
     PHASE_TOPOLOGY: {
@@ -105,6 +112,9 @@ DESTROY_ORDER: list[CRType] = [
     # --- services ---
     CONFIGLET, STATIC_ROUTE, ROUTED_INTERFACE,
     VLAN, IRB_INTERFACE, ROUTER, BRIDGE_DOMAIN,
+    # Policy/PrefixSet come after the service CRs that reference them
+    # (e.g. Router.importPolicy) and before Fabric.
+    POLICY, PREFIX_SET,
     # --- fabric ---
     FABRIC,
     # --- topology (Interface after TopoLink!) ---
