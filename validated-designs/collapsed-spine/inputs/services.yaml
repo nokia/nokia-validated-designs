@@ -1,0 +1,160 @@
+---
+# yaml-language-server: $schema=../schemas/services_schema.json
+# Collapsed-Spine — Services Input
+# Bridge domains (EVPN-VXLAN and SIMPLE), routers, IRBs (dual-stack),
+# VLAN services, and dual-stack routed interfaces.
+
+# Bridge domains
+# - type: EVPNVXLAN  (default) → requires vni + evi
+# - type: SIMPLE             → pure L2, local to the node (used on ToRs)
+bridge_domains:
+  - name: macvrf-v10
+    type: EVPNVXLAN
+    vni: 10010
+    evi: 10
+  - name: macvrf-v20
+    type: EVPNVXLAN
+    vni: 10020
+    evi: 20
+  - name: macvrf-v30
+    type: EVPNVXLAN
+    vni: 10030
+    evi: 30
+  - name: macvrf-v40
+    type: EVPNVXLAN
+    vni: 10040
+    evi: 40
+  - name: macvrf-v50
+    type: EVPNVXLAN
+    vni: 10050
+    evi: 50
+  - name: macvrf-v70
+    type: EVPNVXLAN
+    vni: 10070
+    evi: 70
+  # SIMPLE bridge domains live only on ToRs (locally switched).
+  - name: v10-simple
+    type: SIMPLE
+  - name: v50-simple
+    type: SIMPLE
+  - name: v70-simple
+    type: SIMPLE
+
+# Routers (ip-vrfs) — vrf1 is placed on the collapsed-spines by label.
+routers:
+  - name: vrf1
+    vni: 10500
+    evi: 500
+    node_selector:
+      - eda.nokia.com/role=collapsed-spine
+
+# IRB interfaces — dual-stack gateways (IPv4 + IPv6).
+irb_interfaces:
+  - name: irb-v10
+    bridge_domain: macvrf-v10
+    router: vrf1
+    ip_addresses:
+      - ipv4: {ip_prefix: 172.16.10.254/24, primary: true}
+        ipv6: {ip_prefix: "2001:db8:0:10::254/64", primary: true}
+    learn_unsolicited: BOTH
+    arp_timeout: 250
+    proxy_arp: true
+    proxy_nd: true
+
+  - name: irb-v20
+    bridge_domain: macvrf-v20
+    router: vrf1
+    ip_addresses:
+      - ipv4: {ip_prefix: 172.16.20.254/24, primary: true}
+        ipv6: {ip_prefix: "2001:db8:0:20::254/64", primary: true}
+    learn_unsolicited: BOTH
+    proxy_arp: true
+    proxy_nd: true
+
+  - name: irb-v30
+    bridge_domain: macvrf-v30
+    router: vrf1
+    ip_addresses:
+      - ipv4: {ip_prefix: 172.16.30.254/24, primary: true}
+        ipv6: {ip_prefix: "2001:db8:0:30::254/64", primary: true}
+    learn_unsolicited: BOTH
+    proxy_arp: true
+    proxy_nd: true
+
+  - name: irb-v40
+    bridge_domain: macvrf-v40
+    router: vrf1
+    ip_addresses:
+      - ipv4: {ip_prefix: 172.16.40.254/24, primary: true}
+        ipv6: {ip_prefix: "2001:db8:0:40::254/64", primary: true}
+    learn_unsolicited: BOTH
+    proxy_arp: true
+    proxy_nd: true
+
+  - name: irb-v50
+    bridge_domain: macvrf-v50
+    router: vrf1
+    ip_addresses:
+      - ipv4: {ip_prefix: 172.16.50.254/24, primary: true}
+        ipv6: {ip_prefix: "2001:db8:0:50::254/64", primary: true}
+    learn_unsolicited: BOTH
+    proxy_arp: true
+    proxy_nd: true
+
+  - name: irb-v70
+    bridge_domain: macvrf-v70
+    router: vrf1
+    ip_addresses:
+      - ipv4: {ip_prefix: 172.16.70.254/24, primary: true}
+        ipv6: {ip_prefix: "2001:db8:0:70::254/64", primary: true}
+    learn_unsolicited: BOTH
+    proxy_arp: true
+    proxy_nd: true
+
+# VLAN services — binding bridge domains to interfaces via selectors.
+vlans:
+  # EVPN-VXLAN untagged
+  - name: untagged-v10
+    bridge_domain: macvrf-v10
+    vlan_id: untagged
+    interface_selector: [eda.nokia.com/untagged-v10=enabled]
+
+  # EVPN-VXLAN tagged
+  - name: tagged-v10
+    bridge_domain: macvrf-v10
+    vlan_id: "10"
+    interface_selector: [eda.nokia.com/tagged-v10=enabled]
+  - name: tagged-v20
+    bridge_domain: macvrf-v20
+    vlan_id: "20"
+    interface_selector: [eda.nokia.com/tagged-v20=enabled]
+  - name: tagged-v30
+    bridge_domain: macvrf-v30
+    vlan_id: "30"
+    interface_selector: [eda.nokia.com/tagged-v30=enabled]
+  - name: tagged-v40
+    bridge_domain: macvrf-v40
+    vlan_id: "40"
+    interface_selector: [eda.nokia.com/tagged-v40=enabled]
+  - name: tagged-v50
+    bridge_domain: macvrf-v50
+    vlan_id: "50"
+    interface_selector: [eda.nokia.com/tagged-v50=enabled]
+  - name: tagged-v70
+    bridge_domain: macvrf-v70
+    vlan_id: "70"
+    interface_selector: [eda.nokia.com/tagged-v70=enabled]
+
+  # SIMPLE bridge domains (ToR-local)
+  - name: untagged-v10-tor
+    bridge_domain: v10-simple
+    vlan_id: untagged
+    interface_selector: [eda.nokia.com/untagged-v10-simple=enabled]
+  - name: tagged-v50-tor
+    bridge_domain: v50-simple
+    vlan_id: "50"
+    interface_selector: [eda.nokia.com/tagged-v50-simple=enabled]
+  - name: tagged-v70-tor
+    bridge_domain: v70-simple
+    vlan_id: "70"
+    interface_selector: [eda.nokia.com/tagged-v70-simple=enabled]

@@ -398,10 +398,18 @@ def _build_leaf_host_vars(
         node_entry["labels"] = dict(node.labels)
     hv["node"] = node_entry
 
-    # Underlay interfaces
+    # Underlay interfaces. A physical port that is also a LAG member
+    # cannot carry a routed subinterface on SR Linux, so exclude any
+    # uplink that is consumed by a LAG on this node (relevant e.g. for
+    # collapsed-spine designs, where spine↔ToR ISL ports are bundled
+    # into an ESI LAG and do not run eBGP).
+    lag_member_ports = index.lag_member_ports_by_node.get(node.name, set())
+    routed_ports = index.routed_ports_by_node.get(node.name, set())
     spine_asn = intent.spine_asn
     underlay = []
     for intf in sorted(node.uplink_interfaces):
+        if (node.name, intf) in lag_member_ports:
+            continue
         underlay.append({
             "name": _intf_to_srl(intf),
             "peer_asn": spine_asn,
@@ -410,8 +418,6 @@ def _build_leaf_host_vars(
         hv["underlay_interfaces"] = underlay
 
     # Edge interfaces (non-LAG-member) with raw labels for selector matching
-    lag_member_ports = index.lag_member_ports_by_node.get(node.name, set())
-    routed_ports = index.routed_ports_by_node.get(node.name, set())
     edges = []
     for ei in index.edges_by_node.get(node.name, []):
         if (ei.node, ei.interface) in lag_member_ports:

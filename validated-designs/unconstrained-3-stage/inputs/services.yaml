@@ -26,6 +26,25 @@ bridge_domains:
     vni: 10030
     evi: 30
 
+  # NEW: SIMPLE bridge domain — pure L2 / mac-vrf with no EVPN/VXLAN envelope.
+  # Exposed by the collapsed-spine work. For SIMPLE BDs, `vni` and `evi` MUST
+  # be omitted (enforced by the schema's if/then constraint). `mac_duplication`
+  # still applies locally.
+  - name: macvrf-v40-simple
+    type: SIMPLE
+    mac_duplication:
+      enabled: true
+      hold_down_time: 9
+      monitoring_window: 3
+      action: StopLearning
+      num_moves: 5
+
+  # NEW: second EVPN BD used by the dual-stack IRB demo below (irb-v50).
+  - name: macvrf-v50
+    type: EVPNVXLAN   # default — shown here for explicitness
+    vni: 10050
+    evi: 50
+
 # ---------------------------------------------------------------------------
 # Routers (ip-vrfs)
 # ---------------------------------------------------------------------------
@@ -83,6 +102,24 @@ irb_interfaces:
           ip_prefix: 172.16.30.254/24
           primary: true
 
+  # NEW: IRB with `learn_unsolicited: BOTH` — exposed enum value added for the
+  # collapsed-spine work. BOTH learns unsolicited ARP *and* ND. The enum also
+  # accepts `LINK-LOCAL` (ND restricted to link-local addresses).
+  - name: irb-v50
+    description: "VLAN 50 gateway — learn_unsolicited=BOTH dual-stack"
+    bridge_domain: macvrf-v50
+    router: vrf1
+    ip_addresses:
+      - ipv4:
+          ip_prefix: 172.16.50.254/24
+          primary: true
+        ipv6:
+          ip_prefix: "2001:db8:50::1/64"
+          primary: true
+    learn_unsolicited: BOTH
+    proxy_arp: true
+    proxy_nd: true
+
 # ---------------------------------------------------------------------------
 # VLANs
 # ---------------------------------------------------------------------------
@@ -111,10 +148,28 @@ vlans:
     interface_selector:
       - eda.nokia.com/untagged-v30=enabled
 
+  # NEW: VLAN on the SIMPLE BD — attaches edge interfaces labelled
+  # `eda.nokia.com/untagged-v40=enabled` into the local-only L2 domain.
+  - name: untagged-v40
+    bridge_domain: macvrf-v40-simple
+    vlan_id: untagged
+    interface_selector:
+      - eda.nokia.com/untagged-v40=enabled
+
+  # NEW: VLAN for the dual-stack / learn_unsolicited=BOTH demo.
+  - name: untagged-v50
+    bridge_domain: macvrf-v50
+    vlan_id: untagged
+    interface_selector:
+      - eda.nokia.com/untagged-v50=enabled
+
 # ---------------------------------------------------------------------------
 # Routed Interfaces
 # ---------------------------------------------------------------------------
 routed_interfaces:
+  # Dual-stack routed (sub-)interface. `ipv6_addresses` was exposed by the
+  # collapsed-spine work; either `ipv4_addresses` OR `ipv6_addresses` is
+  # sufficient for validation, and both may be combined for dual-stack uplinks.
   - name: leaf4-routed-1
     interface: leaf4-ethernet-1-1
     router: vrf1
@@ -124,10 +179,15 @@ routed_interfaces:
     ipv4_addresses:
       - ipPrefix: 172.16.100.0/31
         primary: true
+    ipv6_addresses:                                 # NEW
+      - ipPrefix: "2001:db8:100::/127"              # NEW
+        primary: true                               # NEW
 
 # ---------------------------------------------------------------------------
 # Static Routes
 # ---------------------------------------------------------------------------
+# IPv6 prefixes / nexthops are now accepted (the v4-only regex was relaxed
+# by the collapsed-spine work).
 static_routes:
   - name: static-default
     router: vrf1
@@ -141,3 +201,46 @@ static_routes:
       nexthops:
         - resolve: false
           ipPrefix: 172.16.100.1
+
+  # NEW: IPv6 static route demonstrating relaxed prefix/nexthop validation.
+  - name: static-default-v6
+    router: vrf1
+    nodes:
+      - leaf4
+    prefixes:
+      - "2001:db8:200::/64"
+    nexthop_group:
+      blackhole: false
+      resolve: false
+      nexthops:
+        - resolve: false
+          ipPrefix: "2001:db8:100::1"
+
+# ---------------------------------------------------------------------------
+# Routing Policies (NEW)
+# ---------------------------------------------------------------------------
+# Exposed by the collapsed-spine work. Each entry is rendered into a
+# RoutingPolicy CR; the policy is then referenced by name from
+# `fabric_export_policies` / `fabric_import_policies` in topology.yaml or
+# from per-router import/export hooks. `prefix_set` references must match a
+# name declared in topology.yaml under `prefix_sets:`.
+routing_policies:
+  - name: accept-bgp-evpn-type5
+    default_action: reject
+    statements:
+      - name: accept-type5
+        match:
+          protocol: bgp_evpn
+          bgp_evpn_route_types: [5]
+        action:
+          result: accept
+
+  - name: prefer-rfc1918
+    default_action: accept
+    statements:
+      - name: bump-local-pref
+        match:
+          prefix_set: rfc1918
+        action:
+          result: accept
+          set_local_preference: 200

@@ -25,7 +25,6 @@ from automation.core.schema_validator import load_inputs
 from tests.helpers.srlinux_jsonrpc import wait_json_rpc_ready
 
 DESIGNS_ROOT = Path(__file__).resolve().parents[2] / "validated-designs"
-DESIGN_DIR = DESIGNS_ROOT / "3-stage-evpn-vxlan"
 CLAB_TEMPLATE = Path(__file__).parent / "clab" / "single_node.clab.yml.tmpl"
 
 # In the source tree, ``srl_builders/`` lives under
@@ -64,29 +63,46 @@ def pytest_collection_modifyitems(
 
 
 @pytest.fixture(scope="session")
-def _raw_inputs() -> tuple[dict, dict]:
-    if not DESIGN_DIR.exists():
-        pytest.skip(f"Design dir not found: {DESIGN_DIR}")
-    topo, svc = load_inputs(DESIGN_DIR)
-    return topo, svc
+def _raw_inputs_factory() -> Callable[[str], tuple[dict, dict]]:
+    """Session-scoped cache that loads ``(topo, svc)`` for a given design."""
+    cache: dict[str, tuple[dict, dict]] = {}
+
+    def _load(design_name: str) -> tuple[dict, dict]:
+        if design_name not in cache:
+            design_dir = DESIGNS_ROOT / design_name
+            if not design_dir.exists():
+                pytest.skip(f"Design dir not found: {design_dir}")
+            cache[design_name] = load_inputs(design_dir)
+        return cache[design_name]
+
+    return _load
 
 
 @pytest.fixture()
-def design_intent(_raw_inputs) -> Callable[[str], FabricIntent]:
-    """Return a factory that builds a FabricIntent with all node versions
-    overridden to *srl_version*."""
-    topo, svc = _raw_inputs
+def design_intent(
+    _raw_inputs_factory,
+) -> Callable[[str, str], FabricIntent]:
+    """Return a factory ``(design_name, srl_version) -> FabricIntent``.
 
-    def _factory(srl_version: str) -> FabricIntent:
+    All node versions in the loaded topology are overridden to
+    *srl_version* so the generated config targets the version we are
+    about to deploy in containerlab.
+    """
+
+    def _factory(design_name: str, srl_version: str) -> FabricIntent:
+        topo, svc = _raw_inputs_factory(design_name)
         topo_copy = copy.deepcopy(topo)
         svc_copy = copy.deepcopy(svc)
-        if "leafs" in topo_copy:
-            topo_copy["leafs"]["version"] = srl_version
-        if "spines" in topo_copy:
-            topo_copy["spines"]["version"] = srl_version
-        for node in topo_copy.get("nodes", []) or []:
-            if "version" in node:
-                node["version"] = srl_version
+        # Group-style node declarations (3-stage + collapsed-spine).
+        for key in ("leafs", "spines", "collapsed_spines"):
+            group = topo_copy.get(key)
+            if isinstance(group, dict) and "version" in group:
+                group["version"] = srl_version
+        # List-style node declarations (e.g. tors, explicit nodes).
+        for list_key in ("nodes", "tors"):
+            for node in topo_copy.get(list_key, []) or []:
+                if isinstance(node, dict) and "version" in node:
+                    node["version"] = srl_version
         return build_intent(topo_copy, svc_copy)
 
     return _factory

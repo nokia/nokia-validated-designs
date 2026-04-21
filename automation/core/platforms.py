@@ -91,7 +91,7 @@ _register(
             PortGroup(count=48, speed="25G", start_index=1, end_index=48),
             PortGroup(count=8, speed="100G", start_index=49, end_index=56),
         ],
-        allowed_roles=["leaf"],
+        allowed_roles=["leaf", "tor"],
     )
 )
 
@@ -111,7 +111,7 @@ _register(
                 ],
             ),
         ],
-        allowed_roles=["leaf", "spine"],
+        allowed_roles=["leaf", "spine", "collapsed-spine", "tor"],
     )
 )
 

@@ -119,6 +119,7 @@ def build_routed_interfaces(raw: list[dict]) -> list[RoutedInterfaceIntent]:
             router=ri["router"],
             vlan_id=ri.get("vlan_id", "null"),
             ipv4_addresses=ri.get("ipv4_addresses", []),
+            ipv6_addresses=ri.get("ipv6_addresses", []),
             ip_mtu=ri.get("ip_mtu", 1500),
             arp_timeout=ri.get("arp_timeout", 14400),
         )

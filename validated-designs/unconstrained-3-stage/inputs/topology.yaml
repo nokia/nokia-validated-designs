@@ -8,6 +8,18 @@ fabric_name: dc1
 environment: containerlab
 
 # ---------------------------------------------------------------------------
+# SR Linux credentials (NEW — now schema-exposed)
+# ---------------------------------------------------------------------------
+# Propagated to generated clab / Ansible / gnmic artefacts. Defaults shown.
+credentials:
+  username: admin
+  password: NokiaSrl1!
+
+# Management subnet (NEW — now schema-exposed). Informational; also consumed
+# by the clab generator for client attachments on containerlab environments.
+mgmt_subnet: 172.21.21.0/24
+
+# ---------------------------------------------------------------------------
 # Underlay
 # ---------------------------------------------------------------------------
 underlay:
@@ -272,6 +284,31 @@ configlets:
       - path: '.network-instance{.name=="default"}.protocols.bgp.route-advertisement'
         operation: Update
         config: '{ "rapid-withdrawal": "true" }'
+
+# ---------------------------------------------------------------------------
+# Prefix sets (NEW — referenced by routing_policies in services.yaml)
+# ---------------------------------------------------------------------------
+# Each entry is rendered into a PrefixSet CR. `mask_length_range` accepts the
+# usual `"exact"` form or a range like `"24..32"`.
+prefix_sets:
+  - name: rfc1918
+    prefixes:
+      - { ip_prefix: 10.0.0.0/8,    mask_length_range: "8..32" }
+      - { ip_prefix: 172.16.0.0/12, mask_length_range: "12..32" }
+      - { ip_prefix: 192.168.0.0/16, mask_length_range: "16..32" }
+
+# ---------------------------------------------------------------------------
+# Fabric-wide import/export policies (NEW — now schema-exposed)
+# ---------------------------------------------------------------------------
+# Names resolved against `routing_policies` in services.yaml. Left empty by
+# default; uncomment to bind the demo policies fabric-wide.
+fabric_export_policies: []
+# fabric_export_policies:
+#   - accept-bgp-evpn-type5
+
+fabric_import_policies: []
+# fabric_import_policies:
+#   - prefer-rfc1918
 
 # ---------------------------------------------------------------------------
 # EDA-specific settings

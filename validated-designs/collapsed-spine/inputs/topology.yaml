@@ -1,0 +1,279 @@
+---
+# yaml-language-server: $schema=../schemas/topology_schema.json
+# Collapsed-Spine — Topology Input
+# The collapsed-spine builder expands this simple input into a full
+# FabricIntent. The two "spines" are in fact collapsed EVPN leaves
+# (they host all overlay services); ToRs are L2-only edge nodes
+# onboarded into EDA but deliberately kept out of the Fabric CR.
+
+design: collapsed-spine
+fabric_name: dc1-collapsed
+environment: containerlab
+
+underlay:
+  # One ASN pool is used for the collapsed-spines; each device gets
+  # collapsed_spine_asn_start + i. ToRs are EVPN-unaware so they do
+  # not participate in BGP.
+  collapsed_spine_asn_start: 65411
+  system0_prefix: 192.168.254.0/24
+
+# Two collapsed-spines.  They become EVPN "leafs" in the Fabric CR
+# via the eda.nokia.com/role=collapsed-spine label.
+collapsed_spines:
+  count: 2
+  platform: "7220 IXR-D3L"
+  version: "25.3.2"
+  mgmt_base_ipv4: "172.21.21.101"
+  # name_template defaults to spine{i}
+  labels:
+    eda.nokia.com/role: collapsed-spine
+
+# ToR switches. Heterogeneous platforms, so each is listed
+# individually. They are onboarded into EDA (TopoNode/NodeProfile)
+# but excluded from the Fabric CR's leafs/spines selectors.
+tors:
+  - name: tor1
+    platform: "7220 IXR-D2L"
+    version: "25.3.2"
+    mgmt_ipv4: "172.21.21.11"
+  - name: tor2
+    platform: "7220 IXR-D2L"
+    version: "25.3.2"
+    mgmt_ipv4: "172.21.21.12"
+  - name: tor3
+    platform: "7220 IXR-D3L"
+    version: "25.3.2"
+    mgmt_ipv4: "172.21.21.13"
+
+# ISLs are enumerated explicitly — there is no full-mesh here
+# (spines are interconnected, each spine links to each ToR).
+isl_links:
+  # spine1 <-> spine2
+  - {name: spine1-spine2-1, local_node: spine1, local_interface: ethernet-1-31, remote_node: spine2, remote_interface: ethernet-1-31}
+  - {name: spine1-spine2-2, local_node: spine1, local_interface: ethernet-1-32, remote_node: spine2, remote_interface: ethernet-1-32}
+  # spine1 <-> tors
+  - {name: spine1-tor1,     local_node: spine1, local_interface: ethernet-1-25, remote_node: tor1,   remote_interface: ethernet-1-51}
+  - {name: spine1-tor2,     local_node: spine1, local_interface: ethernet-1-26, remote_node: tor2,   remote_interface: ethernet-1-51}
+  - {name: spine1-tor3,     local_node: spine1, local_interface: ethernet-1-29, remote_node: tor3,   remote_interface: ethernet-1-29}
+  # spine2 <-> tors
+  - {name: spine2-tor1,     local_node: spine2, local_interface: ethernet-1-25, remote_node: tor1,   remote_interface: ethernet-1-52}
+  - {name: spine2-tor2,     local_node: spine2, local_interface: ethernet-1-26, remote_node: tor2,   remote_interface: ethernet-1-52}
+  - {name: spine2-tor3,     local_node: spine2, local_interface: ethernet-1-30, remote_node: tor3,   remote_interface: ethernet-1-30}
+
+# Edge interfaces — server-facing ports (single-homed).
+edge_interfaces:
+  # spine1 → s1 (untagged v10 + tagged v20)
+  - name: spine1-ixia-1
+    node: spine1
+    interface: ethernet-1-27
+    encap: dot1q
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v10: enabled
+      eda.nokia.com/tagged-v20: enabled
+
+  # spine2 → s2 (tagged v10 + tagged v30)
+  - name: spine2-ixia-1
+    node: spine2
+    interface: ethernet-1-29
+    encap: dot1q
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/tagged-v10: enabled
+      eda.nokia.com/tagged-v30: enabled
+
+  # tor1 → s4 (tagged v50-simple)
+  - name: tor1-ixia
+    node: tor1
+    interface: ethernet-1-55
+    encap: dot1q
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/tagged-v50-simple: enabled
+
+  # tor2 → s5 (untagged v10-simple)
+  - name: tor2-ixia
+    node: tor2
+    interface: ethernet-1-56
+    encap: dot1q
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v10-simple: enabled
+
+  # tor3 → s6 (tagged v70-simple)
+  - name: tor3-ixia
+    node: tor3
+    interface: ethernet-1-32
+    encap: dot1q
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/tagged-v70-simple: enabled
+
+# LAGs — ESI multi-homed on collapsed spines, single-chassis on ToRs.
+#
+# Notes on terminology:
+# * ``spine1-spine2-tor{n}-lag`` and ``tor{n}-spine-lag`` are *fabric*
+#   LAGs terminating on physical spine↔tor ISL ports. They are required
+#   in the EDA intent (to emit LACP-configured Interface CRs on both
+#   sides) but are detected as fabric LAGs by the clab generator and
+#   never produce a dedicated Linux client in the topology.
+# * ``spine1-spine2-s3-lag`` is a true server ESI LAG on dedicated
+#   server-facing ports and DOES produce a dual-homed clab client.
+lags:
+  # Spine1+Spine2 → dedicated server s3 (ESI all-active, tagged v40)
+  - name: spine1-spine2-s3-lag
+    type: lacp
+    mode: all-active
+    min_links: 1
+    lacp:
+      interval: fast
+      system_id_mac: "00:00:00:00:40:00"
+      system_priority: 32768
+      fallback:
+        mode: static
+        timeout: 60
+    members:
+      - {node: spine1, interface: ethernet-1-23, aggregate_id: "4"}
+      - {node: spine2, interface: ethernet-1-23, aggregate_id: "4"}
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/tagged-v40: enabled
+    reload_delay_timer: 100
+
+  # Spine1+Spine2 → tor1 (ESI all-active, tagged v50)
+  - name: spine1-spine2-tor1-lag
+    type: lacp
+    mode: all-active
+    min_links: 1
+    lacp:
+      interval: fast
+      system_id_mac: "00:00:00:00:00:12"
+      system_priority: 32768
+      fallback:
+        mode: static
+        timeout: 60
+    members:
+      - {node: spine1, interface: ethernet-1-25, aggregate_id: "1"}
+      - {node: spine2, interface: ethernet-1-25, aggregate_id: "1"}
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/tagged-v50: enabled
+    reload_delay_timer: 100
+
+  # Spine1+Spine2 → tor2 (ESI all-active, untagged v10)
+  - name: spine1-spine2-tor2-lag
+    type: lacp
+    mode: all-active
+    min_links: 1
+    lacp:
+      interval: fast
+      system_id_mac: "00:00:00:00:12:00"
+      system_priority: 32768
+      fallback:
+        mode: static
+        timeout: 60
+    members:
+      - {node: spine1, interface: ethernet-1-26, aggregate_id: "2"}
+      - {node: spine2, interface: ethernet-1-26, aggregate_id: "2"}
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v10: enabled
+    reload_delay_timer: 100
+
+  # Spine1+Spine2 → tor3 (ESI all-active, tagged v70)
+  - name: spine1-spine2-tor3-lag
+    type: lacp
+    mode: all-active
+    min_links: 1
+    lacp:
+      interval: fast
+      system_id_mac: "00:00:00:12:00:00"
+      system_priority: 32768
+      fallback:
+        mode: static
+        timeout: 60
+    members:
+      - {node: spine1, interface: ethernet-1-29, aggregate_id: "3"}
+      - {node: spine2, interface: ethernet-1-30, aggregate_id: "3"}
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/tagged-v70: enabled
+    reload_delay_timer: 100
+
+  # tor1 → spine1/spine2 single-chassis LAG (tagged v50-simple)
+  - name: tor1-spine-lag
+    type: lacp
+    mode: all-active
+    min_links: 1
+    lacp:
+      interval: fast
+      system_id_mac: "00:00:11:11:11:11"
+      system_priority: 32768
+      fallback:
+        mode: static
+        timeout: 60
+    members:
+      - {node: tor1, interface: ethernet-1-51, aggregate_id: "1"}
+      - {node: tor1, interface: ethernet-1-52, aggregate_id: "1"}
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/tagged-v50-simple: enabled
+
+  # tor2 → spine1/spine2 single-chassis LAG (untagged v10-simple)
+  - name: tor2-spine-lag
+    type: lacp
+    mode: all-active
+    min_links: 1
+    lacp:
+      interval: fast
+      system_id_mac: "00:00:22:22:22:22"
+      system_priority: 32768
+      fallback:
+        mode: static
+        timeout: 60
+    members:
+      - {node: tor2, interface: ethernet-1-51, aggregate_id: "1"}
+      - {node: tor2, interface: ethernet-1-52, aggregate_id: "1"}
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v10-simple: enabled
+
+  # tor3 → spine1/spine2 single-chassis LAG (tagged v70-simple)
+  - name: tor3-spine-lag
+    type: lacp
+    mode: all-active
+    min_links: 1
+    lacp:
+      interval: fast
+      system_id_mac: "00:00:33:33:33:33"
+      system_priority: 32768
+      fallback:
+        mode: static
+        timeout: 60
+    members:
+      - {node: tor3, interface: ethernet-1-29, aggregate_id: "1"}
+      - {node: tor3, interface: ethernet-1-30, aggregate_id: "1"}
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/tagged-v70-simple: enabled
+
+# Default MTU (jumbo frames on collapsed-spines; ToRs stay at default)
+default_mtu:
+  - name: default-port-mtu
+    interface_mtu: 9232
+    layer2_subif_mtu: 9232
+    layer3_mtu: 9200
+    node_selector:
+      - "eda.nokia.com/role=collapsed-spine"
+
+# Banners
+banners:
+  - name: nvd-banner
+    login_banner: "NVD: collapsed-spine"
+    node_selector:
+      - "eda.nokia.com/role=collapsed-spine"
+      - "eda.nokia.com/role=tor"
+
+# EDA settings
+eda:
+  namespace: eda

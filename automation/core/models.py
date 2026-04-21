@@ -108,11 +108,17 @@ class LagIntent(BaseModel):
 
 
 class BridgeDomainIntent(BaseModel):
-    """A bridge domain (mac-vrf) service."""
+    """A bridge domain (mac-vrf) service.
+
+    ``type`` defaults to ``EVPNVXLAN``; in that case ``vni`` and ``evi``
+    are both required. For ``SIMPLE`` (L2-only, node-local) bridge
+    domains ``vni`` and ``evi`` are omitted.
+    """
 
     name: str  # e.g. "macvrf-v10"
-    vni: int  # e.g. 10010
-    evi: int  # e.g. 10
+    type: Literal["EVPNVXLAN", "SIMPLE"] = "EVPNVXLAN"
+    vni: int | None = None  # e.g. 10010 (required when type == EVPNVXLAN)
+    evi: int | None = None  # e.g. 10    (required when type == EVPNVXLAN)
     mac_learning: bool = True
     mac_aging: int = 300
     mac_duplication: dict | None = Field(
@@ -125,6 +131,15 @@ class BridgeDomainIntent(BaseModel):
         }
     )
     origin: str = ""  # "3-stage" | "extras" — set by builder for provenance tracking
+
+    @model_validator(mode="after")
+    def _validate_type_vni_evi(self) -> BridgeDomainIntent:
+        if self.type == "EVPNVXLAN":
+            if self.vni is None or self.evi is None:
+                raise ValueError(
+                    f"BridgeDomain '{self.name}' is EVPNVXLAN but is missing vni/evi"
+                )
+        return self
 
 
 class RouterIntent(BaseModel):
@@ -171,7 +186,7 @@ class IrbInterfaceIntent(BaseModel):
     ip_mtu: int = 1500
 
     # ARP/ND learning
-    learn_unsolicited: str = "NONE"  # "NONE" | "GLOBAL"
+    learn_unsolicited: str = "NONE"  # "NONE" | "GLOBAL" | "LINK-LOCAL" | "BOTH"
 
     # EVPN route control
     evpn_route_advertisement_type: dict | None = None
@@ -199,6 +214,7 @@ class RoutedInterfaceIntent(BaseModel):
     router: str  # ref to RouterIntent.name
     vlan_id: str = "null"
     ipv4_addresses: list[dict] = Field(default_factory=list)  # [{ipPrefix, primary}]
+    ipv6_addresses: list[dict] = Field(default_factory=list)  # [{ipPrefix, primary}]
     ip_mtu: int = 1500
     arp_timeout: int = 14400
 

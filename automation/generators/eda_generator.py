@@ -77,6 +77,7 @@ from automation.eda_models.services import (
     VLANSpec,
     RoutedInterfaceSpec,
     RoutedInterfaceIpv4Addresses,
+    RoutedInterfaceIpv6Addresses,
 )
 from automation.eda_models.protocols import StaticRouteSpec
 from automation.eda_models.fabrics import (
@@ -196,16 +197,29 @@ def generate(intent: FabricIntent, output_dir: Path | None = None) -> list[dict]
         resources.append(_cr_topo_link(link, ns, design))
 
     # 10. ASN allocation pools
-    resources.append(
-        _cr_index_allocation_pool(
-            "leaf-asn", intent.leaf_asn_start, 20, ns, design
+    # Collapsed-spine uses a single pool because there is no distinct
+    # spine tier. 3-stage uses separate leaf-asn + spine-asn pools.
+    if _is_collapsed_spine(intent):
+        resources.append(
+            _cr_index_allocation_pool(
+                "collapsed-spine-asn",
+                intent.leaf_asn_start,
+                20,
+                ns,
+                design,
+            )
         )
-    )
-    resources.append(
-        _cr_index_allocation_pool(
-            "spine-asn", intent.spine_asn, 10, ns, design
+    else:
+        resources.append(
+            _cr_index_allocation_pool(
+                "leaf-asn", intent.leaf_asn_start, 20, ns, design
+            )
         )
-    )
+        resources.append(
+            _cr_index_allocation_pool(
+                "spine-asn", intent.spine_asn, 10, ns, design
+            )
+        )
 
     # 11. IP allocation pool (system0)
     resources.append(
@@ -547,18 +561,43 @@ def _cr_ip_allocation_pool(name: str, subnet: str, ns: str, design: str) -> dict
     return _wrap_cr(CR_IP_ALLOCATION_POOL.api_version, CR_IP_ALLOCATION_POOL.kind, name, ns, spec, origin=design)
 
 
+def _is_collapsed_spine(intent: FabricIntent) -> bool:
+    """Return True for the collapsed-spine design.
+
+    Detected by either the explicit ``design`` identifier or the absence
+    of any node with role ``spine`` combined with the presence of the
+    ``eda.nokia.com/role=collapsed-spine`` label.
+    """
+    if intent.design == "collapsed-spine":
+        return True
+    has_spine = any(n.role == "spine" for n in intent.nodes)
+    has_cs_label = any(
+        n.labels.get("eda.nokia.com/role") == "collapsed-spine"
+        for n in intent.nodes
+    )
+    return (not has_spine) and has_cs_label
+
+
 def _cr_fabric(intent: FabricIntent, ns: str, design: str) -> dict:
-    """Generate the Fabric CR."""
-    leaf_selector = []
-    spine_selector = []
+    """Generate the Fabric CR.
+
+    For the 3-stage design every ``leaf``/``spine`` node feeds the
+    Fabric selector. For the collapsed-spine design ToRs (role=="tor")
+    are excluded from both selectors and the ``spines`` block is
+    omitted entirely (the Fabric has no spine tier).
+    """
+    leaf_selector: list[str] = []
+    spine_selector: list[str] = []
     for node in intent.nodes:
+        if node.role == "tor":
+            # ToRs are onboarded but not part of the Fabric CR.
+            continue
         role_label = node.labels.get("eda.nokia.com/role", node.role)
+        sel = f"eda.nokia.com/role={role_label}"
         if node.role == "leaf":
-            sel = f"eda.nokia.com/role={role_label}"
             if sel not in leaf_selector:
                 leaf_selector.append(sel)
-        else:
-            sel = f"eda.nokia.com/role={role_label}"
+        elif node.role == "spine":
             if sel not in spine_selector:
                 spine_selector.append(sel)
 
@@ -570,7 +609,10 @@ def _cr_fabric(intent: FabricIntent, ns: str, design: str) -> dict:
         n for n in intent.fabric_import_policies if n not in internal_policy_names
     ]
 
-    spec = FabricSpec(
+    collapsed = _is_collapsed_spine(intent)
+    leaf_asn_pool = "collapsed-spine-asn" if collapsed else "leaf-asn"
+
+    fabric_kwargs: dict = dict(
         underlay_protocol=FabricUnderlayProtocol(
             protocol=["EBGP"],
             bgp=FabricBgp(
@@ -592,9 +634,16 @@ def _cr_fabric(intent: FabricIntent, ns: str, design: str) -> dict:
             link_selector=["eda.nokia.com/role=interSwitch"],
             unnumbered="IPV6",
         ),
-        leafs=FabricLeafs(asn_pool="leaf-asn", leaf_node_selector=leaf_selector),
-        spines=FabricSpines(asn_pool="spine-asn", spine_node_selector=spine_selector),
+        leafs=FabricLeafs(asn_pool=leaf_asn_pool, leaf_node_selector=leaf_selector),
     )
+    # For non-collapsed designs (or if the topology does contain spines),
+    # include the Fabric.spines block. For collapsed-spine, omit it.
+    if spine_selector or not collapsed:
+        fabric_kwargs["spines"] = FabricSpines(
+            asn_pool="spine-asn", spine_node_selector=spine_selector
+        )
+
+    spec = FabricSpec(**fabric_kwargs)
     return _wrap_cr(CR_FABRIC.api_version, CR_FABRIC.kind, intent.fabric_name, ns, spec, origin=design)
 
 
@@ -690,7 +739,12 @@ def _cr_policy(rp: RoutingPolicyIntent, ns: str, design: str) -> dict:
 
 
 def _cr_bridge_domain(bd: BridgeDomainIntent, ns: str, design: str) -> dict:
-    """Generate a BridgeDomain CR."""
+    """Generate a BridgeDomain CR.
+
+    Honors the ``type`` field on the intent. SIMPLE bridge domains omit
+    the VXLAN envelope (no vni/evi) and MAC duplication detection; the
+    full EVPNVXLAN path is unchanged from the original behavior.
+    """
     mac_dup = None
     if bd.mac_duplication:
         mac_dup = BridgeDomainMacDuplicationDetection(
@@ -700,13 +754,28 @@ def _cr_bridge_domain(bd: BridgeDomainIntent, ns: str, design: str) -> dict:
             action=bd.mac_duplication.get("action", "StopLearning"),
             num_moves=bd.mac_duplication.get("num_moves", 5),
         )
-    spec = BridgeDomainSpec(
-        vni=bd.vni,
-        evi=bd.evi,
-        mac_learning=bd.mac_learning,
-        mac_aging=bd.mac_aging,
-        mac_duplication_detection=mac_dup,
-    )
+    if bd.type == "SIMPLE":
+        # Pure L2 bridge domain (no VXLAN envelope): omit the pool
+        # references and vni/evi while preserving MAC-learning and
+        # duplication-detection semantics.
+        spec = BridgeDomainSpec(
+            type="SIMPLE",
+            mac_learning=bd.mac_learning,
+            mac_aging=bd.mac_aging,
+            mac_duplication_detection=mac_dup,
+            vni_pool=None,
+            evi_pool=None,
+            tunnel_index_pool=None,
+        )
+    else:
+        spec = BridgeDomainSpec(
+            type="EVPNVXLAN",
+            vni=bd.vni,
+            evi=bd.evi,
+            mac_learning=bd.mac_learning,
+            mac_aging=bd.mac_aging,
+            mac_duplication_detection=mac_dup,
+        )
     return _wrap_cr(
         CR_BRIDGE_DOMAIN.api_version, CR_BRIDGE_DOMAIN.kind, bd.name, ns, spec,
         origin=bd.origin or design,
@@ -805,6 +874,13 @@ def _cr_routed_interface(ri: RoutedInterfaceIntent, ns: str, design: str) -> dic
         )
         for a in ri.ipv4_addresses
     ]
+    ipv6_addrs = [
+        RoutedInterfaceIpv6Addresses(
+            ip_prefix=a.get("ipPrefix", a.get("ip_prefix", "")),
+            primary=a.get("primary"),
+        )
+        for a in ri.ipv6_addresses
+    ]
     spec = RoutedInterfaceSpec(
         vlan_id=ri.vlan_id,
         ip_mtu=ri.ip_mtu,
@@ -812,7 +888,8 @@ def _cr_routed_interface(ri: RoutedInterfaceIntent, ns: str, design: str) -> dic
         arp_timeout=ri.arp_timeout,
         interface=ri.interface,
         router=ri.router,
-        ipv4_addresses=ipv4_addrs,
+        ipv4_addresses=ipv4_addrs or None,
+        ipv6_addresses=ipv6_addrs or None,
     )
     return _wrap_cr(CR_ROUTED_INTERFACE.api_version, CR_ROUTED_INTERFACE.kind, ri.name, ns, spec, origin=design)
 

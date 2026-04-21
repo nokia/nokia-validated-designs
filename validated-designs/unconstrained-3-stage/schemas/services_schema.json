@@ -30,26 +30,42 @@
     "static_routes": {
       "type": "array",
       "items": { "$ref": "#/$defs/staticRoute" }
+    },
+    "routing_policies": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/routingPolicy" },
+      "description": "Routing-policy definitions rendered into RoutingPolicy CRs."
+    },
+    "extras": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Passthrough bag for forward-compatible fields not otherwise modelled."
     }
   },
   "$defs": {
     "bridgeDomain": {
       "type": "object",
-      "required": ["name", "vni", "evi"],
+      "required": ["name"],
       "additionalProperties": false,
       "properties": {
         "name": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["EVPNVXLAN", "SIMPLE"],
+          "default": "EVPNVXLAN",
+          "description": "Bridge domain type. EVPNVXLAN = EVPN-extended (requires vni+evi); SIMPLE = local L2 only, no VXLAN envelope."
+        },
         "vni": {
           "type": "integer",
           "minimum": 1,
           "maximum": 16777215,
-          "description": "VXLAN Network Identifier."
+          "description": "VXLAN Network Identifier (required for EVPNVXLAN)."
         },
         "evi": {
           "type": "integer",
           "minimum": 1,
           "maximum": 65535,
-          "description": "EVPN Instance identifier."
+          "description": "EVPN Instance identifier (required for EVPNVXLAN)."
         },
         "mac_learning": {
           "type": "boolean",
@@ -89,7 +105,18 @@
             }
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "anyOf": [
+              { "not": { "required": ["type"] } },
+              { "properties": { "type": { "const": "EVPNVXLAN" } } }
+            ]
+          },
+          "then": { "required": ["vni", "evi"] }
+        }
+      ]
     },
     "router": {
       "type": "object",
@@ -197,9 +224,9 @@
         },
         "learn_unsolicited": {
           "type": "string",
-          "enum": ["NONE", "GLOBAL"],
+          "enum": ["NONE", "GLOBAL", "LINK-LOCAL", "BOTH"],
           "default": "NONE",
-          "description": "Unsolicited ARP/ND learning mode."
+          "description": "Unsolicited ARP/ND learning mode. BOTH learns unsolicited ARP and ND; LINK-LOCAL restricts ND learning to link-local addresses."
         },
         "proxy_arp": {
           "type": "boolean",
@@ -212,14 +239,22 @@
           "description": "Enable L3 proxy Neighbor Discovery (IPv6)."
         },
         "evpn_route_advertisement_type": {
-          "type": "string",
-          "enum": ["type5Only", "type2Only", "type2WithType5"],
-          "description": "EVPN route advertisement type. type5Only = IP prefix routes only, type2Only = MAC/IP routes only, type2WithType5 = both."
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["type5Only", "type2Only", "type2WithType5"]
+            },
+            { "type": "object", "additionalProperties": true }
+          ],
+          "description": "EVPN route advertisement type. Accepts a short string (type5Only / type2Only / type2WithType5) or an EDA-native object form."
         },
         "host_route_populate": {
-          "type": "boolean",
+          "oneOf": [
+            { "type": "boolean" },
+            { "type": "object", "additionalProperties": true }
+          ],
           "default": false,
-          "description": "Populate host routes from ARP/ND entries into the IP-VRF routing table."
+          "description": "Populate host routes from ARP/ND entries into the IP-VRF routing table. Accepts a boolean or an EDA-native object form."
         },
         "description": {
           "type": "string",
@@ -250,7 +285,7 @@
     },
     "routedInterface": {
       "type": "object",
-      "required": ["name", "interface", "router", "vlan_id", "ipv4_addresses"],
+      "required": ["name", "interface", "router", "vlan_id"],
       "additionalProperties": false,
       "properties": {
         "name": { "type": "string" },
@@ -279,8 +314,29 @@
               "primary": { "type": "boolean" }
             }
           }
+        },
+        "ipv6_addresses": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["ipPrefix"],
+            "additionalProperties": false,
+            "properties": {
+              "ipPrefix": {
+                "type": "string",
+                "description": "IPv6 address with prefix length (e.g. '2001:db8::1/64')."
+              },
+              "primary": { "type": "boolean" }
+            }
+          },
+          "description": "IPv6 addresses — supports dual-stack when combined with ipv4_addresses."
         }
-      }
+      },
+      "anyOf": [
+        { "required": ["ipv4_addresses"] },
+        { "required": ["ipv6_addresses"] }
+      ]
     },
     "staticRoute": {
       "type": "object",
@@ -298,7 +354,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$"
+            "description": "IPv4 or IPv6 prefix (e.g. '172.16.200.0/24' or '2001:db8:200::/64')."
           },
           "minItems": 1
         },
@@ -317,8 +373,61 @@
                 "required": ["ipPrefix"],
                 "additionalProperties": false,
                 "properties": {
-                  "ipPrefix": { "type": "string" },
+                  "ipPrefix": {
+                    "type": "string",
+                    "description": "IPv4 or IPv6 nexthop address."
+                  },
                   "resolve": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "routingPolicy": {
+      "type": "object",
+      "required": ["name", "statements"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "default_action": {
+          "type": "string",
+          "enum": ["accept", "reject"],
+          "description": "Action applied when no statement matches."
+        },
+        "statements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "match": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "prefix_set": {
+                    "type": "string",
+                    "description": "Name of a prefix_set defined in topology.yaml."
+                  },
+                  "protocol": {
+                    "type": "string",
+                    "enum": ["local", "bgp", "aggregate", "bgp_evpn", "static"]
+                  },
+                  "bgp_evpn_route_types": {
+                    "type": "array",
+                    "items": { "type": "integer", "minimum": 1, "maximum": 5 }
+                  }
+                }
+              },
+              "action": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "result": { "type": "string", "enum": ["accept", "reject"] },
+                  "set_local_preference": { "type": "integer", "minimum": 0 }
                 }
               }
             }

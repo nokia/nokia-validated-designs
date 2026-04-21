@@ -67,15 +67,25 @@ CLIENT_LINK_MTU = 9000
 
 @dataclass
 class VlanAttachment:
-    """A single VLAN attachment on a client interface."""
+    """A single VLAN attachment on a client interface.
+
+    IPv4 fields are always populated when an IRB is reachable. IPv6
+    fields are populated only when the IRB has an ipv6 entry; clients
+    with v6 addresses get additional ``ip -6 addr`` / ``ping6`` lines.
+    """
 
     vlan_name: str
     bridge_domain: str
     vlan_id: str  # "10", "20", "untagged"
-    irb_subnet: str  # e.g., "172.16.10.0/24"
-    irb_gateway: str  # e.g., "172.16.10.254"
+    irb_subnet: str = ""  # e.g., "172.16.10.0/24"
+    irb_gateway: str = ""  # e.g., "172.16.10.254"
     client_ip: str = ""  # assigned later
     client_mask: int = 24  # prefix length
+    # Dual-stack
+    irb_subnet6: str = ""  # e.g., "2001:db8:0:10::/64"
+    irb_gateway6: str = ""  # e.g., "2001:db8:0:10::254"
+    client_ip6: str = ""
+    client_mask6: int = 64
 
 
 @dataclass
@@ -91,7 +101,12 @@ class ClientLink:
 
 @dataclass
 class RoutedAttachment:
-    """A routed (L3) attachment — no bridge domain, direct IP."""
+    """A routed (L3) attachment — no bridge domain, direct IP.
+
+    Supports dual-stack by optionally populating the IPv6 fields; when
+    populated, the generated client script adds ``ip -6 addr`` lines
+    and a continuous IPv6 ping to the gateway.
+    """
 
     name: str
     client_ip: str
@@ -99,6 +114,10 @@ class RoutedAttachment:
     gateway: str
     router: str = ""
     loopback_ips: list[str] = field(default_factory=list)
+    # Dual-stack
+    client_ip6: str = ""
+    gateway6: str = ""
+    client_mask6: int = 64
 
 
 @dataclass
@@ -177,6 +196,15 @@ def _derive_clients(intent: FabricIntent) -> list[ClientNode]:
         for m in lag.members:
             lag_member_ports.add((m.node, m.interface))
 
+    # Collect all ISL endpoint (node, interface) pairs. LAGs whose
+    # members are all ISL endpoints are internal fabric LAGs (typical
+    # of collapsed-spine: spine↔tor uplinks that run LACP on both
+    # sides) and must not produce a synthetic clab client.
+    isl_ports: set[tuple[str, str]] = set()
+    for link in intent.links:
+        isl_ports.add((link.local_node, link.local_interface))
+        isl_ports.add((link.remote_node, link.remote_interface))
+
     # Collect routed interface ports → separate dedicated clients
     ei_by_name: dict[str, EdgeInterfaceIntent] = {e.name: e for e in intent.edge_interfaces}
     routed_ports: dict[tuple[str, str], RoutedInterfaceIntent] = {}
@@ -196,9 +224,11 @@ def _derive_clients(intent: FabricIntent) -> list[ClientNode]:
         leaf_edges.setdefault(ei.node, []).append(ei)
 
     for node_name, edges in sorted(leaf_edges.items()):
-        # Extract leaf number for naming
-        leaf_num = _extract_leaf_number(node_name)
-        client_name = f"cl-l{leaf_num}" if leaf_num else f"cl-{node_name}"
+        # Derive a short, per-node client suffix so that designs with
+        # multiple node families (e.g. collapsed-spine has both
+        # "spine1" and "tor1") do not collide on the same ``cl-1``
+        # name.
+        client_name = f"cl-{_node_short_name(node_name)}"
 
         links = []
         for idx, ei in enumerate(sorted(edges, key=lambda e: e.interface), start=1):
@@ -214,14 +244,43 @@ def _derive_clients(intent: FabricIntent) -> list[ClientNode]:
         clients.append(ClientNode(name=client_name, is_bonded=False, links=links))
 
     # --- Dual-homed clients (LAGs) ---
-    for lag in intent.lags:
+    # A design can have multiple LAGs across the same pair of nodes
+    # (e.g. two different server LAGs dual-homed to spine1+spine2).
+    # Pre-compute per-base-name counts so we only append a disambiguator
+    # when there's a collision.
+    def _is_fabric_lag(lag: LagIntent) -> bool:
+        """A LAG whose every member port is also an ISL endpoint is an
+        internal fabric LAG (spine↔tor, leaf↔leaf) and must not be
+        rendered as a stand-alone clab client.
+        """
+        return all((m.node, m.interface) in isl_ports for m in lag.members)
+
+    server_lags = [lag for lag in intent.lags if not _is_fabric_lag(lag)]
+
+    base_to_lag_names: dict[str, list[str]] = {}
+    for lag in server_lags:
         members = sorted(lag.members, key=lambda m: m.node)
-        leaf_nums = []
+        short_parts: list[str] = []
         for m in members:
-            num = _extract_leaf_number(m.node)
-            if num and num not in leaf_nums:
-                leaf_nums.append(num)
-        client_name = "cl-l" + "l".join(str(n) for n in leaf_nums)
+            part = _node_short_name(m.node)
+            if part and part not in short_parts:
+                short_parts.append(part)
+        base = "cl-" + "".join(short_parts)
+        base_to_lag_names.setdefault(base, []).append(lag.name)
+
+    for lag in server_lags:
+        members = sorted(lag.members, key=lambda m: m.node)
+        short_parts = []
+        for m in members:
+            part = _node_short_name(m.node)
+            if part and part not in short_parts:
+                short_parts.append(part)
+        base = "cl-" + "".join(short_parts)
+        if len(base_to_lag_names[base]) > 1:
+            idx = base_to_lag_names[base].index(lag.name) + 1
+            client_name = f"{base}-{idx}"
+        else:
+            client_name = base
 
         links = []
         for idx, m in enumerate(members, start=1):
@@ -262,6 +321,21 @@ def _derive_clients(intent: FabricIntent) -> list[ClientNode]:
                     client_ip = str(net.ip + 1)
                     client_mask = net.network.prefixlen
 
+        # Dual-stack: derive IPv6 client address from the routed
+        # interface's IPv6 prefix. Router keeps the declared address;
+        # client gets gateway+1.
+        client_ip6 = ""
+        client_mask6 = 64
+        gateway6 = ""
+        if ri.ipv6_addresses:
+            addr6 = ri.ipv6_addresses[0]
+            ip_prefix6 = addr6.get("ipPrefix", addr6.get("ip_prefix", ""))
+            if ip_prefix6:
+                net6 = ipaddress.ip_interface(ip_prefix6)
+                gateway6 = str(net6.ip)
+                client_ip6 = str(net6.ip + 1)
+                client_mask6 = net6.network.prefixlen
+
         link = ClientLink(
             leaf_node=node_name,
             leaf_interface=phys_intf,
@@ -276,10 +350,27 @@ def _derive_clients(intent: FabricIntent) -> list[ClientNode]:
             gateway=gateway,
             router=ri.router,
             loopback_ips=loopback_ips,
+            client_ip6=client_ip6,
+            gateway6=gateway6,
+            client_mask6=client_mask6,
         )
         clients.append(
             ClientNode(name=client_name, is_bonded=False, links=[link], routed=routed_att)
         )
+
+    # Final collision guard: different edge types (single-homed edges,
+    # LAGs, routed) can independently derive the same client name
+    # (e.g. ``cl-t1`` from both a single-homed tor1 edge and a
+    # single-chassis tor1 LAG). Rename duplicates with incrementing
+    # suffixes so that every client gets its own startup script and
+    # clab node.
+    seen: dict[str, int] = {}
+    for cl in clients:
+        if cl.name in seen:
+            seen[cl.name] += 1
+            cl.name = f"{cl.name}-{seen[cl.name]}"
+        else:
+            seen[cl.name] = 1
 
     return clients
 
@@ -326,20 +417,29 @@ def _match_vlans_to_clients(clients: list[ClientNode], intent: FabricIntent) -> 
                     irb = irb_by_bd.get(vlan.bridge_domain)
                     subnet = ""
                     gateway = ""
+                    subnet6 = ""
+                    gateway6 = ""
+                    mask6 = 64
                     if irb:
                         if irb.ipv4:
                             iface = ipaddress.ip_interface(irb.ipv4)
                             subnet = str(iface.network)
                             gateway = str(iface.ip)
-                        elif irb.ip_addresses:
+                        if irb.ip_addresses:
                             for addr in irb.ip_addresses:
-                                if addr.ipv4:
+                                if addr.ipv4 and not subnet:
                                     pfx = addr.ipv4.get("ip_prefix", "")
                                     if pfx:
                                         iface = ipaddress.ip_interface(pfx)
                                         subnet = str(iface.network)
                                         gateway = str(iface.ip)
-                                        break
+                                if addr.ipv6 and not subnet6:
+                                    pfx6 = addr.ipv6.get("ip_prefix", "")
+                                    if pfx6:
+                                        iface6 = ipaddress.ip_interface(pfx6)
+                                        subnet6 = str(iface6.network)
+                                        gateway6 = str(iface6.ip)
+                                        mask6 = iface6.network.prefixlen
 
                     link.attachments.append(
                         VlanAttachment(
@@ -351,6 +451,9 @@ def _match_vlans_to_clients(clients: list[ClientNode], intent: FabricIntent) -> 
                             client_mask=ipaddress.ip_network(subnet).prefixlen
                             if subnet
                             else 24,
+                            irb_subnet6=subnet6,
+                            irb_gateway6=gateway6,
+                            client_mask6=mask6,
                         )
                     )
 
@@ -362,19 +465,26 @@ def _match_vlans_to_clients(clients: list[ClientNode], intent: FabricIntent) -> 
 
 
 def _allocate_ips(clients: list[ClientNode], intent: FabricIntent) -> None:
-    """Allocate unique IPs per subnet across all clients."""
-    subnet_counters: dict[str, int] = {}  # subnet → next offset
+    """Allocate unique IPv4 (and IPv6, when present) addresses per subnet."""
+    subnet_counters: dict[str, int] = {}  # IPv4 subnet → next offset
+    subnet6_counters: dict[str, int] = {}  # IPv6 subnet → next offset
 
     for client in clients:
         for link in client.links:
             for att in link.attachments:
-                if not att.irb_subnet:
-                    continue
-                net = ipaddress.ip_network(att.irb_subnet)
-                offset = subnet_counters.get(att.irb_subnet, 1)
-                att.client_ip = str(net.network_address + offset)
-                att.client_mask = net.prefixlen
-                subnet_counters[att.irb_subnet] = offset + 1
+                if att.irb_subnet:
+                    net = ipaddress.ip_network(att.irb_subnet)
+                    offset = subnet_counters.get(att.irb_subnet, 1)
+                    att.client_ip = str(net.network_address + offset)
+                    att.client_mask = net.prefixlen
+                    subnet_counters[att.irb_subnet] = offset + 1
+                if att.irb_subnet6:
+                    net6 = ipaddress.ip_network(att.irb_subnet6)
+                    # IPv6 client offsets start at 1 (::1, ::2, ...).
+                    offset6 = subnet6_counters.get(att.irb_subnet6, 1)
+                    att.client_ip6 = str(net6.network_address + offset6)
+                    att.client_mask6 = net6.prefixlen
+                    subnet6_counters[att.irb_subnet6] = offset6 + 1
 
 
 # ---------------------------------------------------------------------------
@@ -483,7 +593,12 @@ def _generate_client_script(client: ClientNode) -> str:
         ra = client.routed
         lines.append("# Routed interface (direct L3)")
         lines.append(f"ip link set dev eth1 mtu {CLIENT_LINK_MTU}")
-        lines.append(f"ip addr add {ra.client_ip}/{ra.client_mask} dev eth1")
+        if ra.client_ip:
+            lines.append(f"ip addr add {ra.client_ip}/{ra.client_mask} dev eth1")
+        if ra.client_ip6:
+            lines.append(
+                f"ip -6 addr add {ra.client_ip6}/{ra.client_mask6} dev eth1"
+            )
         lines.append("")
         if ra.loopback_ips:
             lines.append("# Loopback IPs for static route targets")
@@ -492,15 +607,26 @@ def _generate_client_script(client: ClientNode) -> str:
                 lines.append(f"ip addr add {lip}/{net.network.max_prefixlen} dev lo")
             lines.append("")
         lines.append("# Policy routing so source-bound traffic uses the fabric")
-        lines.append(f"ip route add default via {ra.gateway} dev eth1 table 10")
-        lines.append(f"ip rule add from {ra.client_ip} table 10")
+        if ra.client_ip and ra.gateway:
+            lines.append(f"ip route add default via {ra.gateway} dev eth1 table 10")
+            lines.append(f"ip rule add from {ra.client_ip} table 10")
+        if ra.client_ip6 and ra.gateway6:
+            lines.append(
+                f"ip -6 route add default via {ra.gateway6} dev eth1 table 10"
+            )
+            lines.append(f"ip -6 rule add from {ra.client_ip6} table 10")
         for lip in ra.loopback_ips:
             lines.append(f"ip rule add from {lip} table 10")
         lines.append("")
         lines.append("# Continuous traffic")
-        lines.append(
-            f"nohup ping -i 0.5 -I eth1 {ra.gateway} > /dev/null 2>&1 &"
-        )
+        if ra.gateway:
+            lines.append(
+                f"nohup ping -i 0.5 -I eth1 {ra.gateway} > /dev/null 2>&1 &"
+            )
+        if ra.gateway6:
+            lines.append(
+                f"nohup ping -6 -i 0.5 -I eth1 {ra.gateway6} > /dev/null 2>&1 &"
+            )
         return "\n".join(lines) + "\n"
 
     if client.is_bonded:
@@ -535,17 +661,25 @@ def _generate_single_homed_script(
                 lines.append(f"ip link set dev {sub} up")
             lines.append("")
 
-        # Assign IPs
+        # Assign IPs (v4 and, when present, v6)
         for att in untagged:
             if att.client_ip:
                 lines.append(
                     f"ip addr add {att.client_ip}/{att.client_mask} dev {iface}"
                 )
+            if att.client_ip6:
+                lines.append(
+                    f"ip -6 addr add {att.client_ip6}/{att.client_mask6} dev {iface}"
+                )
         for att in tagged:
+            sub = f"{iface}.{att.vlan_id}"
             if att.client_ip:
-                sub = f"{iface}.{att.vlan_id}"
                 lines.append(
                     f"ip addr add {att.client_ip}/{att.client_mask} dev {sub}"
+                )
+            if att.client_ip6:
+                lines.append(
+                    f"ip -6 addr add {att.client_ip6}/{att.client_mask6} dev {sub}"
                 )
 
     # Default routes per subnet (using routing tables for isolation)
@@ -555,26 +689,40 @@ def _generate_single_homed_script(
     all_attachments = []
     for link in client.links:
         for att in link.attachments:
+            if not (att.client_ip or att.client_ip6):
+                continue
+            iface = f"eth{link.eth_index}"
+            if att.vlan_id not in ("untagged", "null"):
+                iface = f"{iface}.{att.vlan_id}"
             if att.client_ip and att.irb_gateway:
-                iface = f"eth{link.eth_index}"
-                if att.vlan_id not in ("untagged", "null"):
-                    iface = f"{iface}.{att.vlan_id}"
                 lines.append(
                     f"ip route add default via {att.irb_gateway} dev {iface} table {table_id}"
                 )
                 lines.append(
                     f"ip rule add from {att.client_ip} table {table_id}"
                 )
-                all_attachments.append((iface, att))
-                table_id += 10
+            if att.client_ip6 and att.irb_gateway6:
+                lines.append(
+                    f"ip -6 route add default via {att.irb_gateway6} dev {iface} table {table_id}"
+                )
+                lines.append(
+                    f"ip -6 rule add from {att.client_ip6} table {table_id}"
+                )
+            all_attachments.append((iface, att))
+            table_id += 10
 
     # Traffic generation
     lines.append("")
     lines.append("# Continuous traffic")
     for iface, att in all_attachments:
-        lines.append(
-            f"nohup ping -i 0.5 -I {iface} {att.irb_gateway} > /dev/null 2>&1 &"
-        )
+        if att.irb_gateway:
+            lines.append(
+                f"nohup ping -i 0.5 -I {iface} {att.irb_gateway} > /dev/null 2>&1 &"
+            )
+        if att.irb_gateway6:
+            lines.append(
+                f"nohup ping -6 -i 0.5 -I {iface} {att.irb_gateway6} > /dev/null 2>&1 &"
+            )
 
     return "\n".join(lines) + "\n"
 
@@ -617,15 +765,23 @@ def _generate_bonded_script(client: ClientNode, lines: list[str]) -> str:
             lines.append(f"ip link set dev {sub} up")
         lines.append("")
 
-    # Assign IPs
+    # Assign IPs (v4 and, when present, v6)
     lines.append("# IP addressing")
     for att in untagged:
         if att.client_ip:
             lines.append(f"ip addr add {att.client_ip}/{att.client_mask} dev bond0")
+        if att.client_ip6:
+            lines.append(
+                f"ip -6 addr add {att.client_ip6}/{att.client_mask6} dev bond0"
+            )
     for att in tagged:
+        sub = f"bond0.{att.vlan_id}"
         if att.client_ip:
-            sub = f"bond0.{att.vlan_id}"
             lines.append(f"ip addr add {att.client_ip}/{att.client_mask} dev {sub}")
+        if att.client_ip6:
+            lines.append(
+                f"ip -6 addr add {att.client_ip6}/{att.client_mask6} dev {sub}"
+            )
 
     # Routes per subnet
     lines.append("")
@@ -633,24 +789,36 @@ def _generate_bonded_script(client: ClientNode, lines: list[str]) -> str:
     table_id = 10
     all_attachments_iface = []
     for att in untagged + tagged:
+        if not (att.client_ip or att.client_ip6):
+            continue
+        iface = "bond0"
+        if att.vlan_id not in ("untagged", "null"):
+            iface = f"bond0.{att.vlan_id}"
         if att.client_ip and att.irb_gateway:
-            iface = "bond0"
-            if att.vlan_id not in ("untagged", "null"):
-                iface = f"bond0.{att.vlan_id}"
             lines.append(
                 f"ip route add default via {att.irb_gateway} dev {iface} table {table_id}"
             )
             lines.append(f"ip rule add from {att.client_ip} table {table_id}")
-            all_attachments_iface.append((iface, att))
-            table_id += 10
+        if att.client_ip6 and att.irb_gateway6:
+            lines.append(
+                f"ip -6 route add default via {att.irb_gateway6} dev {iface} table {table_id}"
+            )
+            lines.append(f"ip -6 rule add from {att.client_ip6} table {table_id}")
+        all_attachments_iface.append((iface, att))
+        table_id += 10
 
     # Traffic
     lines.append("")
     lines.append("# Continuous traffic")
     for iface, att in all_attachments_iface:
-        lines.append(
-            f"nohup ping -i 0.5 -I {iface} {att.irb_gateway} > /dev/null 2>&1 &"
-        )
+        if att.irb_gateway:
+            lines.append(
+                f"nohup ping -i 0.5 -I {iface} {att.irb_gateway} > /dev/null 2>&1 &"
+            )
+        if att.irb_gateway6:
+            lines.append(
+                f"nohup ping -6 -i 0.5 -I {iface} {att.irb_gateway6} > /dev/null 2>&1 &"
+            )
 
     return "\n".join(lines) + "\n"
 
@@ -681,13 +849,15 @@ def _generate_validate_overlay(
         bd_to_router[irb.bridge_domain] = irb.router
 
     # Collect (client_name, src_ip, bridge_domain, router) for every
-    # VLAN attachment across all clients.
+    # VLAN attachment across all clients. Each attachment generates up
+    # to two subnet entries: one for IPv4 and one for IPv6 (dual-stack).
     @dataclass
     class _ClientSubnet:
         client: str
         ip: str
         bd: str
         router: str
+        family: str = "ipv4"  # or "ipv6"
 
     subnets: list[_ClientSubnet] = []
     for cl in clients:
@@ -695,15 +865,30 @@ def _generate_validate_overlay(
             continue
         for link in cl.links:
             for att in link.attachments:
+                router = bd_to_router.get(att.bridge_domain, "")
                 if att.client_ip:
                     subnets.append(
                         _ClientSubnet(
                             client=cl.name,
                             ip=att.client_ip,
                             bd=att.bridge_domain,
-                            router=bd_to_router.get(att.bridge_domain, ""),
+                            router=router,
+                            family="ipv4",
                         )
                     )
+                if att.client_ip6:
+                    subnets.append(
+                        _ClientSubnet(
+                            client=cl.name,
+                            ip=att.client_ip6,
+                            bd=att.bridge_domain,
+                            router=router,
+                            family="ipv6",
+                        )
+                    )
+
+    v4_subnets = [s for s in subnets if s.family == "ipv4"]
+    v6_subnets = [s for s in subnets if s.family == "ipv6"]
 
     # Routed clients
     routed_clients = [cl for cl in clients if cl.routed]
@@ -713,19 +898,21 @@ def _generate_validate_overlay(
 
     L.append(_VALIDATE_HEADER)
 
-    # --- Convergence wait using first client ---
-    if subnets:
-        s0 = subnets[0]
+    # --- Convergence wait using first v4 client ---
+    if v4_subnets:
+        s0 = v4_subnets[0]
         gw0 = _gateway_for_subnet(s0.bd, intent)
         L.append("if ! $NO_WAIT; then")
         L.append(f'  wait_for_convergence "{s0.client}" "{s0.ip}" "{gw0}" 120')
         L.append("fi")
         L.append("")
 
-    # --- Gateway reachability (one test per client-subnet) ---
+    # --- Gateway reachability (IPv4, then IPv6) ---
     L.append('sec_start=$((_seq + 1))')
-    for s in subnets:
+    for s in v4_subnets:
         gw = _gateway_for_subnet(s.bd, intent)
+        if not gw:
+            continue
         L.append(
             f'enqueue_ping "{s.client}" "{s.ip}" "{gw}" '
             f'"{s.client} → gw {gw} ({s.bd})"'
@@ -733,12 +920,38 @@ def _generate_validate_overlay(
     for cl in routed_clients:
         ra = cl.routed
         assert ra is not None
-        L.append(
-            f'enqueue_ping "{cl.name}" "{ra.client_ip}" "{ra.gateway}" '
-            f'"{cl.name} → gw {ra.gateway} (routed)"'
-        )
-    L.append('flush_section "Gateway reachability" "$sec_start"')
+        if ra.client_ip and ra.gateway:
+            L.append(
+                f'enqueue_ping "{cl.name}" "{ra.client_ip}" "{ra.gateway}" '
+                f'"{cl.name} → gw {ra.gateway} (routed)"'
+            )
+    L.append('flush_section "Gateway reachability (IPv4)" "$sec_start"')
     L.append("")
+
+    if v6_subnets or any(
+        cl.routed and cl.routed.client_ip6 and cl.routed.gateway6
+        for cl in routed_clients
+    ):
+        L.append('sec_start=$((_seq + 1))')
+        for s in v6_subnets:
+            gw6 = _gateway6_for_subnet(s.bd, intent)
+            if not gw6:
+                continue
+            L.append(
+                f'enqueue_ping6 "{s.client}" "{s.ip}" "{gw6}" '
+                f'"{s.client} → gw {gw6} ({s.bd})"'
+            )
+        for cl in routed_clients:
+            ra = cl.routed
+            assert ra is not None
+            if ra.client_ip6 and ra.gateway6:
+                L.append(
+                    f'enqueue_ping6 "{cl.name}" "{ra.client_ip6}" "{ra.gateway6}" '
+                    f'"{cl.name} → gw {ra.gateway6} (routed)"'
+                )
+        L.append('flush_section "Gateway reachability (IPv6)" "$sec_start"')
+        L.append("")
+
     L.append("if $QUICK; then")
     L.append('  echo ""')
     L.append('  echo "━━━ Summary (quick mode) ━━━"')
@@ -749,63 +962,87 @@ def _generate_validate_overlay(
     L.append("")
 
     # --- L2 intra-subnet (clients sharing the same bridge domain) ---
-    L.append('sec_start=$((_seq + 1))')
-    bd_clients: dict[str, list[_ClientSubnet]] = {}
-    for s in subnets:
-        bd_clients.setdefault(s.bd, []).append(s)
-    for bd, members in sorted(bd_clients.items()):
-        if len(members) < 2:
-            continue
-        for i, a in enumerate(members):
-            for b in members[i + 1 :]:
-                L.append(
-                    f'enqueue_bidir "{a.client}" "{a.ip}" '
-                    f'"{b.client}" "{b.ip}" "L2 {bd}"'
-                )
-    L.append('flush_section "L2 intra-subnet (same bridge domain)" "$sec_start"')
-    L.append("")
+    def _emit_l2(family_subnets: list[_ClientSubnet], family: str) -> None:
+        if len(family_subnets) < 2:
+            return
+        bd_clients: dict[str, list[_ClientSubnet]] = {}
+        for s in family_subnets:
+            bd_clients.setdefault(s.bd, []).append(s)
+        ping_fn = "enqueue_bidir" if family == "ipv4" else "enqueue_bidir6"
+        L.append('sec_start=$((_seq + 1))')
+        for bd, members in sorted(bd_clients.items()):
+            if len(members) < 2:
+                continue
+            for i, a in enumerate(members):
+                for b in members[i + 1 :]:
+                    L.append(
+                        f'{ping_fn} "{a.client}" "{a.ip}" '
+                        f'"{b.client}" "{b.ip}" "L2 {bd}"'
+                    )
+        L.append(
+            f'flush_section "L2 intra-subnet (same bridge domain, {family.upper()})" '
+            '"$sec_start"'
+        )
+        L.append("")
+
+    _emit_l2(v4_subnets, "ipv4")
+    _emit_l2(v6_subnets, "ipv6")
 
     # --- L3 inter-subnet (clients in different BDs of the same router) ---
-    L.append('sec_start=$((_seq + 1))')
-    router_bds: dict[str, list[str]] = {}
-    for s in subnets:
-        if s.router:
-            router_bds.setdefault(s.router, [])
-            if s.bd not in router_bds[s.router]:
-                router_bds[s.router].append(s.bd)
-
-    for router, bds in sorted(router_bds.items()):
-        if len(bds) < 2:
-            continue
-        for i, bd_a in enumerate(bds):
-            for bd_b in bds[i + 1 :]:
-                # pick one representative client from each BD
-                a = bd_clients[bd_a][0]
-                b = bd_clients[bd_b][0]
-                L.append(
-                    f'enqueue_bidir "{a.client}" "{a.ip}" '
-                    f'"{b.client}" "{b.ip}" '
-                    f'"L3 {router} ({a.bd} ↔ {b.bd})"'
-                )
-    L.append(
-        'flush_section "L3 inter-subnet (same router, different subnet)" "$sec_start"'
-    )
-    L.append("")
-
-    # --- Routed interfaces and static routes ---
-    if routed_clients or intent.static_routes:
+    def _emit_l3(family_subnets: list[_ClientSubnet], family: str) -> None:
+        ping_fn = "enqueue_bidir" if family == "ipv4" else "enqueue_bidir6"
+        bd_clients: dict[str, list[_ClientSubnet]] = {}
+        router_bds: dict[str, list[str]] = {}
+        for s in family_subnets:
+            bd_clients.setdefault(s.bd, []).append(s)
+            if s.router:
+                router_bds.setdefault(s.router, [])
+                if s.bd not in router_bds[s.router]:
+                    router_bds[s.router].append(s.bd)
+        # nothing to test if no router has 2+ BDs
+        if not any(len(bds) >= 2 for bds in router_bds.values()):
+            return
         L.append('sec_start=$((_seq + 1))')
+        for router, bds in sorted(router_bds.items()):
+            if len(bds) < 2:
+                continue
+            for i, bd_a in enumerate(bds):
+                for bd_b in bds[i + 1 :]:
+                    a = bd_clients[bd_a][0]
+                    b = bd_clients[bd_b][0]
+                    L.append(
+                        f'{ping_fn} "{a.client}" "{a.ip}" '
+                        f'"{b.client}" "{b.ip}" '
+                        f'"L3 {router} ({a.bd} ↔ {b.bd})"'
+                    )
+        L.append(
+            f'flush_section "L3 inter-subnet (same router, different subnet, '
+            f'{family.upper()})" "$sec_start"'
+        )
+        L.append("")
+
+    _emit_l3(v4_subnets, "ipv4")
+    _emit_l3(v6_subnets, "ipv6")
+
+    # --- Routed interfaces and static routes (IPv4 only) ---
+    if routed_clients or intent.static_routes:
+        emitted_header = False
         for cl in routed_clients:
             ra = cl.routed
             assert ra is not None
+            if not ra.client_ip:
+                continue
             tested: set[str] = set()
-            for s in subnets:
+            for s in v4_subnets:
                 if ra.router and s.router != ra.router:
                     continue
                 key = f"{cl.name}-{s.bd}"
                 if key in tested:
                     continue
                 tested.add(key)
+                if not emitted_header:
+                    L.append('sec_start=$((_seq + 1))')
+                    emitted_header = True
                 L.append(
                     f'enqueue_bidir "{cl.name}" "{ra.client_ip}" '
                     f'"{s.client}" "{s.ip}" '
@@ -815,9 +1052,8 @@ def _generate_validate_overlay(
         for sr in intent.static_routes:
             nexthops = sr.nexthop_group.get("nexthops", [])
             nh_ip = nexthops[0].get("ipPrefix", "") if nexthops else ""
-            # find a client on a BD that has a route via the static route's router
             src = next(
-                (s for s in subnets if s.router == sr.router), None
+                (s for s in v4_subnets if s.router == sr.router), None
             )
             if not src:
                 continue
@@ -831,15 +1067,22 @@ def _generate_validate_overlay(
                     if cl.routed and cl.routed.client_ip == nh_ip:
                         target_name = cl.name
                         break
-                label = f"static route {prefix} via {target_name or nh_ip} (from {src.client})"
+                label = (
+                    f"static route {prefix} via {target_name or nh_ip} "
+                    f"(from {src.client})"
+                )
+                if not emitted_header:
+                    L.append('sec_start=$((_seq + 1))')
+                    emitted_header = True
                 L.append(
                     f'enqueue_ping "{src.client}" "{src.ip}" '
                     f'"{first_host}" "{label}"'
                 )
-        L.append(
-            'flush_section "Routed interfaces and static routes" "$sec_start"'
-        )
-        L.append("")
+        if emitted_header:
+            L.append(
+                'flush_section "Routed interfaces and static routes" "$sec_start"'
+            )
+            L.append("")
 
     # --- Summary ---
     L.append('echo ""')
@@ -853,7 +1096,7 @@ def _generate_validate_overlay(
 
 
 def _gateway_for_subnet(bridge_domain: str, intent: FabricIntent) -> str:
-    """Return the anycast-gw IP for a bridge domain."""
+    """Return the anycast-gw IPv4 for a bridge domain."""
     for irb in intent.irb_interfaces:
         if irb.bridge_domain != bridge_domain:
             continue
@@ -863,6 +1106,18 @@ def _gateway_for_subnet(bridge_domain: str, intent: FabricIntent) -> str:
             for addr in irb.ip_addresses:
                 if addr.ipv4 and addr.ipv4.get("ip_prefix"):
                     return addr.ipv4["ip_prefix"].split("/")[0]
+    return ""
+
+
+def _gateway6_for_subnet(bridge_domain: str, intent: FabricIntent) -> str:
+    """Return the anycast-gw IPv6 for a bridge domain."""
+    for irb in intent.irb_interfaces:
+        if irb.bridge_domain != bridge_domain:
+            continue
+        if irb.ip_addresses:
+            for addr in irb.ip_addresses:
+                if addr.ipv6 and addr.ipv6.get("ip_prefix"):
+                    return addr.ipv6["ip_prefix"].split("/")[0]
     return ""
 
 
@@ -931,6 +1186,27 @@ enqueue_bidir() {
   enqueue_ping "$b" "$b_ip" "$a_ip" "$label ($b → $a)"
 }
 
+enqueue_ping6() {
+  local src="$1" src_ip="$2" dst_ip="$3" label="$4"
+  _seq=$((_seq + 1))
+  local id=$_seq
+  (
+    if $VERBOSE; then echo "    cmd: docker exec $src ping -6 -c1 -W2 -I $src_ip $dst_ip"; fi
+    if exec_on "$src" ping -6 -c1 -W2 -I "$src_ip" "$dst_ip" > /dev/null 2>&1; then
+      echo "pass" > "$RESULT_DIR/${id}.rc"
+    else
+      echo "fail" > "$RESULT_DIR/${id}.rc"
+    fi
+    echo "$label" > "$RESULT_DIR/${id}.label"
+  ) &
+}
+
+enqueue_bidir6() {
+  local a="$1" a_ip="$2" b="$3" b_ip="$4" label="$5"
+  enqueue_ping6 "$a" "$a_ip" "$b_ip" "$label ($a → $b)"
+  enqueue_ping6 "$b" "$b_ip" "$a_ip" "$label ($b → $a)"
+}
+
 flush_section() {
   local section="$1" start_id="$2"
   wait
@@ -980,6 +1256,21 @@ def _extract_leaf_number(node_name: str) -> str | None:
     """Extract the numeric suffix from a leaf name (e.g., 'leaf4' → '4')."""
     m = re.search(r"(\d+)$", node_name)
     return m.group(1) if m else None
+
+
+def _node_short_name(node_name: str) -> str:
+    """Derive a short ``{prefix}{number}`` id from a node name.
+
+    The prefix is the first letter of the leading alphabetic segment
+    (``leaf1`` → ``l1``, ``spine1`` → ``s1``, ``tor2`` → ``t2``). This
+    keeps client names unique in mixed-role designs. If the node name
+    has no numeric suffix, the original name is returned.
+    """
+    m = re.match(r"^([A-Za-z]+)(\d+)$", node_name)
+    if m:
+        prefix, num = m.group(1), m.group(2)
+        return f"{prefix[0].lower()}{num}"
+    return node_name
 
 
 def _allocate_client_mgmt_ips(

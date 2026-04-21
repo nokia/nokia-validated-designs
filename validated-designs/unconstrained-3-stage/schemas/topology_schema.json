@@ -22,6 +22,20 @@
       "enum": ["containerlab", "physical"],
       "default": "containerlab"
     },
+    "credentials": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "SR Linux credentials used by generated artefacts (clab, Ansible, gnmic).",
+      "properties": {
+        "username": { "type": "string", "default": "admin" },
+        "password": { "type": "string", "default": "NokiaSrl1!" }
+      }
+    },
+    "mgmt_subnet": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$",
+      "description": "Management network subnet (informational / used by clab generator)."
+    },
     "underlay": {
       "type": "object",
       "required": ["spine_asn", "leaf_asn_start", "system0_prefix"],
@@ -126,6 +140,21 @@
       "type": "array",
       "items": { "$ref": "#/$defs/banner" },
       "description": "Login and MOTD banner settings for fabric nodes."
+    },
+    "prefix_sets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/prefixSet" },
+      "description": "Prefix sets referenced by routing_policies in services.yaml."
+    },
+    "fabric_export_policies": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Names of routing_policies to attach as fabric-wide export policies on the Fabric CR."
+    },
+    "fabric_import_policies": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Names of routing_policies to attach as fabric-wide import policies on the Fabric CR."
     },
     "eda": {
       "type": "object",
@@ -356,6 +385,34 @@
         "motd": { "type": "string" },
         "node_selector": { "type": "array", "items": { "type": "string" } },
         "nodes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "prefixSet": {
+      "type": "object",
+      "required": ["name", "prefixes"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "prefixes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["ip_prefix"],
+            "additionalProperties": false,
+            "properties": {
+              "ip_prefix": {
+                "type": "string",
+                "description": "IPv4 or IPv6 CIDR prefix."
+              },
+              "mask_length_range": {
+                "type": "string",
+                "default": "exact",
+                "description": "Mask-length range (e.g. 'exact' or '24..32')."
+              }
+            }
+          }
+        }
       }
     }
   }

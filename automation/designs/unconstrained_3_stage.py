@@ -246,18 +246,26 @@ def _build_configlets(raw: list[dict]) -> list[ConfigletIntent]:
 
 
 def _build_bridge_domains(raw: list[dict]) -> list[BridgeDomainIntent]:
-    """Build bridge domain intents from raw input."""
-    return [
-        BridgeDomainIntent(
-            name=bd["name"],
-            vni=bd["vni"],
-            evi=bd["evi"],
-            mac_learning=bd.get("mac_learning", True),
-            mac_aging=bd.get("mac_aging", 300),
-            mac_duplication=bd.get("mac_duplication"),
-        )
-        for bd in raw
-    ]
+    """Build bridge domain intents from raw input.
+
+    Supports both EVPNVXLAN bridge domains (default, require vni+evi) and
+    SIMPLE local-only L2 bridge domains (no VXLAN envelope, vni/evi omitted).
+    """
+    result: list[BridgeDomainIntent] = []
+    for bd in raw:
+        bd_type = bd.get("type", "EVPNVXLAN")
+        kwargs: dict[str, Any] = {
+            "name": bd["name"],
+            "type": bd_type,
+            "mac_learning": bd.get("mac_learning", True),
+            "mac_aging": bd.get("mac_aging", 300),
+            "mac_duplication": bd.get("mac_duplication"),
+        }
+        if bd_type == "EVPNVXLAN":
+            kwargs["vni"] = bd["vni"]
+            kwargs["evi"] = bd["evi"]
+        result.append(BridgeDomainIntent(**kwargs))
+    return result
 
 
 def _coerce_evpn_adv_type(val: Any) -> dict | None:

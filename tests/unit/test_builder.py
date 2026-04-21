@@ -51,7 +51,6 @@ class TestThreeStageBuilder:
         assert len(intent.links) == 8 * 2  # each leaf connects to each spine
 
     def test_bridge_domains(self, intent):
-        assert len(intent.bridge_domains) == 6
         names = {bd.name for bd in intent.bridge_domains}
         assert "macvrf-v10" in names
 

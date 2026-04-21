@@ -28,6 +28,7 @@ class DesignBuilder(Protocol):
 DESIGN_BUILDERS: dict[str, str] = {
     "3-stage-evpn-vxlan": "automation.designs.three_stage_evpn_vxlan",
     "unconstrained-3-stage": "automation.designs.unconstrained_3_stage",
+    "collapsed-spine": "automation.designs.collapsed_spine",
 }
 
 
