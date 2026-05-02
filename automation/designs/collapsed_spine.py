@@ -401,6 +401,8 @@ def _build_bridge_domains(
             "type": bd_type,
             "mac_learning": bd.get("mac_learning", True),
             "mac_aging": bd.get("mac_aging", 300),
+            "export_target": bd.get("export_target"),
+            "import_target": bd.get("import_target"),
             "origin": origin,
         }
         if bd_type == "EVPNVXLAN":

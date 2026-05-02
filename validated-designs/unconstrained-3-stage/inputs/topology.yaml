@@ -30,18 +30,51 @@ underlay:
   system0_prefix: 10.0.0.0/24
 
 # ---------------------------------------------------------------------------
-# Fabric (eBGP underlay + overlay)
+# Fabric — direct mirror of the EDA Fabric spec
+# (fabrics_eda_nokia_com_v1alpha1.json). Each block below maps 1:1 to its
+# camelCase EDA counterpart (underlay_protocol → underlayProtocol, etc.).
 # ---------------------------------------------------------------------------
 fabric:
-  underlay_protocol: EBGP
-  overlay_protocol: EBGP
-  isl_unnumbered: IPV6
-  bfd:
-    enabled: true
-    desired_min_transmit_int: 1000000
-    required_min_receive: 1000000
-    detection_multiplier: 3
-    min_echo_receive_interval: 1000000
+  underlay_protocol:
+    # protocol is a list — combine [EBGP, OSPFv2] for hybrid underlays, or
+    # use [OSPFv2] / [OSPFv3] for IGP-only underlays.
+    protocol: [EBGP]
+    # Optional BGP block (used when protocol contains EBGP). asn_pool
+    # defaults to the design's auto-generated pools when omitted.
+    #   bgp:
+    #     asn_pool: asn-pool
+    #     timers: { hold_time: 90, keep_alive: 30, connect_retry: 30 }
+    # Optional OSPF block (used when protocol contains OSPFv2 or OSPFv3):
+    #   ospf:
+    #     address_family: [IPV4-UNICAST, IPV6-UNICAST]   # OSPFv3 only
+    bfd:
+      enabled: true
+      desired_min_transmit_int: 1000000
+      required_min_receive: 1000000
+      detection_multiplier: 3
+      min_echo_receive_interval: 1000000
+
+  overlay_protocol:
+    # EBGP — reuse underlay BGP sessions (no extra config needed).
+    # IBGP — dedicated RR / client peerings; autonomous_system + cluster_id required:
+    #   protocol: IBGP
+    #   bgp:
+    #     autonomous_system: 65500
+    #     cluster_id: 10.0.0.100
+    #     rr_node_selector: ["eda.nokia.com/role=spine"]          # default: spine selectors
+    #     rr_client_node_selector: ["eda.nokia.com/role=leaf"]    # default: leaf selectors
+    #     timers: { hold_time: 90, keep_alive: 30 }
+    #   bfd: { enabled: false }                                   # IBGP-only
+    protocol: EBGP
+
+  inter_switch_links:
+    # IPV6 = link-local unnumbered (EDA's only supported "unnumbered" mode).
+    # Omit and set pool_ipv4 for IPv4-numbered ISLs.
+    unnumbered: IPV6
+    # pool_ipv4: isl-pool-v4
+    # pool_ipv6: isl-pool-v6
+    # ip_mtu: 9100
+    # vlan_id: 100
 
 # ---------------------------------------------------------------------------
 # Nodes

@@ -101,6 +101,16 @@
           "minimum": 1,
           "maximum": 65535,
           "description": "EVPN Instance identifier."
+        },
+        "export_target": {
+          "type": "string",
+          "pattern": "^target:.+$",
+          "description": "Optional BGP-EVPN export route target (e.g. 'target:1:777'). Overrides the default 'target:1:<evi>'."
+        },
+        "import_target": {
+          "type": "string",
+          "pattern": "^target:.+$",
+          "description": "Optional BGP-EVPN import route target (e.g. 'target:1:777'). Overrides the default 'target:1:<evi>'."
         }
       }
     },
@@ -133,6 +143,16 @@
           },
           "minItems": 1,
           "description": "Label selectors to match nodes for this router (e.g. 'eda.nokia.com/role=leaf')."
+        },
+        "export_target": {
+          "type": "string",
+          "pattern": "^target:.+$",
+          "description": "Optional BGP-EVPN export route target (e.g. 'target:1:777'). Overrides the default 'target:1:<evi>'."
+        },
+        "import_target": {
+          "type": "string",
+          "pattern": "^target:.+$",
+          "description": "Optional BGP-EVPN import route target (e.g. 'target:1:777'). Overrides the default 'target:1:<evi>'."
         }
       }
     },
@@ -363,7 +383,9 @@
             "action": { "type": "string", "enum": ["StopLearning", "Blackhole", "UseNetInstanceAction"] },
             "num_moves": { "type": "integer", "minimum": 1 }
           }
-        }
+        },
+        "export_target": { "type": "string", "pattern": "^target:.+$", "description": "Optional BGP-EVPN export route target. Overrides the default 'target:1:<evi>'." },
+        "import_target": { "type": "string", "pattern": "^target:.+$", "description": "Optional BGP-EVPN import route target. Overrides the default 'target:1:<evi>'." }
       }
     },
     "extendedIrbInterface": {
@@ -438,7 +460,9 @@
           "items": { "type": "string", "pattern": "^[a-zA-Z0-9_./-]+=.+$" },
           "minItems": 1,
           "description": "Label selectors to match nodes for this router."
-        }
+        },
+        "export_target": { "type": "string", "pattern": "^target:.+$", "description": "Optional BGP-EVPN export route target. Overrides the default 'target:1:<evi>'." },
+        "import_target": { "type": "string", "pattern": "^target:.+$", "description": "Optional BGP-EVPN import route target. Overrides the default 'target:1:<evi>'." }
       }
     },
     "extendedVlan": {

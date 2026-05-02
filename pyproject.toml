@@ -23,6 +23,9 @@ test = [
     "pytest-timeout>=2.3",
     "pytest-metadata>=3.0",
 ]
+netbox = [
+    "pynetbox>=7.3",
+]
 
 [project.scripts]
 nvd = "automation.deploy:main"

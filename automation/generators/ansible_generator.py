@@ -710,6 +710,10 @@ def _bd_group_entry(bd: BridgeDomainIntent) -> dict[str, Any]:
         entry["mac_aging"] = bd.mac_aging
     if bd.mac_duplication is not None:
         entry["mac_duplication"] = bd.mac_duplication
+    if bd.export_target is not None:
+        entry["export_target"] = bd.export_target
+    if bd.import_target is not None:
+        entry["import_target"] = bd.import_target
     return entry
 
 
@@ -722,6 +726,10 @@ def _router_group_entry(r: RouterIntent) -> dict[str, Any]:
     }
     if r.node_selector:
         entry["node_selector"] = list(r.node_selector)
+    if r.export_target is not None:
+        entry["export_target"] = r.export_target
+    if r.import_target is not None:
+        entry["import_target"] = r.import_target
     return entry
 
 

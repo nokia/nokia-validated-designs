@@ -71,6 +71,8 @@ def _build_macvrf_instances(hv: dict, updates: list[dict]) -> None:
         bd_name = bd["name"]
         evi = bd["evi"]
         vxlan_idx = vxlan_map[bd_name]
+        export_rt = bd.get("export_target") or f"target:1:{evi}"
+        import_rt = bd.get("import_target") or f"target:1:{evi}"
 
         ni_interfaces: list[str] = []
 
@@ -120,8 +122,8 @@ def _build_macvrf_instances(hv: dict, updates: list[dict]) -> None:
                     "bgp-instance": [{
                         "id": 1,
                         "route-target": {
-                            "export-rt": f"target:1:{evi}",
-                            "import-rt": f"target:1:{evi}",
+                            "export-rt": export_rt,
+                            "import-rt": import_rt,
                         },
                     }],
                 },

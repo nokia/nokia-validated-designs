@@ -107,6 +107,12 @@ class LagIntent(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+# EVPN route-target format, mirrors EDA's ``^target.*$`` pattern but also
+# requires a colon so ``target:<asn>:<evi>`` etc. are accepted while bare
+# ``target`` is rejected.
+RT_PATTERN = r"^target:.+$"
+
+
 class BridgeDomainIntent(BaseModel):
     """A bridge domain (mac-vrf) service.
 
@@ -130,6 +136,11 @@ class BridgeDomainIntent(BaseModel):
             "num_moves": 5,
         }
     )
+    # Optional BGP-EVPN route targets; when unset, EDA uses its server-side
+    # default ``target:1:<evi>`` and the Ansible srl_builders use the same
+    # string client-side so behaviour stays identical.
+    export_target: str | None = Field(default=None, pattern=RT_PATTERN)
+    import_target: str | None = Field(default=None, pattern=RT_PATTERN)
     origin: str = ""  # "3-stage" | "extras" — set by builder for provenance tracking
 
     @model_validator(mode="after")
@@ -149,6 +160,11 @@ class RouterIntent(BaseModel):
     vni: int  # e.g. 10500
     evi: int  # e.g. 500
     node_selector: list[str] = Field(default_factory=list)  # e.g. ["eda.nokia.com/role=leaf"]
+    # Optional BGP-EVPN route targets; when unset, EDA uses its server-side
+    # default ``target:1:<evi>`` and the Ansible srl_builders use the same
+    # string client-side so behaviour stays identical.
+    export_target: str | None = Field(default=None, pattern=RT_PATTERN)
+    import_target: str | None = Field(default=None, pattern=RT_PATTERN)
 
 
 class IrbIpAddress(BaseModel):
@@ -357,6 +373,177 @@ class EdaSettings(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Fabric configuration input
+#
+# Mirrors the EDA Fabric spec (fabrics_eda_nokia_com_v1alpha1.json). Snake-case
+# input field names map 1:1 to the camelCase fields of the EDA OpenAPI schema:
+#   underlay_protocol  → spec.underlayProtocol
+#   overlay_protocol   → spec.overlayProtocol
+#   inter_switch_links → spec.interSwitchLinks
+#
+# When this block is omitted on the FabricIntent, the EDA generator falls back
+# to the legacy hardcoded "EBGP underlay + EBGP overlay + IPv6 unnumbered ISLs"
+# defaults so existing designs (3-stage-evpn-vxlan, collapsed-spine) keep
+# working unchanged.
+# ---------------------------------------------------------------------------
+
+
+UnderlayRoutingProtocol = Literal["EBGP", "OSPFv2", "OSPFv3"]
+OverlayRoutingProtocol = Literal["IBGP", "EBGP"]
+OspfAddressFamily = Literal["IPV4-UNICAST", "IPV6-UNICAST"]
+
+
+class FabricBfdConfig(BaseModel):
+    """BFD timers used by both underlay and overlay protocol blocks.
+
+    Field semantics and ranges mirror EDA's underlay/overlay BFD sub-schemas
+    (FabricUnderlayProtocolBfd / FabricOverlayProtocolBfd).
+    """
+
+    enabled: bool = False
+    desired_min_transmit_int: int | None = Field(default=None, ge=10000, le=100000000)
+    required_min_receive: int | None = Field(default=None, ge=10000, le=100000000)
+    detection_multiplier: int | None = Field(default=None, ge=3, le=20)
+    min_echo_receive_interval: int | None = Field(default=None, ge=0, le=100000000)
+    ttl: int | None = Field(default=None, ge=2, le=255)
+
+
+class FabricBgpTimersConfig(BaseModel):
+    """BGP timers — applied to underlay or overlay BGP sessions."""
+
+    connect_retry: int | None = Field(default=None, ge=1, le=65535)
+    hold_time: int | None = Field(default=None, ge=0, le=65535)
+    keep_alive: int | None = Field(default=None, ge=0, le=21845)
+    minimum_advertisement_interval: int | None = Field(default=None, ge=1, le=255)
+
+
+class FabricUnderlayBgpConfig(BaseModel):
+    """Underlay-specific BGP configuration."""
+
+    asn_pool: str | None = None  # IndexAllocationPool name; defaults to design pool
+    export_policy: list[str] = Field(default_factory=list)
+    import_policy: list[str] = Field(default_factory=list)
+    keychain: str | None = None
+    timers: FabricBgpTimersConfig | None = None
+
+
+class FabricUnderlayOspfConfig(BaseModel):
+    """Underlay-specific OSPF configuration."""
+
+    address_family: list[OspfAddressFamily] = Field(default_factory=list)
+
+
+class FabricUnderlayProtocolConfig(BaseModel):
+    """Underlay protocol selection + per-protocol options + BFD."""
+
+    protocol: list[UnderlayRoutingProtocol] = Field(default_factory=lambda: ["EBGP"])
+    bgp: FabricUnderlayBgpConfig | None = None
+    ospf: FabricUnderlayOspfConfig | None = None
+    bfd: FabricBfdConfig | None = None
+
+    @model_validator(mode="after")
+    def _validate(self) -> FabricUnderlayProtocolConfig:
+        if not self.protocol:
+            raise ValueError("underlay_protocol.protocol must list at least one of EBGP, OSPFv2, OSPFv3")
+        if len(set(self.protocol)) != len(self.protocol):
+            raise ValueError("underlay_protocol.protocol entries must be unique")
+        # OSPFv2 and OSPFv3 cannot be combined with each other on the same ISL.
+        if "OSPFv2" in self.protocol and "OSPFv3" in self.protocol:
+            raise ValueError(
+                "underlay_protocol.protocol cannot contain both OSPFv2 and OSPFv3"
+            )
+        return self
+
+
+class FabricOverlayBgpConfig(BaseModel):
+    """Overlay-specific BGP configuration.
+
+    ``autonomous_system`` and ``cluster_id`` are required when the overlay
+    protocol is IBGP (validated by FabricConfigInput).
+    """
+
+    autonomous_system: int | None = None
+    cluster_id: str | None = None
+    export_policy: list[str] = Field(default_factory=list)
+    import_policy: list[str] = Field(default_factory=list)
+    keychain: str | None = None
+    rr_node_selector: list[str] = Field(default_factory=list)
+    rr_client_node_selector: list[str] = Field(default_factory=list)
+    rr_ip_addresses: list[str] = Field(default_factory=list)
+    timers: FabricBgpTimersConfig | None = None
+
+
+class FabricOverlayProtocolConfig(BaseModel):
+    """Overlay protocol selection + BGP + BFD.
+
+    ``EBGP`` reuses the underlay BGP sessions; ``IBGP`` builds dedicated
+    route-reflector / client peerings.
+    """
+
+    protocol: OverlayRoutingProtocol = "EBGP"
+    bgp: FabricOverlayBgpConfig | None = None
+    bfd: FabricBfdConfig | None = None
+
+
+class FabricInterSwitchLinksConfig(BaseModel):
+    """Inter-switch-link wiring options on the Fabric CR.
+
+    EDA only supports IPv6 link-local unnumbered today; for IPv4 numbered
+    ISLs leave ``unnumbered`` unset and provide ``pool_ipv4`` (the name of a
+    SubnetAllocationPool resource).
+    """
+
+    unnumbered: Literal["IPV6"] | None = "IPV6"
+    pool_ipv4: str | None = None
+    pool_ipv6: str | None = None
+    ip_mtu: int | None = Field(default=None, ge=1280, le=9486)
+    vlan_id: int | None = Field(default=None, ge=1, le=4094)
+
+
+class FabricConfigInput(BaseModel):
+    """User-facing fabric configuration.
+
+    Maps 1:1 to the EDA Fabric spec (``fabrics_eda_nokia_com_v1alpha1.json``)
+    so what you write here lands in the generated Fabric CR with field-name
+    parity (snake_case → camelCase).
+    """
+
+    underlay_protocol: FabricUnderlayProtocolConfig = Field(
+        default_factory=FabricUnderlayProtocolConfig
+    )
+    overlay_protocol: FabricOverlayProtocolConfig = Field(
+        default_factory=FabricOverlayProtocolConfig
+    )
+    inter_switch_links: FabricInterSwitchLinksConfig = Field(
+        default_factory=FabricInterSwitchLinksConfig
+    )
+
+    @model_validator(mode="after")
+    def _validate(self) -> FabricConfigInput:
+        if self.overlay_protocol.protocol == "IBGP":
+            bgp = self.overlay_protocol.bgp
+            missing: list[str] = []
+            if bgp is None or bgp.autonomous_system is None:
+                missing.append("overlay_protocol.bgp.autonomous_system")
+            if bgp is None or not bgp.cluster_id:
+                missing.append("overlay_protocol.bgp.cluster_id")
+            if missing:
+                raise ValueError(
+                    "Overlay protocol IBGP requires: " + ", ".join(missing)
+                )
+        # Mutually-exclusive ISL addressing: unnumbered IPv6 OR pool_ipv4 OR
+        # pool_ipv6, but not pool_ipv4+unnumbered (pool_ipv6 is allowed
+        # alongside unnumbered=IPV6 for dual-stack global addresses).
+        isl = self.inter_switch_links
+        if isl.unnumbered == "IPV6" and isl.pool_ipv4:
+            raise ValueError(
+                "inter_switch_links: cannot combine unnumbered=IPV6 with pool_ipv4; "
+                "drop unnumbered to use IPv4 numbered ISLs"
+            )
+        return self
+
+
+# ---------------------------------------------------------------------------
 # Top-level intent
 # ---------------------------------------------------------------------------
 
@@ -416,6 +603,11 @@ class FabricIntent(BaseModel):
     # EDA settings
     eda: EdaSettings = Field(default_factory=EdaSettings)
 
+    # Optional fabric overrides (mirrors the EDA Fabric spec). When None, the
+    # EDA generator falls back to the legacy EBGP-underlay/EBGP-overlay/IPv6
+    # unnumbered defaults that 3-stage-evpn-vxlan and collapsed-spine rely on.
+    fabric_config: FabricConfigInput | None = None
+
     @model_validator(mode="after")
     def validate_cross_references(self) -> FabricIntent:
         """Check that all name-based references resolve to existing objects."""
@@ -440,6 +632,7 @@ class FabricIntent(BaseModel):
                     f"VLAN '{vlan.name}' references unknown bridge_domain '{vlan.bridge_domain}'"
                 )
 
+        edge_by_name = {e.name: e for e in self.edge_interfaces}
         for ri in self.routed_interfaces:
             if ri.interface not in edge_names:
                 errors.append(
@@ -449,6 +642,30 @@ class FabricIntent(BaseModel):
                 errors.append(
                     f"RoutedInterface '{ri.name}' references unknown router '{ri.router}'"
                 )
+            # SR Linux consistency: a tagged (vlan-tagging=true) parent
+            # interface cannot carry an untagged routed sub-interface, and
+            # an untagged (vlan-tagging=false) parent cannot carry a
+            # dot1q-tagged routed sub-interface. .vlan.encap.untagged is
+            # supported only for bridged sub-interfaces on SR Linux.
+            parent = edge_by_name.get(ri.interface)
+            if parent is not None:
+                ri_untagged = ri.vlan_id in (None, "null", "untagged")
+                parent_untagged = parent.encap == "null"
+                if parent_untagged and not ri_untagged:
+                    errors.append(
+                        f"RoutedInterface '{ri.name}' has vlan_id='{ri.vlan_id}' "
+                        f"but parent edge interface '{parent.name}' has encap='null' "
+                        f"(vlan-tagging=false). SR Linux requires a tagged parent "
+                        f"(encap='dot1q') for any numerically-tagged routed sub-interface."
+                    )
+                elif not parent_untagged and ri_untagged:
+                    errors.append(
+                        f"RoutedInterface '{ri.name}' is untagged (vlan_id='{ri.vlan_id}') "
+                        f"but parent edge interface '{parent.name}' has encap='dot1q' "
+                        f"(vlan-tagging=true). SR Linux does not allow untagged routed "
+                        f"sub-interfaces on a tagged parent; set the parent's encap to "
+                        f"'null' or give the routed interface a dot1q vlan_id."
+                    )
 
         for sr in self.static_routes:
             if sr.router not in router_names:

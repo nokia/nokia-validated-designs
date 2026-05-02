@@ -20,6 +20,7 @@ from automation.core.models import (
     ConfigletIntent,
     Credentials,
     EdaSettings,
+    FabricConfigInput,
     FabricIntent,
     IrbIpAddress,
     IrbInterfaceIntent,
@@ -146,6 +147,16 @@ def build(topology: dict, services: dict) -> FabricIntent:
         namespace=eda_cfg.get("namespace", "eda"),
     )
 
+    # -----------------------------------------------------------------------
+    # Fabric override block — direct mirror of the EDA Fabric spec
+    # (fabrics_eda_nokia_com_v1alpha1.json). Optional; when absent the EDA
+    # generator falls back to its hardcoded EBGP/EBGP/IPV6 defaults.
+    # -----------------------------------------------------------------------
+    fabric_cfg_raw = topology.get("fabric")
+    fabric_config = (
+        FabricConfigInput.model_validate(fabric_cfg_raw) if fabric_cfg_raw else None
+    )
+
     return FabricIntent(
         design="unconstrained-3-stage",
         fabric_name=fabric_name,
@@ -174,6 +185,7 @@ def build(topology: dict, services: dict) -> FabricIntent:
         fabric_import_policies=fabric_import_policies,
         credentials=credentials,
         eda=eda_settings,
+        fabric_config=fabric_config,
     )
 
 
@@ -260,6 +272,8 @@ def _build_bridge_domains(raw: list[dict]) -> list[BridgeDomainIntent]:
             "mac_learning": bd.get("mac_learning", True),
             "mac_aging": bd.get("mac_aging", 300),
             "mac_duplication": bd.get("mac_duplication"),
+            "export_target": bd.get("export_target"),
+            "import_target": bd.get("import_target"),
         }
         if bd_type == "EVPNVXLAN":
             kwargs["vni"] = bd["vni"]

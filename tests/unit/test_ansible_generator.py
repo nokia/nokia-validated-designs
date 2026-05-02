@@ -8,18 +8,23 @@ from typing import Any
 from automation.core.fabric_builder import build_intent
 from automation.core.schema_validator import load_inputs
 from automation.core.models import (
+    BridgeDomainIntent,
     ConfigletConfigEntry,
     ConfigletIntent,
     DefaultMtuIntent,
     FabricIntent,
+    RouterIntent,
 )
+from automation.generators.ansible_filter_plugins.srl_builders import default as _srl_default
 from automation.generators.ansible_generator import (
+    _bd_group_entry,
+    _build_leaf_host_vars,
+    _build_spine_host_vars,
     _jspath_to_jsonrpc,
     _resolve_configlets,
     _resolve_default_mtus,
     _resolve_placement,
-    _build_leaf_host_vars,
-    _build_spine_host_vars,
+    _router_group_entry,
     generate,
 )
 
@@ -424,3 +429,122 @@ class TestGenerate:
         readme = (tmp_path / "README.md").read_text()
         assert "Generated at:" in readme
         assert "re-generate" in readme
+
+
+class TestRouteTargetOverrides:
+    """Router + BridgeDomain export/import RTs plumbed through Ansible."""
+
+    def test_router_group_entry_omits_rts_when_unset(self):
+        r = RouterIntent(name="vrf1", vni=10500, evi=500)
+        entry = _router_group_entry(r)
+        assert "export_target" not in entry
+        assert "import_target" not in entry
+
+    def test_router_group_entry_serializes_rts_when_set(self):
+        r = RouterIntent(
+            name="vrf1",
+            vni=10500,
+            evi=500,
+            export_target="target:1:777",
+            import_target="target:2:888",
+        )
+        entry = _router_group_entry(r)
+        assert entry["export_target"] == "target:1:777"
+        assert entry["import_target"] == "target:2:888"
+
+    def test_bd_group_entry_omits_rts_when_unset(self):
+        bd = BridgeDomainIntent(name="macvrf-v10", vni=10010, evi=10)
+        entry = _bd_group_entry(bd)
+        assert "export_target" not in entry
+        assert "import_target" not in entry
+
+    def test_bd_group_entry_serializes_rts_when_set(self):
+        bd = BridgeDomainIntent(
+            name="macvrf-v10",
+            vni=10010,
+            evi=10,
+            export_target="target:1:777",
+            import_target="target:2:888",
+        )
+        entry = _bd_group_entry(bd)
+        assert entry["export_target"] == "target:1:777"
+        assert entry["import_target"] == "target:2:888"
+
+    def _minimal_hv(self) -> dict[str, Any]:
+        """Minimal host_vars dict exercising both ip-vrf and mac-vrf paths."""
+        return {
+            "bridge_domains": [
+                {
+                    "name": "macvrf-v10",
+                    "vni": 10010,
+                    "evi": 10,
+                    "export_target": "target:1:777",
+                    "import_target": "target:2:888",
+                    "access": [],
+                },
+                {
+                    "name": "macvrf-v20",
+                    "vni": 10020,
+                    "evi": 20,
+                    "access": [],
+                },
+            ],
+            "routers": [
+                {
+                    "name": "vrf1",
+                    "vni": 10500,
+                    "evi": 500,
+                    "export_target": "target:1:777",
+                    "import_target": "target:2:888",
+                },
+                {
+                    "name": "vrf2",
+                    "vni": 10501,
+                    "evi": 501,
+                },
+            ],
+            "irb_interfaces": [],
+            "routed_interfaces": [],
+            "lags": [],
+        }
+
+    def _ni_for(self, updates: list[dict], name: str) -> dict:
+        return next(
+            u["value"] for u in updates
+            if u["path"] == f"/network-instance[name={name}]"
+        )
+
+    def _route_target(self, ni_value: dict) -> dict:
+        return ni_value["protocols"]["bgp-vpn"]["bgp-instance"][0]["route-target"]
+
+    def test_ipvrf_uses_override_rts(self):
+        hv = self._minimal_hv()
+        updates: list[dict] = []
+        _srl_default._build_ipvrf_instances(hv, updates)
+        rt = self._route_target(self._ni_for(updates, "vrf1"))
+        assert rt["export-rt"] == "target:1:777"
+        assert rt["import-rt"] == "target:2:888"
+
+    def test_ipvrf_falls_back_to_default_rt(self):
+        hv = self._minimal_hv()
+        updates: list[dict] = []
+        _srl_default._build_ipvrf_instances(hv, updates)
+        rt = self._route_target(self._ni_for(updates, "vrf2"))
+        assert rt["export-rt"] == "target:1:501"
+        assert rt["import-rt"] == "target:1:501"
+
+    def test_macvrf_uses_override_rts(self):
+        hv = self._minimal_hv()
+        updates: list[dict] = []
+        _srl_default._build_macvrf_instances(hv, updates)
+        rt = self._route_target(self._ni_for(updates, "macvrf-v10"))
+        assert rt["export-rt"] == "target:1:777"
+        assert rt["import-rt"] == "target:2:888"
+
+    def test_macvrf_falls_back_to_default_rt(self):
+        hv = self._minimal_hv()
+        updates: list[dict] = []
+        _srl_default._build_macvrf_instances(hv, updates)
+        rt = self._route_target(self._ni_for(updates, "macvrf-v20"))
+        assert rt["export-rt"] == "target:1:20"
+        assert rt["import-rt"] == "target:1:20"

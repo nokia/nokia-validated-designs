@@ -92,6 +92,8 @@ def build_routers(raw: list[dict]) -> list[RouterIntent]:
             vni=r["vni"],
             evi=r["evi"],
             node_selector=r.get("node_selector", []),
+            export_target=r.get("export_target"),
+            import_target=r.get("import_target"),
         )
         for r in raw
     ]

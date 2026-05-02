@@ -1,21 +1,32 @@
 """
 NVD Automation Engine — CLI entry point.
 
+Two input sources are supported:
+
+1. ``--design <dir>`` — legacy YAML inputs (default source).
+2. ``--source netbox --site <slug>`` — NetBox as source of truth.
+
 Usage:
   python -m automation.deploy \\
     --design validated-designs/3-stage-evpn-vxlan \\
-    --mode eda \\
-    [--generate-only]
-    [--generate-clab]
-    [--diff]
+    --mode eda
+
+  python -m automation.deploy \\
+    --source netbox --site dc1 \\
+    --netbox-url https://srv9002 \\
+    --netbox-token $NETBOX_TOKEN \\
+    --mode eda
+
+Common options:
+    [--generate-only] [--generate-clab] [--diff]
     [--phase {topology,fabric,services}]
-    [--destroy]
-    [--dry-run]
-    [--prune]
-    [--yes]
-    [--eda-url URL]
-    [--eda-user USER]
-    [--eda-password PASS]
+    [--destroy] [--dry-run] [--prune] [--yes]
+    [--eda-url URL] [--eda-user USER] [--eda-password PASS]
+    [--export-yaml OUTDIR]
+
+On completion a machine-readable summary line
+``[NVD-DEPLOY-SUMMARY] {...json...}`` is printed on stdout so the NetBox
+Custom Script (and CI pipelines) can ingest the result without scraping.
 """
 
 from __future__ import annotations
@@ -23,14 +34,21 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
+import time
 from pathlib import Path
+from typing import Any
 
-from automation.core.fabric_builder import build_intent
+from automation.core.fabric_builder import build_intent, build_intent_from_netbox
+from automation.core.models import FabricIntent
 from automation.core.schema_validator import load_inputs
 from automation.eda_models.registry import check_srl_version, EDA_VERSION
 from automation.executors.eda import EdaClient
 from automation.generators.eda_generator import generate as eda_generate
+
+# Marker consumed by netbox_custom_scripts/deploy_nvd_fabric.py.
+DEPLOY_SUMMARY_MARKER = "[NVD-DEPLOY-SUMMARY]"
 
 
 def main() -> int:
@@ -38,11 +56,45 @@ def main() -> int:
         description="Nokia Validated Design automation engine",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+
+    # Input source — either a design directory (legacy) or NetBox.
+    parser.add_argument(
+        "--source",
+        choices=["yaml", "netbox"],
+        default="yaml",
+        help="Where to load the fabric intent from (default: yaml)",
+    )
     parser.add_argument(
         "--design",
-        required=True,
-        help="Path to the design directory (e.g. validated-designs/3-stage-evpn-vxlan)",
+        help="Path to the design directory (yaml source, e.g. validated-designs/3-stage-evpn-vxlan)",
     )
+    parser.add_argument(
+        "--site",
+        help="Site slug in NetBox (required when --source netbox)",
+    )
+    parser.add_argument(
+        "--netbox-url",
+        default=os.environ.get("NETBOX_URL"),
+        help="NetBox base URL (default: $NETBOX_URL)",
+    )
+    parser.add_argument(
+        "--netbox-token",
+        default=os.environ.get("NETBOX_TOKEN"),
+        help="NetBox API token (default: $NETBOX_TOKEN)",
+    )
+    parser.add_argument(
+        "--netbox-verify",
+        dest="netbox_verify",
+        action="store_true",
+        default=False,
+        help="Verify NetBox TLS certificate (default: off — accepts self-signed)",
+    )
+    parser.add_argument(
+        "--no-netbox-verify",
+        dest="netbox_verify",
+        action="store_false",
+    )
+
     parser.add_argument(
         "--mode",
         choices=["eda", "ansible"],
@@ -63,7 +115,7 @@ def main() -> int:
         "--phase",
         choices=["topology", "fabric", "services"],
         action="append",
-        help="Run only a specific deployment phase (repeatable, e.g. --phase topology --phase fabric)",
+        help="Run only a specific deployment phase (repeatable)",
     )
     parser.add_argument(
         "--destroy",
@@ -94,12 +146,16 @@ def main() -> int:
         help="Preview changes against live EDA state without applying (EDA mode only)",
     )
     parser.add_argument(
+        "--export-yaml",
+        metavar="OUTDIR",
+        help="Write the built FabricIntent as YAML files to OUTDIR and exit",
+    )
+    parser.add_argument(
         "--verbose", "-v", action="store_true", help="Enable verbose logging"
     )
 
     args = parser.parse_args()
 
-    # Configure logging
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(
         level=log_level,
@@ -107,37 +163,34 @@ def main() -> int:
         datefmt="%H:%M:%S",
     )
 
-    design_dir = Path(args.design)
-    if not design_dir.exists():
-        logging.error("Design directory not found: %s", design_dir)
-        return 1
+    start = time.monotonic()
+    summary: dict[str, Any] = {
+        "source": args.source,
+        "mode": args.mode,
+        "phases": args.phase or [],
+        "dry_run": args.dry_run,
+        "prune": args.prune,
+        "destroy": args.destroy,
+        "diff": args.diff,
+        "generate_only": args.generate_only,
+        "success": False,
+        "transaction_id": None,
+        "creates": 0,
+        "updates": 0,
+        "deletes": 0,
+        "nodes_affected": [],
+        "duration_s": 0,
+        "errors": [],
+    }
 
-    # ---------------------------------------------------------------
-    # Phase 1: Load & validate inputs
-    # ---------------------------------------------------------------
-    logging.info("Loading inputs from %s", design_dir)
     try:
-        topology, services = load_inputs(design_dir)
-    except Exception as e:
-        logging.error("Failed to load inputs: %s", e)
-        return 1
-
-    logging.info(
-        "Design: %s | Fabric: %s | Env: %s",
-        topology.get("design"),
-        topology.get("fabric_name"),
-        topology.get("environment"),
-    )
-
-    # ---------------------------------------------------------------
-    # Phase 2: Build FabricIntent
-    # ---------------------------------------------------------------
-    logging.info("Building fabric intent...")
-    try:
-        intent = build_intent(topology, services)
+        intent = _load_intent(args, summary)
+        if intent is None:
+            return _finish(summary, start, rc=1)
     except Exception as e:
         logging.error("Failed to build intent: %s", e)
-        return 1
+        summary["errors"].append(f"intent-build: {e}")
+        return _finish(summary, start, rc=1)
 
     logging.info(
         "Built intent: %d nodes, %d links, %d bridge_domains, %d routers",
@@ -146,15 +199,24 @@ def main() -> int:
         len(intent.bridge_domains),
         len(intent.routers),
     )
+    summary["design"] = intent.design
+    summary["fabric_name"] = intent.fabric_name
 
     # ---------------------------------------------------------------
-    # Phase 3: Generate target configs
+    # --export-yaml short-circuit (no deployment, no generation)
     # ---------------------------------------------------------------
+    if args.export_yaml:
+        _export_yaml(intent, Path(args.export_yaml))
+        summary["success"] = True
+        summary["export_yaml_dir"] = str(args.export_yaml)
+        return _finish(summary, start, rc=0)
+
+    # ---------------------------------------------------------------
+    # Generate / deploy phase
+    # ---------------------------------------------------------------
+    design_dir = Path(args.design) if args.design else Path("validated-designs") / intent.fabric_name
     build_dir = design_dir / "build"
 
-    # ---------------------------------------------------------------
-    # Optional: Generate containerlab topology
-    # ---------------------------------------------------------------
     if args.generate_clab:
         from automation.generators.clab_generator import generate as clab_generate
 
@@ -163,127 +225,50 @@ def main() -> int:
         print(f"\n✅ Generated containerlab topology: {clab_path}")
         print(f"   Client configs: {build_dir}/client-configs/")
         if not args.generate_only:
-            return 0
+            summary["success"] = True
+            return _finish(summary, start, rc=0)
 
     if args.mode == "eda":
-        # -----------------------------------------------------------
-        # Validate SRL versions against EDA compatibility
-        # -----------------------------------------------------------
-        srl_versions = {node.version for node in intent.nodes}
+        srl_versions = {node.version for node in intent.nodes if node.version}
         for ver in sorted(srl_versions):
             err = check_srl_version(ver)
             if err:
                 logging.error(err)
-                return 1
-        logging.info(
-            "SRL version check passed (EDA %s): %s",
-            EDA_VERSION, ", ".join(sorted(srl_versions)),
-        )
-
-        # -----------------------------------------------------------
-        # Destroy mode — no intent/generation needed
-        # -----------------------------------------------------------
-        if args.destroy:
-            try:
-                client = EdaClient(
-                    url=args.eda_url,
-                    username=args.eda_user,
-                    password=args.eda_password,
-                )
-            except ValueError as e:
-                logging.error(str(e))
-                return 1
-
-            ns = intent.eda.namespace
-            logging.info("Destroying managed resources at %s (namespace=%s)...", client.url, ns)
-            result = client.destroy(
-                phases=args.phase,
-                dry_run=args.dry_run,
-                auto_confirm=args.yes,
-                namespace=ns,
+                summary["errors"].append(err)
+                return _finish(summary, start, rc=1)
+        if srl_versions:
+            logging.info(
+                "SRL version check passed (EDA %s): %s",
+                EDA_VERSION,
+                ", ".join(sorted(srl_versions)),
             )
 
-            if result.success:
-                label = "Dry-run" if args.dry_run else "Destroy"
-                print(f"\n✅ {label} successful: {result.message}")
-                if result.transaction_id:
-                    print(f"   Transaction ID: {result.transaction_id}")
-                _print_transaction_details(result.details)
-                return 0
-            else:
-                print(f"\n❌ Destroy failed: {result.message}")
-                _print_transaction_details(result.details)
-                return 1
+        if args.destroy:
+            rc = _run_destroy(args, intent, summary)
+            return _finish(summary, start, rc=rc)
 
-        # -----------------------------------------------------------
-        # Normal deploy flow — generate + apply
-        # -----------------------------------------------------------
         logging.info("Generating EDA CRs...")
         resources = eda_generate(intent, output_dir=build_dir)
         logging.info("Generated %d EDA CRs → %s", len(resources), build_dir)
 
         if args.generate_only:
-            print(f"\n✅ Generated {len(resources)} EDA CRs to {build_dir}/eda_transaction.json")
-            _print_summary(resources)
-            return 0
-
-        # -----------------------------------------------------------
-        # Diff mode — preview changes without applying
-        # -----------------------------------------------------------
-        if args.diff:
-            try:
-                client = EdaClient(
-                    url=args.eda_url,
-                    username=args.eda_user,
-                    password=args.eda_password,
-                )
-            except ValueError as e:
-                logging.error(str(e))
-                return 1
-
-            ns = intent.eda.namespace
-            logging.info("Fetching current managed resources from EDA...")
-            current = client.get_managed_resources(namespace=ns)
-            plan = client.compute_diff(resources, current)
-            _print_diff(plan)
-            return 0
-
-        # -----------------------------------------------------------
-        # Deploy to EDA
-        # -----------------------------------------------------------
-        try:
-            client = EdaClient(
-                url=args.eda_url,
-                username=args.eda_user,
-                password=args.eda_password,
+            print(
+                f"\n✅ Generated {len(resources)} EDA CRs to "
+                f"{build_dir}/eda_transaction.json"
             )
-        except ValueError as e:
-            logging.error(str(e))
-            return 1
+            _print_summary(resources)
+            summary["success"] = True
+            summary["resources_generated"] = len(resources)
+            return _finish(summary, start, rc=0)
 
-        phases_label = f" (phases: {', '.join(args.phase)})" if args.phase else ""
-        logging.info("Deploying to EDA at %s%s...", client.url, phases_label)
-        result = client.apply(
-            resources=resources,
-            phases=args.phase,
-            prune=args.prune,
-            dry_run=args.dry_run,
-            auto_confirm=args.yes,
-        )
+        if args.diff:
+            rc = _run_diff(args, intent, resources, summary)
+            return _finish(summary, start, rc=rc)
 
-        if result.success:
-            label = "Dry-run" if args.dry_run else "Deployment"
-            print(f"\n✅ {label} successful: {result.message}")
-            if result.transaction_id:
-                print(f"   Transaction ID: {result.transaction_id}")
-            _print_transaction_details(result.details)
-            return 0
-        else:
-            print(f"\n❌ Deployment failed: {result.message}")
-            _print_transaction_details(result.details)
-            return 1
+        rc = _run_apply(args, intent, resources, summary)
+        return _finish(summary, start, rc=rc)
 
-    elif args.mode == "ansible":
+    if args.mode == "ansible":
         from automation.generators.ansible_generator import generate as ansible_generate
 
         ansible_dir = design_dir / f"{design_dir.name}-ansible"
@@ -294,47 +279,272 @@ def main() -> int:
         print(f"   cd {output_path}")
         print(f"   ansible-galaxy collection install -r requirements.yml")
         print(f"   ansible-playbook -i inventory.yml playbook.yml")
-        return 0
+        summary["success"] = True
+        summary["ansible_project_path"] = str(output_path)
+        return _finish(summary, start, rc=0)
 
+    return _finish(summary, start, rc=0)
+
+
+# ---------------------------------------------------------------------------
+# Input loading
+# ---------------------------------------------------------------------------
+
+
+def _load_intent(args: argparse.Namespace, summary: dict[str, Any]) -> FabricIntent | None:
+    if args.source == "netbox":
+        if not args.site:
+            logging.error("--source netbox requires --site <slug>")
+            summary["errors"].append("--source netbox requires --site")
+            return None
+        if not args.netbox_url:
+            logging.error("NetBox URL required (--netbox-url or NETBOX_URL env)")
+            summary["errors"].append("missing netbox url")
+            return None
+        if not args.netbox_token:
+            logging.error("NetBox token required (--netbox-token or NETBOX_TOKEN env)")
+            summary["errors"].append("missing netbox token")
+            return None
+        logging.info("Loading intent from NetBox: site=%s url=%s", args.site, args.netbox_url)
+        summary["site"] = args.site
+        return build_intent_from_netbox(
+            site_slug=args.site,
+            netbox_url=args.netbox_url,
+            netbox_token=args.netbox_token,
+            verify_tls=args.netbox_verify,
+        )
+
+    # yaml source
+    if not args.design:
+        logging.error("--design <dir> is required with --source yaml")
+        summary["errors"].append("missing --design")
+        return None
+    design_dir = Path(args.design)
+    if not design_dir.exists():
+        logging.error("Design directory not found: %s", design_dir)
+        summary["errors"].append(f"design dir not found: {design_dir}")
+        return None
+    logging.info("Loading inputs from %s", design_dir)
+    topology, services = load_inputs(design_dir)
+    logging.info(
+        "Design: %s | Fabric: %s | Env: %s",
+        topology.get("design"),
+        topology.get("fabric_name"),
+        topology.get("environment"),
+    )
+    return build_intent(topology, services)
+
+
+# ---------------------------------------------------------------------------
+# --export-yaml
+# ---------------------------------------------------------------------------
+
+
+def _export_yaml(intent: FabricIntent, outdir: Path) -> None:
+    """Dump the built FabricIntent as a pair of YAML files suitable for diff."""
+    import yaml  # PyYAML is already a hard dep
+
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    # Split FabricIntent back into a topology-shaped and a services-shaped dict
+    # that mirror the existing YAML layout (not byte-identical to the simple
+    # inputs because the intent is already expanded, but stable and diffable).
+    data = intent.model_dump(mode="json")
+
+    topo_keys = {
+        "design", "fabric_name", "environment", "spine_asn", "leaf_asn_start",
+        "system0_prefix", "mgmt_subnet", "nodes", "links", "breakouts",
+        "edge_interfaces", "lags", "default_mtus", "banners", "prefix_sets",
+        "fabric_export_policies", "fabric_import_policies", "credentials", "eda",
+    }
+    svc_keys = {
+        "bridge_domains", "routers", "irb_interfaces", "vlans",
+        "routed_interfaces", "static_routes", "configlets", "routing_policies",
+    }
+
+    topo = {k: v for k, v in data.items() if k in topo_keys}
+    svc = {k: v for k, v in data.items() if k in svc_keys}
+
+    with (outdir / "topology.yaml").open("w") as f:
+        yaml.safe_dump(topo, f, sort_keys=False)
+    with (outdir / "services.yaml").open("w") as f:
+        yaml.safe_dump(svc, f, sort_keys=False)
+
+    logging.info("Exported FabricIntent YAML to %s", outdir)
+    print(f"\n✅ FabricIntent exported to {outdir}/topology.yaml + services.yaml")
+
+
+# ---------------------------------------------------------------------------
+# Phases
+# ---------------------------------------------------------------------------
+
+
+def _run_destroy(args: argparse.Namespace, intent: FabricIntent, summary: dict) -> int:
+    try:
+        client = EdaClient(
+            url=args.eda_url,
+            username=args.eda_user,
+            password=args.eda_password,
+        )
+    except ValueError as e:
+        logging.error(str(e))
+        summary["errors"].append(str(e))
+        return 1
+
+    ns = intent.eda.namespace
+    logging.info("Destroying managed resources at %s (namespace=%s)...", client.url, ns)
+    result = client.destroy(
+        phases=args.phase,
+        dry_run=args.dry_run,
+        auto_confirm=args.yes,
+        namespace=ns,
+    )
+    _absorb_result_into_summary(result, summary)
+
+    if result.success:
+        label = "Dry-run" if args.dry_run else "Destroy"
+        print(f"\n✅ {label} successful: {result.message}")
+        if result.transaction_id:
+            print(f"   Transaction ID: {result.transaction_id}")
+        _print_transaction_details(result.details)
+        summary["success"] = True
+        return 0
+    print(f"\n❌ Destroy failed: {result.message}")
+    _print_transaction_details(result.details)
+    return 1
+
+
+def _run_diff(args: argparse.Namespace, intent: FabricIntent, resources, summary: dict) -> int:
+    try:
+        client = EdaClient(
+            url=args.eda_url,
+            username=args.eda_user,
+            password=args.eda_password,
+        )
+    except ValueError as e:
+        logging.error(str(e))
+        summary["errors"].append(str(e))
+        return 1
+
+    ns = intent.eda.namespace
+    logging.info("Fetching current managed resources from EDA...")
+    current = client.get_managed_resources(namespace=ns)
+    plan = client.compute_diff(resources, current)
+    _print_diff(plan)
+    summary["success"] = True
+    summary["creates"] = len(plan.creates)
+    summary["updates"] = len(plan.updates)
+    summary["deletes"] = len(plan.deletes)
     return 0
 
 
+def _run_apply(args: argparse.Namespace, intent: FabricIntent, resources, summary: dict) -> int:
+    try:
+        client = EdaClient(
+            url=args.eda_url,
+            username=args.eda_user,
+            password=args.eda_password,
+        )
+    except ValueError as e:
+        logging.error(str(e))
+        summary["errors"].append(str(e))
+        return 1
+
+    phases_label = f" (phases: {', '.join(args.phase)})" if args.phase else ""
+    logging.info("Deploying to EDA at %s%s...", client.url, phases_label)
+    result = client.apply(
+        resources=resources,
+        phases=args.phase,
+        prune=args.prune,
+        dry_run=args.dry_run,
+        auto_confirm=args.yes,
+    )
+    _absorb_result_into_summary(result, summary)
+
+    if result.success:
+        label = "Dry-run" if args.dry_run else "Deployment"
+        print(f"\n✅ {label} successful: {result.message}")
+        if result.transaction_id:
+            print(f"   Transaction ID: {result.transaction_id}")
+        _print_transaction_details(result.details)
+        summary["success"] = True
+        return 0
+    print(f"\n❌ Deployment failed: {result.message}")
+    _print_transaction_details(result.details)
+    return 1
+
+
+def _absorb_result_into_summary(result, summary: dict) -> None:
+    if result is None:
+        return
+    summary["transaction_id"] = getattr(result, "transaction_id", None)
+    details = getattr(result, "details", {}) or {}
+    summary["nodes_affected"] = list(details.get("nodesWithConfigChanges") or [])
+    # Creates / updates / deletes from changedCrs aren't explicit; approximate
+    # from the plan if we computed it elsewhere (see _run_diff) or leave 0.
+    msg = getattr(result, "message", "") or ""
+    if not result.success:
+        summary["errors"].append(msg)
+    # Intent-level errors are handy for the journal entry.
+    intents = details.get("intentsRun") or []
+    for i in intents:
+        for e in i.get("errors", []) or []:
+            structured = e.get("structuredError", {})
+            intent_name = i.get("intentName", {}).get("name", "?")
+            kind = i.get("intentName", {}).get("gvk", {}).get("kind", "?")
+            summary["errors"].append(
+                f"{kind}/{intent_name}: {structured.get('message', str(e))}"
+            )
+
+
+# ---------------------------------------------------------------------------
+# Finalization
+# ---------------------------------------------------------------------------
+
+
+def _finish(summary: dict, start: float, rc: int) -> int:
+    summary["duration_s"] = round(time.monotonic() - start, 2)
+    summary["exit_code"] = rc
+    # Single machine-readable line on stdout.
+    print(f"{DEPLOY_SUMMARY_MARKER} {json.dumps(summary, separators=(',', ':'))}")
+    return rc
+
+
+# ---------------------------------------------------------------------------
+# Pretty printers (unchanged from previous version)
+# ---------------------------------------------------------------------------
+
+
 def _print_diff(plan) -> None:
-    """Print a human-readable diff summary."""
     print(
         f"\nTransaction plan: "
         f"{len(plan.creates)} create, "
         f"{len(plan.updates)} update, "
         f"{len(plan.deletes)} delete"
     )
-
     if plan.creates:
         print("\n  CREATE:")
         for cr in plan.creates:
             kind = cr.get("kind", "?")
             name = cr.get("metadata", {}).get("name", "?")
             print(f"    + {kind}/{name}")
-
     if plan.updates:
         print("\n  UPDATE:")
         for cr in plan.updates:
             kind = cr.get("kind", "?")
             name = cr.get("metadata", {}).get("name", "?")
             print(f"    ~ {kind}/{name}")
-
     if plan.deletes:
         print("\n  DELETE:")
         for entry in plan.deletes:
             kind = entry.get("kind", "?")
             name = entry.get("name", "?")
             print(f"    - {kind}/{name}")
-
     if plan.total_ops == 0:
         print("\n  No changes detected.")
 
 
 def _print_summary(resources: list[dict]) -> None:
-    """Print a summary of generated CRs by kind."""
     kinds: dict[str, int] = {}
     for cr in resources:
         kind = cr.get("kind", "Unknown")
@@ -344,24 +554,21 @@ def _print_summary(resources: list[dict]) -> None:
     for kind in sorted(kinds.keys()):
         print(f"  {kind}: {kinds[kind]}")
 
+
 def _print_transaction_details(details: dict) -> None:
-    """Print verbose human-readable transaction details."""
     if not details:
         return
 
-    # Execution summary
     exec_summary = details.get("executionSummary", "")
     if exec_summary:
         print(f"\n   Execution: {exec_summary}")
 
-    # Nodes with config changes
     nodes = details.get("nodesWithConfigChanges") or []
     if nodes:
         print(f"\n   Nodes affected ({len(nodes)}):")
         for node in nodes:
             print(f"     • {node}")
 
-    # Changed CRs
     changed = details.get("changedCrs") or []
     if changed:
         print(f"\n   Changed resources:")
@@ -372,7 +579,6 @@ def _print_transaction_details(details: dict) -> None:
             for name in names:
                 print(f"     • {kind}/{name} ({ns})")
 
-    # Intent errors
     intents = details.get("intentsRun") or []
     errored = [i for i in intents if i.get("errors")]
     if errored:
@@ -387,7 +593,6 @@ def _print_transaction_details(details: dict) -> None:
                 msg = structured.get("message", str(err))
                 print(f"     ✗ {kind}/{name}: {msg}")
 
-    # General errors
     general_errors = details.get("generalErrors") or []
     if general_errors:
         print(f"\n   General errors ({len(general_errors)}):")

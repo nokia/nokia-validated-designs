@@ -7,7 +7,11 @@ from pathlib import Path
 import pytest
 
 from automation.core.fabric_builder import build_intent
+from pydantic import ValidationError
+
 from automation.core.models import (
+    BridgeDomainIntent,
+    EdgeInterfaceIntent,
     FabricIntent,
     NodeIntent,
     PolicyAction,
@@ -15,6 +19,8 @@ from automation.core.models import (
     PolicyStatementIntent,
     PrefixEntry,
     PrefixSetIntent,
+    RouterIntent,
+    RoutedInterfaceIntent,
     RoutingPolicyIntent,
 )
 from automation.core.schema_validator import load_inputs
@@ -121,6 +127,125 @@ class TestRoutingPolicyCrossReferences:
             )
         )
         assert fi.fabric_export_policies == ["p"]
+
+
+class TestRoutedInterfaceEncapConsistency:
+    """SR Linux: vlan-tagging on the parent must match routed sub-interface VLAN."""
+
+    def _fabric(self, edge_encap: str, routed_vlan_id: str) -> dict:
+        return {
+            "design": "test",
+            "fabric_name": "dc1",
+            "environment": "containerlab",
+            "spine_asn": 65500,
+            "leaf_asn_start": 65400,
+            "system0_prefix": "192.168.254.0/24",
+            "nodes": [
+                NodeIntent(
+                    name="leaf1",
+                    role="leaf",
+                    platform="7220 IXR-D3L",
+                    version="25.10.2",
+                    asn=65401,
+                    system0_ipv4="192.168.254.11/32",
+                    mgmt_ipv4="172.21.21.11",
+                )
+            ],
+            "links": [],
+            "edge_interfaces": [
+                EdgeInterfaceIntent(
+                    name="leaf1-ethernet-1-4",
+                    node="leaf1",
+                    interface="ethernet-1-4",
+                    encap=edge_encap,
+                )
+            ],
+            "routers": [RouterIntent(name="vrf1", vni=10000, evi=1)],
+            "routed_interfaces": [
+                RoutedInterfaceIntent(
+                    name="leaf-s5",
+                    interface="leaf1-ethernet-1-4",
+                    router="vrf1",
+                    vlan_id=routed_vlan_id,
+                )
+            ],
+        }
+
+    def test_tagged_parent_with_untagged_routed_rejected(self):
+        with pytest.raises(ValueError, match="does not allow untagged routed"):
+            FabricIntent(**self._fabric(edge_encap="dot1q", routed_vlan_id="null"))
+
+    def test_untagged_parent_with_tagged_routed_rejected(self):
+        with pytest.raises(ValueError, match="requires a tagged parent"):
+            FabricIntent(**self._fabric(edge_encap="null", routed_vlan_id="100"))
+
+    def test_untagged_parent_with_untagged_routed_ok(self):
+        fi = FabricIntent(**self._fabric(edge_encap="null", routed_vlan_id="null"))
+        assert fi.routed_interfaces[0].vlan_id == "null"
+
+    def test_tagged_parent_with_tagged_routed_ok(self):
+        fi = FabricIntent(**self._fabric(edge_encap="dot1q", routed_vlan_id="100"))
+        assert fi.routed_interfaces[0].vlan_id == "100"
+
+
+class TestRouteTargetValidation:
+    def test_router_accepts_valid_route_targets(self):
+        r = RouterIntent(
+            name="vrf1",
+            vni=10500,
+            evi=500,
+            export_target="target:1:777",
+            import_target="target:2:888",
+        )
+        assert r.export_target == "target:1:777"
+        assert r.import_target == "target:2:888"
+
+    def test_router_rejects_invalid_export_target(self):
+        with pytest.raises(ValidationError):
+            RouterIntent(
+                name="vrf1",
+                vni=10500,
+                evi=500,
+                export_target="not-a-target",
+            )
+
+    def test_router_rejects_invalid_import_target(self):
+        with pytest.raises(ValidationError):
+            RouterIntent(
+                name="vrf1",
+                vni=10500,
+                evi=500,
+                import_target="target",
+            )
+
+    def test_bridge_domain_accepts_valid_route_targets(self):
+        bd = BridgeDomainIntent(
+            name="macvrf-v10",
+            vni=10010,
+            evi=10,
+            export_target="target:1:777",
+            import_target="target:2:888",
+        )
+        assert bd.export_target == "target:1:777"
+        assert bd.import_target == "target:2:888"
+
+    def test_bridge_domain_rejects_invalid_export_target(self):
+        with pytest.raises(ValidationError):
+            BridgeDomainIntent(
+                name="macvrf-v10",
+                vni=10010,
+                evi=10,
+                export_target="not-a-target",
+            )
+
+    def test_bridge_domain_rejects_invalid_import_target(self):
+        with pytest.raises(ValidationError):
+            BridgeDomainIntent(
+                name="macvrf-v10",
+                vni=10010,
+                evi=10,
+                import_target="",
+            )
 
 
 class TestConstrainedDesignDefaults:

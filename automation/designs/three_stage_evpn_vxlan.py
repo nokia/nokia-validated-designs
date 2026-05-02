@@ -552,6 +552,8 @@ def _build_bridge_domains(
                     "num_moves": 5,
                 },
             ),
+            export_target=bd.get("export_target"),
+            import_target=bd.get("import_target"),
             origin=origin,
         )
         for bd in raw

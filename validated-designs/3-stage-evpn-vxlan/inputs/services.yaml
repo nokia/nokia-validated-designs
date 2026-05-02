@@ -23,9 +23,9 @@ bridge_domains:
   - name: macvrf-v60
     vni: 10060
     evi: 60
-  - name: macvrf-v99
-    vni: 10099
-    evi: 99
+#  - name: macvrf-v99
+#    vni: 10099
+#    evi: 99
 # Bridge domain with all optional fields (override via extras):
 #   - name: macvrf-example
 #     vni: 99999
@@ -47,6 +47,10 @@ routers:
     evi: 500
     node_selector:
       - eda.nokia.com/role=leaf
+    # Optional BGP-EVPN route targets (defaults to target:1:<evi> on both
+    # EDA and SR Linux CLI). Pattern: ^target:.+$
+    # export_target: target:1:777
+    # import_target: target:1:777
   - name: vrf2
     vni: 10501
     evi: 501
@@ -97,6 +101,12 @@ irb_interfaces:
     ipv4: 172.16.60.254/24
     proxy_arp: true
     arp_timeout: 280
+##  - name: irb-v99
+##    bridge_domain: macvrf-v99
+##    router: vrf2
+##    ipv4: 172.16.99.254/24
+##    proxy_arp: true
+##    arp_timeout: 280
 # IRB interface with all optional fields (override via extras):
 #   - name: irb-example
 #     bridge_domain: macvrf-example
@@ -163,11 +173,11 @@ vlans:
     vlan_id: untagged
     interface_selector:
       - eda.nokia.com/untagged-v60=enabled
-#  - name: tagged-v99
-#    bridge_domain: macvrf-v99
-#    vlan_id: "99"
-#    interface_selector:
-#      - eda.nokia.com/tagged-v99=enabled
+##  - name: tagged-v99
+##    bridge_domain: macvrf-v99
+##    vlan_id: "99"
+##    interface_selector:
+##      - eda.nokia.com/tagged-v99=enabled
 # Routed interfaces (L3 interfaces on specific ports)
 routed_interfaces:
   - name: leaf-s5

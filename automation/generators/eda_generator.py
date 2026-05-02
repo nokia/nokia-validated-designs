@@ -49,7 +49,13 @@ from automation.core.models import (
     ConfigletIntent,
     DefaultMtuIntent,
     EdgeInterfaceIntent,
+    FabricBfdConfig,
+    FabricBgpTimersConfig,
+    FabricConfigInput,
+    FabricInterSwitchLinksConfig,
     FabricIntent,
+    FabricOverlayProtocolConfig,
+    FabricUnderlayProtocolConfig,
     IrbInterfaceIntent,
     LagIntent,
     LinkIntent,
@@ -82,10 +88,13 @@ from automation.eda_models.services import (
 from automation.eda_models.protocols import StaticRouteSpec
 from automation.eda_models.fabrics import (
     FabricBgp,
+    FabricOspf,
     FabricSpec,
+    FabricTimers,
     FabricUnderlayProtocol,
     FabricUnderlayProtocolBfd,
     FabricOverlayProtocol,
+    FabricOverlayProtocolBfd,
     FabricInterswitchlinks,
     FabricLeafs,
     FabricSpines,
@@ -585,6 +594,12 @@ def _cr_fabric(intent: FabricIntent, ns: str, design: str) -> dict:
     Fabric selector. For the collapsed-spine design ToRs (role=="tor")
     are excluded from both selectors and the ``spines`` block is
     omitted entirely (the Fabric has no spine tier).
+
+    Underlay/overlay protocol selection, BFD, BGP timers, and ISL wiring
+    come from ``intent.fabric_config`` when supplied. When it's absent
+    (3-stage-evpn-vxlan, collapsed-spine) the legacy hardcoded EBGP
+    underlay + EBGP overlay + IPv6 unnumbered ISL defaults are used so
+    those designs keep producing the same Fabric CR they always did.
     """
     leaf_selector: list[str] = []
     spine_selector: list[str] = []
@@ -612,8 +627,69 @@ def _cr_fabric(intent: FabricIntent, ns: str, design: str) -> dict:
     collapsed = _is_collapsed_spine(intent)
     leaf_asn_pool = "collapsed-spine-asn" if collapsed else "leaf-asn"
 
+    cfg = intent.fabric_config
+    underlay = _build_underlay_protocol(cfg, export_policy, import_policy)
+    overlay = _build_overlay_protocol(cfg, leaf_selector, spine_selector)
+    isl = _build_inter_switch_links(cfg)
+
     fabric_kwargs: dict = dict(
-        underlay_protocol=FabricUnderlayProtocol(
+        underlay_protocol=underlay,
+        overlay_protocol=overlay,
+        system_pool_ipv4="system0",
+        inter_switch_links=isl,
+        leafs=FabricLeafs(asn_pool=leaf_asn_pool, leaf_node_selector=leaf_selector),
+    )
+    # For non-collapsed designs (or if the topology does contain spines),
+    # include the Fabric.spines block. For collapsed-spine, omit it.
+    if spine_selector or not collapsed:
+        fabric_kwargs["spines"] = FabricSpines(
+            asn_pool="spine-asn", spine_node_selector=spine_selector
+        )
+
+    spec = FabricSpec(**fabric_kwargs)
+    return _wrap_cr(CR_FABRIC.api_version, CR_FABRIC.kind, intent.fabric_name, ns, spec, origin=design)
+
+
+# ---------------------------------------------------------------------------
+# Fabric sub-spec builders
+#
+# Translate the design-agnostic FabricConfigInput (mirrors the EDA Fabric
+# spec) into the auto-generated EDA Pydantic models. ``cfg=None`` reproduces
+# the legacy behaviour expected by 3-stage-evpn-vxlan / collapsed-spine.
+# ---------------------------------------------------------------------------
+
+
+def _bgp_timers(timers: FabricBgpTimersConfig | None) -> FabricTimers | None:
+    if timers is None:
+        return None
+    payload = timers.model_dump(exclude_none=True)
+    return FabricTimers(**payload) if payload else None
+
+
+def _underlay_bfd(bfd: FabricBfdConfig | None) -> FabricUnderlayProtocolBfd | None:
+    if bfd is None:
+        return None
+    return FabricUnderlayProtocolBfd(**bfd.model_dump(exclude_none=True))
+
+
+def _overlay_bfd(bfd: FabricBfdConfig | None) -> FabricOverlayProtocolBfd | None:
+    if bfd is None:
+        return None
+    return FabricOverlayProtocolBfd(**bfd.model_dump(exclude_none=True))
+
+
+def _build_underlay_protocol(
+    cfg: FabricConfigInput | None,
+    export_policy: list[str],
+    import_policy: list[str],
+) -> FabricUnderlayProtocol:
+    """Build ``Fabric.spec.underlayProtocol`` from FabricConfigInput.
+
+    When ``cfg`` is None the legacy EBGP defaults are emitted (BFD on, asn
+    pool ``asn-pool``).
+    """
+    if cfg is None:
+        return FabricUnderlayProtocol(
             protocol=["EBGP"],
             bgp=FabricBgp(
                 asn_pool="asn-pool",
@@ -627,24 +703,110 @@ def _cr_fabric(intent: FabricIntent, ns: str, design: str) -> dict:
                 detection_multiplier=3,
                 min_echo_receive_interval=1000000,
             ),
-        ),
-        overlay_protocol=FabricOverlayProtocol(protocol="EBGP"),
-        system_pool_ipv4="system0",
-        inter_switch_links=FabricInterswitchlinks(
-            link_selector=["eda.nokia.com/role=interSwitch"],
-            unnumbered="IPV6",
-        ),
-        leafs=FabricLeafs(asn_pool=leaf_asn_pool, leaf_node_selector=leaf_selector),
-    )
-    # For non-collapsed designs (or if the topology does contain spines),
-    # include the Fabric.spines block. For collapsed-spine, omit it.
-    if spine_selector or not collapsed:
-        fabric_kwargs["spines"] = FabricSpines(
-            asn_pool="spine-asn", spine_node_selector=spine_selector
         )
 
-    spec = FabricSpec(**fabric_kwargs)
-    return _wrap_cr(CR_FABRIC.api_version, CR_FABRIC.kind, intent.fabric_name, ns, spec, origin=design)
+    up = cfg.underlay_protocol
+    bgp_obj: FabricBgp | None = None
+    if "EBGP" in up.protocol:
+        bgp_in = up.bgp or None
+        merged_export = list(export_policy or [])
+        merged_import = list(import_policy or [])
+        if bgp_in is not None:
+            for n in bgp_in.export_policy:
+                if n not in merged_export:
+                    merged_export.append(n)
+            for n in bgp_in.import_policy:
+                if n not in merged_import:
+                    merged_import.append(n)
+        bgp_obj = FabricBgp(
+            asn_pool=(bgp_in.asn_pool if bgp_in else None) or "asn-pool",
+            export_policy=merged_export or None,
+            import_policy=merged_import or None,
+            keychain=bgp_in.keychain if bgp_in else None,
+            timers=_bgp_timers(bgp_in.timers if bgp_in else None),
+        )
+
+    ospf_obj: FabricOspf | None = None
+    if up.ospf is not None and ("OSPFv2" in up.protocol or "OSPFv3" in up.protocol):
+        ospf_obj = FabricOspf(address_family=up.ospf.address_family or None)
+
+    return FabricUnderlayProtocol(
+        protocol=up.protocol,
+        bgp=bgp_obj,
+        ospf=ospf_obj,
+        bfd=_underlay_bfd(up.bfd),
+    )
+
+
+def _build_overlay_protocol(
+    cfg: FabricConfigInput | None,
+    leaf_selector: list[str],
+    spine_selector: list[str],
+) -> FabricOverlayProtocol:
+    """Build ``Fabric.spec.overlayProtocol`` from FabricConfigInput.
+
+    For IBGP overlays, ``rrNodeSelector`` and ``rrClientNodeSelector``
+    default to the spine and leaf selectors respectively when the user
+    didn't pin them explicitly.
+    """
+    if cfg is None:
+        return FabricOverlayProtocol(protocol="EBGP")
+
+    op = cfg.overlay_protocol
+    bgp_obj: FabricBgp | None = None
+    if op.protocol == "IBGP":
+        b = op.bgp  # required (validated upstream)
+        bgp_obj = FabricBgp(
+            autonomous_system=b.autonomous_system,
+            cluster_id=b.cluster_id,
+            export_policy=b.export_policy or None,
+            import_policy=b.import_policy or None,
+            keychain=b.keychain,
+            rr_node_selector=b.rr_node_selector or spine_selector or None,
+            rr_client_node_selector=b.rr_client_node_selector or leaf_selector or None,
+            rr_ip_addresses=b.rr_ip_addresses or None,
+            timers=_bgp_timers(b.timers),
+        )
+    elif op.bgp is not None:
+        # EBGP overlay: forward only the sub-fields that EDA actually honours
+        # for an EBGP overlay (keychain + timers); RR-related options are
+        # IBGP-only and are silently dropped to avoid confusing EDA.
+        b = op.bgp
+        bgp_obj = FabricBgp(
+            keychain=b.keychain,
+            timers=_bgp_timers(b.timers),
+            export_policy=b.export_policy or None,
+            import_policy=b.import_policy or None,
+        )
+
+    return FabricOverlayProtocol(
+        protocol=op.protocol,
+        bgp=bgp_obj,
+        bfd=_overlay_bfd(op.bfd),
+    )
+
+
+def _build_inter_switch_links(cfg: FabricConfigInput | None) -> FabricInterswitchlinks:
+    """Build ``Fabric.spec.interSwitchLinks`` from FabricConfigInput.
+
+    The link selector is fixed (``eda.nokia.com/role=interSwitch``) — that's
+    the label the generator stamps on every ISL Interface CR.
+    """
+    link_selector = ["eda.nokia.com/role=interSwitch"]
+    if cfg is None:
+        return FabricInterswitchlinks(
+            link_selector=link_selector,
+            unnumbered="IPV6",
+        )
+    isl = cfg.inter_switch_links
+    return FabricInterswitchlinks(
+        link_selector=link_selector,
+        unnumbered=isl.unnumbered,
+        pool_ipv4=isl.pool_ipv4,
+        pool_ipv6=isl.pool_ipv6,
+        ip_mtu=isl.ip_mtu,
+        vlan_id=isl.vlan_id,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -766,6 +928,8 @@ def _cr_bridge_domain(bd: BridgeDomainIntent, ns: str, design: str) -> dict:
             vni_pool=None,
             evi_pool=None,
             tunnel_index_pool=None,
+            export_target=bd.export_target,
+            import_target=bd.import_target,
         )
     else:
         spec = BridgeDomainSpec(
@@ -775,6 +939,8 @@ def _cr_bridge_domain(bd: BridgeDomainIntent, ns: str, design: str) -> dict:
             mac_learning=bd.mac_learning,
             mac_aging=bd.mac_aging,
             mac_duplication_detection=mac_dup,
+            export_target=bd.export_target,
+            import_target=bd.import_target,
         )
     return _wrap_cr(
         CR_BRIDGE_DOMAIN.api_version, CR_BRIDGE_DOMAIN.kind, bd.name, ns, spec,
@@ -784,7 +950,13 @@ def _cr_bridge_domain(bd: BridgeDomainIntent, ns: str, design: str) -> dict:
 
 def _cr_router(router: RouterIntent, ns: str, design: str) -> dict:
     """Generate a Router CR."""
-    spec = RouterSpec(vni=router.vni, evi=router.evi, node_selector=router.node_selector)
+    spec = RouterSpec(
+        vni=router.vni,
+        evi=router.evi,
+        node_selector=router.node_selector,
+        export_target=router.export_target,
+        import_target=router.import_target,
+    )
     return _wrap_cr(CR_ROUTER.api_version, CR_ROUTER.kind, router.name, ns, spec, origin=design)
 
 

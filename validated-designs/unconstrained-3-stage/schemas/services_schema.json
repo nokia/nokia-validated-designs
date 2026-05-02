@@ -104,6 +104,16 @@
               "description": "Number of moves before triggering action."
             }
           }
+        },
+        "export_target": {
+          "type": "string",
+          "pattern": "^target:.+$",
+          "description": "Optional BGP-EVPN export route target (e.g. 'target:1:777'). Overrides the default 'target:1:<evi>'."
+        },
+        "import_target": {
+          "type": "string",
+          "pattern": "^target:.+$",
+          "description": "Optional BGP-EVPN import route target (e.g. 'target:1:777'). Overrides the default 'target:1:<evi>'."
         }
       },
       "allOf": [
@@ -141,6 +151,16 @@
             "pattern": "^[a-zA-Z0-9_./-]+=.+$"
           },
           "minItems": 1
+        },
+        "export_target": {
+          "type": "string",
+          "pattern": "^target:.+$",
+          "description": "Optional BGP-EVPN export route target (e.g. 'target:1:777'). Overrides the default 'target:1:<evi>'."
+        },
+        "import_target": {
+          "type": "string",
+          "pattern": "^target:.+$",
+          "description": "Optional BGP-EVPN import route target (e.g. 'target:1:777'). Overrides the default 'target:1:<evi>'."
         }
       }
     },

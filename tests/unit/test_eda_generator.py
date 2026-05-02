@@ -122,3 +122,52 @@ class TestEdaGeneratorDesignAgnostic:
             design_label = labels.get(NVD_DESIGN_LABEL, "")
             if design_label:
                 assert design_label == "unconstrained-3-stage"
+
+
+class TestRouteTargetOverrides:
+    """Verify explicit export/import route targets land in Router + BridgeDomain CRs."""
+
+    def test_router_cr_carries_overridden_rts(self, three_stage_intent):
+        three_stage_intent.routers[0].export_target = "target:1:777"
+        three_stage_intent.routers[0].import_target = "target:2:888"
+        router_name = three_stage_intent.routers[0].name
+        crs = generate(three_stage_intent)
+        r_cr = next(
+            cr for cr in crs
+            if cr["kind"] == "Router" and cr["metadata"]["name"] == router_name
+        )
+        assert r_cr["spec"]["exportTarget"] == "target:1:777"
+        assert r_cr["spec"]["importTarget"] == "target:2:888"
+
+    def test_router_cr_omits_rts_when_unset(self, three_stage_intent):
+        # Pick a router without explicit RTs (fresh fixture).
+        router_name = three_stage_intent.routers[0].name
+        crs = generate(three_stage_intent)
+        r_cr = next(
+            cr for cr in crs
+            if cr["kind"] == "Router" and cr["metadata"]["name"] == router_name
+        )
+        assert "exportTarget" not in r_cr["spec"]
+        assert "importTarget" not in r_cr["spec"]
+
+    def test_bridge_domain_cr_carries_overridden_rts(self, three_stage_intent):
+        bd = three_stage_intent.bridge_domains[0]
+        bd.export_target = "target:1:777"
+        bd.import_target = "target:2:888"
+        crs = generate(three_stage_intent)
+        bd_cr = next(
+            cr for cr in crs
+            if cr["kind"] == "BridgeDomain" and cr["metadata"]["name"] == bd.name
+        )
+        assert bd_cr["spec"]["exportTarget"] == "target:1:777"
+        assert bd_cr["spec"]["importTarget"] == "target:2:888"
+
+    def test_bridge_domain_cr_omits_rts_when_unset(self, three_stage_intent):
+        bd_name = three_stage_intent.bridge_domains[0].name
+        crs = generate(three_stage_intent)
+        bd_cr = next(
+            cr for cr in crs
+            if cr["kind"] == "BridgeDomain" and cr["metadata"]["name"] == bd_name
+        )
+        assert "exportTarget" not in bd_cr["spec"]
+        assert "importTarget" not in bd_cr["spec"]

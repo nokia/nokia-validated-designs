@@ -67,7 +67,9 @@
             "action": { "type": "string", "enum": ["StopLearning", "Blackhole", "UseNetInstanceAction"] },
             "num_moves": { "type": "integer", "minimum": 1 }
           }
-        }
+        },
+        "export_target": { "type": "string", "pattern": "^target:.+$", "description": "Optional BGP-EVPN export route target. Overrides the default 'target:1:<evi>'." },
+        "import_target": { "type": "string", "pattern": "^target:.+$", "description": "Optional BGP-EVPN import route target. Overrides the default 'target:1:<evi>'." }
       },
       "allOf": [
         {
@@ -93,7 +95,9 @@
           "type": "array",
           "items": { "type": "string", "pattern": "^[a-zA-Z0-9_./-]+=.+$" },
           "minItems": 1
-        }
+        },
+        "export_target": { "type": "string", "pattern": "^target:.+$", "description": "Optional BGP-EVPN export route target. Overrides the default 'target:1:<evi>'." },
+        "import_target": { "type": "string", "pattern": "^target:.+$", "description": "Optional BGP-EVPN import route target. Overrides the default 'target:1:<evi>'." }
       }
     },
     "irbInterface": {
