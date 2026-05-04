@@ -49,17 +49,28 @@ def _sorted_routers(hv: dict) -> list[dict]:
 def _irb_index_map(hv: dict) -> dict[str, int]:
     """Map bridge-domain name -> IRB subinterface index (derived from EVI).
 
-    Deriving from ``evi`` keeps each BD's ``irb0.<idx>`` stable across
-    additions and removals of other BDs. Positional allocation
-    (``0, 1, 2, ...``) used to re-shuffle every index whenever a BD was
-    removed, which clashed with any stale BD-to-subinterface binding still
-    on the device (SRL rejects with
+    Only bridge domains that have an IRB attached *on this node* are
+    included. Callers use ``bd_name in irb_map`` as a presence check to
+    decide whether ``irb0.<idx>`` should be bound into the BD's mac-vrf
+    (and into the IRB's ip-vrf): an L2-only BD (access ports but no IRB)
+    must not have a non-existent ``irb0.<evi>`` attached, since SR Linux
+    would reject with ``subinterface irb0.N not found``.
+
+    Deriving the index from ``evi`` keeps each BD's ``irb0.<idx>``
+    stable across additions and removals of other BDs. Positional
+    allocation (``0, 1, 2, ...``) used to re-shuffle every index
+    whenever a BD was removed, which clashed with any stale
+    BD-to-subinterface binding still on the device (SRL rejects with
     ``subinterface irb0.N is already bound to .network-instance{...}``).
 
     EVI is schema-constrained to 1..65535 and unique per BD, so it is
     safe as a subinterface index and does not collide with other BDs.
     """
-    return {bd["name"]: int(bd["evi"]) for bd in hv.get("bridge_domains", [])}
+    return {
+        bd["name"]: int(bd["evi"])
+        for bd in hv.get("bridge_domains", [])
+        if bd.get("irb")
+    }
 
 
 def _vxlan_index_map(hv: dict) -> dict[str, int]:

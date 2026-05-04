@@ -796,3 +796,93 @@ class TestStableSubinterfaceIndexing:
             if tun["path"].startswith("/tunnel-interface[name=vxlan0]/vxlan-interface"):
                 idx = int(tun["path"].split("index=", 1)[1].rstrip("]"))
                 assert idx == tun["value"]["ingress"]["vni"]
+
+
+# ---------------------------------------------------------------------------
+# L2-only bridge domains (no IRB) must not bind a non-existent irb0.<evi>
+# ---------------------------------------------------------------------------
+
+
+def _intent_l2_only_bd() -> dict:
+    """Leaf hv with two BDs, only one of which has an IRB.
+
+    macvrf-v10 has both an IRB and access; macvrf-v99 is a pure L2 BD —
+    access port present (via the tagged-v99 VLAN/edge label) but no IRB
+    intent. Reproduces the field error:
+        Error in /network-instance[name=macvrf-v99]/interface[name=irb0.99]:
+            subinterface irb0.99 not found
+    """
+    return {
+        "node": {
+            "hostname": "leaf1",
+            "role": "leaf",
+            "router_id": "192.168.254.11",
+            "asn": 65411,
+            "labels": {"eda.nokia.com/role": "leaf"},
+        },
+        "edge_interfaces": [
+            {
+                "name": "ethernet-1/3",
+                "encap": "dot1q",
+                "labels": {
+                    "eda.nokia.com/role": "edge",
+                    "eda.nokia.com/tagged-v10": "enabled",
+                    "eda.nokia.com/tagged-v99": "enabled",
+                },
+            },
+        ],
+        "bridge_domains": [
+            {"name": "macvrf-v10", "vni": 100101, "evi": 10},
+            {"name": "macvrf-v99", "vni": 10099, "evi": 99},
+        ],
+        "routers": [
+            {
+                "name": "vrf1",
+                "vni": 10500,
+                "evi": 500,
+                "node_selector": ["eda.nokia.com/role=leaf"],
+            },
+        ],
+        "irb_interfaces": [
+            {
+                "bridge_domain": "macvrf-v10",
+                "router": "vrf1",
+                "ipv4": "172.16.10.254/24",
+                "anycast_gw": True,
+            },
+        ],
+        "vlans": [
+            {
+                "name": "tagged-v10",
+                "bridge_domain": "macvrf-v10",
+                "vlan_id": "10",
+                "interface_selector": ["eda.nokia.com/tagged-v10=enabled"],
+            },
+            {
+                "name": "tagged-v99",
+                "bridge_domain": "macvrf-v99",
+                "vlan_id": "99",
+                "interface_selector": ["eda.nokia.com/tagged-v99=enabled"],
+            },
+        ],
+    }
+
+
+class TestL2OnlyBridgeDomain:
+    """An L2-only BD (access ports, no IRB) must not get irb0.<evi> attached."""
+
+    def test_l2_only_bd_omits_irb_member(self):
+        out = srl_config(_intent_l2_only_bd(), sw_version="25.10.1", phase="services")
+
+        v99_members = _macvrf_members(out, "macvrf-v99")
+        assert not any(m.startswith("irb0.") for m in v99_members), (
+            f"L2-only BD macvrf-v99 must not have an irb0.* member, got {v99_members}"
+        )
+        assert "ethernet-1/3.99" in v99_members, (
+            f"expected access subif ethernet-1/3.99 in {v99_members}"
+        )
+
+    def test_irb_attached_bd_still_gets_irb_member(self):
+        # Sanity: the fix must not regress the normal "BD-with-IRB" path.
+        out = srl_config(_intent_l2_only_bd(), sw_version="25.10.1", phase="services")
+        assert "irb0.10" in _macvrf_members(out, "macvrf-v10")
