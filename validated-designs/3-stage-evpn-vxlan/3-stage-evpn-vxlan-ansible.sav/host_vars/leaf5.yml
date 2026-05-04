@@ -1,0 +1,193 @@
+node:
+  hostname: leaf5
+  role: leaf
+  router_id: 192.168.254.15
+  asn: 65415
+  labels:
+    eda.nokia.com/role: leaf
+    eda.nokia.com/name: leaf5
+    eda.nokia.com/security-profile: managed
+underlay_interfaces:
+- name: ethernet-1/31
+  peer_asn: 65500
+- name: ethernet-1/32
+  peer_asn: 65500
+lags:
+- name: lag1
+  description: leaf4-leaf5-lag1
+  aggregate_id: '1'
+  mode: all-active
+  min_links: 1
+  lacp:
+    interval: fast
+    system_id_mac: 00:00:00:00:44:55
+    system_priority: 32768
+    admin_key: 1
+  fallback:
+    mode: static
+    timeout: 60
+  reload_delay_timer: 100
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v30: enabled
+  members:
+  - interface: ethernet-1/4
+- name: lag2
+  description: leaf2-leaf3-leaf4-leaf5-lag2
+  aggregate_id: '2'
+  mode: all-active
+  min_links: 1
+  lacp:
+    interval: fast
+    system_id_mac: 00:00:22:33:44:55
+    system_priority: 32768
+    admin_key: 2
+  fallback:
+    mode: static
+    timeout: 60
+  reload_delay_timer: 100
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v50: enabled
+  members:
+  - interface: ethernet-1/6
+- name: lag3
+  description: leaf5-leaf6-lag3
+  aggregate_id: '3'
+  mode: port-active
+  min_links: 1
+  lacp:
+    interval: fast
+    system_id_mac: 00:00:00:00:55:66
+    system_priority: 32768
+    admin_key: 3
+  fallback:
+    mode: static
+    timeout: 60
+  reload_delay_timer: 100
+  revertive: true
+  df_preference: 800
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/untagged-v30: enabled
+  members:
+  - interface: ethernet-1/5
+irb_interfaces:
+- bridge_domain: macvrf-v10
+  router: vrf1
+  ipv4: 172.16.10.254/24
+  anycast_gw: true
+  proxy_arp: true
+  arp_timeout: 280
+  ip_mtu: 9394
+  evpn_route_advertisement_type:
+    rfc9135SymmetricMode: false
+    arpDynamic: true
+    arpStatic: true
+    ndDynamic: false
+    ndStatic: false
+  host_route_populate:
+    dynamic: true
+    static: true
+    evpn: false
+- bridge_domain: macvrf-v20
+  router: vrf1
+  ipv4: 172.16.20.254/24
+  anycast_gw: true
+  proxy_arp: true
+  arp_timeout: 280
+  ip_mtu: 9394
+  evpn_route_advertisement_type:
+    rfc9135SymmetricMode: false
+    arpDynamic: true
+    arpStatic: true
+    ndDynamic: false
+    ndStatic: false
+  host_route_populate:
+    dynamic: true
+    static: true
+    evpn: false
+- bridge_domain: macvrf-v30
+  router: vrf1
+  ipv4: 172.16.30.254/24
+  anycast_gw: true
+  proxy_arp: true
+  arp_timeout: 280
+  ip_mtu: 9394
+  evpn_route_advertisement_type:
+    rfc9135SymmetricMode: false
+    arpDynamic: true
+    arpStatic: true
+    ndDynamic: false
+    ndStatic: false
+  host_route_populate:
+    dynamic: true
+    static: true
+    evpn: false
+- bridge_domain: macvrf-v40
+  router: vrf2
+  ipv4: 172.16.40.254/24
+  anycast_gw: true
+  proxy_arp: true
+  arp_timeout: 280
+  ip_mtu: 9394
+  evpn_route_advertisement_type:
+    rfc9135SymmetricMode: false
+    arpDynamic: true
+    arpStatic: true
+    ndDynamic: false
+    ndStatic: false
+  host_route_populate:
+    dynamic: true
+    static: true
+    evpn: false
+- bridge_domain: macvrf-v50
+  router: vrf2
+  ipv4: 172.16.50.254/24
+  anycast_gw: true
+  proxy_arp: true
+  arp_timeout: 280
+  ip_mtu: 9394
+  evpn_route_advertisement_type:
+    rfc9135SymmetricMode: false
+    arpDynamic: true
+    arpStatic: true
+    ndDynamic: false
+    ndStatic: false
+  host_route_populate:
+    dynamic: true
+    static: true
+    evpn: false
+- bridge_domain: macvrf-v60
+  router: vrf2
+  ipv4: 172.16.60.254/24
+  anycast_gw: true
+  proxy_arp: true
+  arp_timeout: 280
+  ip_mtu: 9394
+  evpn_route_advertisement_type:
+    rfc9135SymmetricMode: false
+    arpDynamic: true
+    arpStatic: true
+    ndDynamic: false
+    ndStatic: false
+  host_route_populate:
+    dynamic: true
+    static: true
+    evpn: false
+event_handler:
+  node_isolation:
+    down_links:
+    - ethernet-1/4
+    - ethernet-1/5
+    - ethernet-1/6
+    hold_down_time: 20000
+    required_bgp_sessions: 1
+default_mtu:
+  interface_mtu: 9412
+  layer2_subif_mtu: 9412
+  layer3_mtu: 9394
+config_overrides:
+- path: /system/information
+  value:
+    contact: support@nokia.com

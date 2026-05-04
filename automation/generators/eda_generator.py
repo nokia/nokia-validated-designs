@@ -135,6 +135,14 @@ MANAGED_BY_LABEL = "eda.nokia.com/managed-by"
 MANAGED_BY_VALUE = "nvd-automation"
 NVD_DESIGN_LABEL = "eda.nokia.com/nvd-design"
 
+# EDA marks resources implicitly created by another resource (e.g. the
+# Policy/PrefixSet that a Fabric reconciler materialises for its eBGP ISL
+# routing-policies) with ``eda.nokia.com/source: derived``. These resources
+# are owned by their parent and must not be pruned or destroyed directly —
+# EDA cleans them up when the parent goes away.
+DERIVED_SOURCE_LABEL = "eda.nokia.com/source"
+DERIVED_SOURCE_VALUE = "derived"
+
 
 # ---------------------------------------------------------------------------
 # Top-level entry point

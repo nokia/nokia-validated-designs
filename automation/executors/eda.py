@@ -29,7 +29,12 @@ from typing import Any
 import requests
 import urllib3
 
-from automation.generators.eda_generator import MANAGED_BY_LABEL, MANAGED_BY_VALUE
+from automation.generators.eda_generator import (
+    DERIVED_SOURCE_LABEL,
+    DERIVED_SOURCE_VALUE,
+    MANAGED_BY_LABEL,
+    MANAGED_BY_VALUE,
+)
 from automation.eda_models.registry import (
     INIT, NODE_USER, NODE_PROFILE, TOPO_NODE, TOPO_LINK,
     INDEX_ALLOCATION_POOL, IP_ALLOCATION_POOL,
@@ -442,8 +447,32 @@ class EdaClient:
             for items in pool.map(_fetch, resource_types):
                 managed.extend(items)
 
-        logger.info("Found %d managed resources in EDA", len(managed))
-        return managed
+        # Filter out resources marked as derived by another EDA resource.
+        # Example: the Policy/PrefixSet that EDA's Fabric reconciler creates
+        # to materialise the eBGP ISL routing-policies inherit our parent
+        # Fabric's ``managed-by`` label, so they appear in this query — but
+        # they are owned by Fabric and must not be pruned/destroyed directly.
+        kept: list[dict] = []
+        derived: list[str] = []
+        for item in managed:
+            labels = item.get("metadata", {}).get("labels") or {}
+            if labels.get(DERIVED_SOURCE_LABEL) == DERIVED_SOURCE_VALUE:
+                derived.append(
+                    f"{item.get('_kind', '?')}/"
+                    f"{item.get('metadata', {}).get('name', '?')}"
+                )
+            else:
+                kept.append(item)
+
+        if derived:
+            logger.info(
+                "Skipping %d derived resources (owned by another EDA resource): %s",
+                len(derived),
+                ", ".join(sorted(derived)),
+            )
+
+        logger.info("Found %d managed resources in EDA", len(kept))
+        return kept
 
     # ------------------------------------------------------------------
     # TopoNode existence check (avoid re-onboarding)

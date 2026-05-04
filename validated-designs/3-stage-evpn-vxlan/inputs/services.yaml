@@ -23,9 +23,9 @@ bridge_domains:
   - name: macvrf-v60
     vni: 10060
     evi: 60
-#  - name: macvrf-v99
-#    vni: 10099
-#    evi: 99
+##  - name: macvrf-v99
+##    vni: 10099
+##    evi: 99
 # Bridge domain with all optional fields (override via extras):
 #   - name: macvrf-example
 #     vni: 99999

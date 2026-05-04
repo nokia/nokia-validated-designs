@@ -1,0 +1,9 @@
+fabric_name: dc1
+system0_prefix: 192.168.254.0/24
+purge: true
+confirm_timeout: 0
+ansible_connection: ansible.netcommon.httpapi
+ansible_network_os: nokia.srlinux.srlinux
+ansible_user: admin
+ansible_password: NokiaSrl1!
+ansible_httpapi_validate_certs: false
