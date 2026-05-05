@@ -1,0 +1,19 @@
+---
+# yaml-language-server: $schema=../../schemas/services_fragment_schema.json
+# Routers (ip-vrfs)
+
+routers:
+  - name: vrf1
+    vni: 10500
+    evi: 500
+    node_selector:
+      - eda.nokia.com/role=leaf
+    # Optional BGP-EVPN route targets (defaults to target:1:<evi> on both
+    # EDA and SR Linux CLI). Pattern: ^target:.+$
+    # export_target: target:1:777
+    # import_target: target:1:777
+  - name: vrf2
+    vni: 10501
+    evi: 501
+    node_selector:
+      - eda.nokia.com/role=leaf

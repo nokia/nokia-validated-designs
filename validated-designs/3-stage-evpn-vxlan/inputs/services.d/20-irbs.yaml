@@ -1,0 +1,69 @@
+---
+# yaml-language-server: $schema=../../schemas/services_fragment_schema.json
+# IRB Interfaces (bridge domain ↔ ip-vrf glue)
+# Each IRB binds one bridge domain to one router.
+
+irb_interfaces:
+  - name: irb-v10
+    bridge_domain: macvrf-v10
+    router: vrf1
+    ipv4: 172.16.10.254/24
+    proxy_arp: true
+    arp_timeout: 280
+
+  - name: irb-v20
+    bridge_domain: macvrf-v20
+    router: vrf1
+    ipv4: 172.16.20.254/24
+    proxy_arp: true
+    arp_timeout: 280
+
+  - name: irb-v30
+    bridge_domain: macvrf-v30
+    router: vrf1
+    ipv4: 172.16.30.254/24
+    proxy_arp: true
+    arp_timeout: 280
+
+  - name: irb-v40
+    bridge_domain: macvrf-v40
+    router: vrf2
+    ipv4: 172.16.40.254/24
+    proxy_arp: true
+    arp_timeout: 280
+
+  - name: irb-v50
+    bridge_domain: macvrf-v50
+    router: vrf2
+    ipv4: 172.16.50.254/24
+    proxy_arp: true
+    arp_timeout: 280
+
+  - name: irb-v60
+    bridge_domain: macvrf-v60
+    router: vrf2
+    ipv4: 172.16.60.254/24
+    proxy_arp: true
+    arp_timeout: 280
+##ver  - name: irb-v99
+##    bridge_domain: macvrf-v99
+##    router: vrf2
+##    ipv4: 172.16.99.254/24
+##    proxy_arp: true
+##    arp_timeout: 280
+# IRB interface with all optional fields (override via extras):
+#   - name: irb-example
+#     bridge_domain: macvrf-example
+#     router: vrf1
+#     ipv4: 172.16.99.254/24
+#     proxy_arp: true
+#     arp_timeout: 280
+#     # Design defaults applied automatically — override via extras:
+#     # description: "VLAN 99 gateway"
+#     # proxy_nd: false
+#     # ip_mtu: 9394                          # defaults to layer3_mtu from default_mtu
+#     # learn_unsolicited: NONE               # NONE | GLOBAL
+#     # Dual-stack addressing (alternative to ipv4 shorthand):
+#     # ip_addresses:
+#     #   - ipv4: { ip_prefix: "172.16.99.254/24", primary: true }
+#     #     ipv6: { ip_prefix: "2001:db8:99::1/64", primary: true }

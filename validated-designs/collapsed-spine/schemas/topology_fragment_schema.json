@@ -1,0 +1,605 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "collapsed-spine/topology.fragment",
+  "title": "Collapsed-Spine Topology Input (fragment)",
+  "description": "Defines the physical topology for a collapsed-spine EVPN VXLAN fabric. Two collapsed-spines act as EVPN leaves; ToRs are onboarded L2-only edge devices that stay out of the Fabric CR. Fragment variant: top-level required keys removed so individual fragments under inputs/*.d/ validate cleanly. The merged result is still validated against the strict schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "design": {
+      "type": "string",
+      "const": "collapsed-spine",
+      "description": "Design identifier \u2014 must be 'collapsed-spine'."
+    },
+    "fabric_name": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Fabric name used as a prefix for generated resources."
+    },
+    "environment": {
+      "type": "string",
+      "enum": [
+        "containerlab",
+        "physical"
+      ],
+      "default": "containerlab"
+    },
+    "credentials": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "username": {
+          "type": "string",
+          "default": "admin"
+        },
+        "password": {
+          "type": "string",
+          "default": "NokiaSrl1!"
+        }
+      }
+    },
+    "mgmt_subnet": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$"
+    },
+    "underlay": {
+      "type": "object",
+      "required": [
+        "collapsed_spine_asn_start",
+        "system0_prefix"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "collapsed_spine_asn_start": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295,
+          "description": "Starting BGP AS number for collapsed-spines (incremented per device)."
+        },
+        "system0_prefix": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$",
+          "description": "IPv4 prefix for system0 loopback allocation."
+        }
+      }
+    },
+    "collapsed_spines": {
+      "$ref": "#/$defs/nodeGroup",
+      "description": "Collapsed-spine node group (dual-role EVPN leaves)."
+    },
+    "tors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/torNode"
+      },
+      "description": "Explicit list of ToR nodes (heterogeneous platforms allowed)."
+    },
+    "isl_links": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/islLink"
+      },
+      "description": "Explicit ISL list \u2014 no full-mesh auto-generation."
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/nodeOverride"
+      }
+    },
+    "edge_interfaces": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/edgeInterface"
+      }
+    },
+    "lags": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/lag"
+      }
+    },
+    "default_mtu": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/defaultMtu"
+      }
+    },
+    "banners": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/banner"
+      }
+    },
+    "prefix_sets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/prefixSet"
+      }
+    },
+    "fabric_export_policies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "fabric_import_policies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "eda": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "node_profile": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string",
+          "default": "eda"
+        }
+      }
+    },
+    "extras": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "configlets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/configlet"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "labels": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z0-9_./-]+$": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "nodeGroup": {
+      "type": "object",
+      "required": [
+        "count",
+        "platform",
+        "version",
+        "mgmt_base_ipv4"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "platform": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "mgmt_base_ipv4": {
+          "type": "string",
+          "format": "ipv4"
+        },
+        "labels": {
+          "$ref": "#/$defs/labels"
+        },
+        "name_template": {
+          "type": "string",
+          "pattern": ".*\\{i[^}]*\\}.*"
+        }
+      }
+    },
+    "torNode": {
+      "type": "object",
+      "required": [
+        "name",
+        "platform",
+        "version",
+        "mgmt_ipv4"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+        },
+        "platform": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "mgmt_ipv4": {
+          "type": "string",
+          "format": "ipv4"
+        },
+        "labels": {
+          "$ref": "#/$defs/labels"
+        }
+      }
+    },
+    "islLink": {
+      "type": "object",
+      "required": [
+        "local_node",
+        "local_interface",
+        "remote_node",
+        "remote_interface"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "local_node": {
+          "type": "string"
+        },
+        "local_interface": {
+          "type": "string",
+          "pattern": "^ethernet-[0-9]+-[0-9]+(-[0-9]+)?$"
+        },
+        "remote_node": {
+          "type": "string"
+        },
+        "remote_interface": {
+          "type": "string",
+          "pattern": "^ethernet-[0-9]+-[0-9]+(-[0-9]+)?$"
+        }
+      }
+    },
+    "nodeOverride": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "mgmt_ipv4": {
+          "type": "string",
+          "format": "ipv4"
+        },
+        "labels": {
+          "$ref": "#/$defs/labels"
+        }
+      }
+    },
+    "edgeInterface": {
+      "type": "object",
+      "required": [
+        "name",
+        "node",
+        "interface",
+        "encap"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "node": {
+          "type": "string"
+        },
+        "interface": {
+          "type": "string",
+          "pattern": "^ethernet-[0-9]+-[0-9]+$"
+        },
+        "encap": {
+          "type": "string",
+          "enum": [
+            "dot1q",
+            "null"
+          ]
+        },
+        "labels": {
+          "$ref": "#/$defs/labels"
+        }
+      }
+    },
+    "lag": {
+      "type": "object",
+      "required": [
+        "name",
+        "type",
+        "mode",
+        "min_links",
+        "lacp",
+        "members"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "lacp"
+          ]
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "all-active",
+            "port-active"
+          ]
+        },
+        "min_links": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "revertive": {
+          "type": "boolean"
+        },
+        "preferred_active_node": {
+          "type": "string"
+        },
+        "standby_signaling": {
+          "type": "string",
+          "enum": [
+            "lacp"
+          ]
+        },
+        "lacp": {
+          "type": "object",
+          "required": [
+            "interval",
+            "system_id_mac",
+            "system_priority"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "interval": {
+              "type": "string",
+              "enum": [
+                "fast",
+                "slow"
+              ]
+            },
+            "system_id_mac": {
+              "type": "string",
+              "pattern": "^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$"
+            },
+            "system_priority": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65535
+            },
+            "fallback": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "static"
+                  ]
+                },
+                "timeout": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          }
+        },
+        "members": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "node",
+              "interface",
+              "aggregate_id"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "node": {
+                "type": "string"
+              },
+              "interface": {
+                "type": "string"
+              },
+              "aggregate_id": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "labels": {
+          "$ref": "#/$defs/labels"
+        },
+        "reload_delay_timer": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "defaultMtu": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "interface_mtu": {
+          "type": "integer",
+          "minimum": 1500,
+          "maximum": 11000
+        },
+        "layer2_subif_mtu": {
+          "type": "integer",
+          "minimum": 1500,
+          "maximum": 11000
+        },
+        "layer3_mtu": {
+          "type": "integer",
+          "minimum": 1280,
+          "maximum": 11000
+        },
+        "node_selector": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "banner": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "login_banner": {
+          "type": "string"
+        },
+        "motd": {
+          "type": "string"
+        },
+        "node_selector": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "prefixSet": {
+      "type": "object",
+      "required": [
+        "name",
+        "prefixes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "prefixes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "ip_prefix"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "ip_prefix": {
+                "type": "string"
+              },
+              "mask_length_range": {
+                "type": "string",
+                "default": "exact"
+              }
+            }
+          }
+        }
+      }
+    },
+    "configlet": {
+      "type": "object",
+      "required": [
+        "name",
+        "configs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "endpoint_selector": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "endpoints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000,
+          "default": 100
+        },
+        "configs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "path",
+              "operation",
+              "config"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "Create",
+                  "Update",
+                  "Delete"
+                ]
+              },
+              "config": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

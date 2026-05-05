@@ -1,0 +1,142 @@
+---
+# yaml-language-server: $schema=../../schemas/topology_fragment_schema.json
+# Server-facing access ports: edge interfaces and LAGs.
+
+# Edge interfaces (server-facing ports)
+edge_interfaces:
+  # leaf1 - server s1 (tagged vlan 10)
+  - name: leaf1-ethernet-1-3
+    node: leaf1
+    interface: ethernet-1-3
+    encap: dot1q
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/tagged-v10: enabled
+      eda.nokia.com/tagged-v99: enabled
+
+  # leaf1 - server s5 (routed, no VLAN)
+  - name: leaf1-ethernet-1-4
+    node: leaf1
+    interface: ethernet-1-4
+    encap: "null"
+    labels:
+      eda.nokia.com/role: routed-s5
+
+  # leaf1 - server s7 (untagged vlan 40)
+  - name: leaf1-ethernet-1-5
+    node: leaf1
+    interface: ethernet-1-5
+    # EDA models "untagged" VLAN services as subinterface 4096 with
+    # vlan.encap.untagged, which requires vlan-tagging enabled on the
+    # parent interface — i.e. encap: dot1q here, even for access ports.
+    encap: dot1q
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v40: enabled
+
+  # leaf2 - server s2 (untagged vlan 10)
+  - name: leaf2-ethernet-1-3
+    node: leaf2
+    interface: ethernet-1-3
+    encap: dot1q
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v10: enabled
+      eda.nokia.com/tagged-v99: enabled
+
+  # leaf3 - server s2 (untagged vlan 10)
+  - name: leaf3-ethernet-1-3
+    node: leaf3
+    interface: ethernet-1-3
+    encap: dot1q
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v10: enabled
+      eda.nokia.com/tagged-v99: enabled
+
+  # leaf4 - server s3 (untagged vlan 20)
+  - name: leaf4-ethernet-1-3
+    node: leaf4
+    interface: ethernet-1-3
+    # EDA "untagged" VLAN services need vlan-tagging on the parent.
+    encap: dot1q
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v20: enabled
+
+  # leaf6 - server s9 (untagged vlan 60)
+  - name: leaf6-ethernet-1-6
+    node: leaf6
+    interface: ethernet-1-6
+    # EDA "untagged" VLAN services need vlan-tagging on the parent.
+    encap: dot1q
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v60: enabled
+
+# LAG interfaces
+lags:
+  # LAG1: leaf4+leaf5 → server s4 (all-active, untagged vlan 30)
+  - name: leaf4-leaf5-lag1
+    type: lacp
+    mode: all-active
+    min_links: 1
+    lacp:
+      interval: fast
+      system_id_mac: "00:00:00:00:44:55"
+      system_priority: 32768
+      fallback:
+        mode: static
+        timeout: 60
+    members:
+      - {node: leaf4, interface: ethernet-1-4, aggregate_id: "1"}
+      - {node: leaf5, interface: ethernet-1-4, aggregate_id: "1"}
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v30: enabled
+    reload_delay_timer: 100
+
+  # LAG2: leaf2+leaf3+leaf4+leaf5 → server s8 (all-active, untagged vlan 50)
+  - name: leaf2-leaf3-leaf4-leaf5-lag2
+    type: lacp
+    mode: all-active
+    min_links: 1
+    lacp:
+      interval: fast
+      system_id_mac: "00:00:22:33:44:55"
+      system_priority: 32768
+      fallback:
+        mode: static
+        timeout: 60
+    members:
+      - {node: leaf2, interface: ethernet-1-6, aggregate_id: "2"}
+      - {node: leaf3, interface: ethernet-1-6, aggregate_id: "2"}
+      - {node: leaf4, interface: ethernet-1-6, aggregate_id: "2"}
+      - {node: leaf5, interface: ethernet-1-6, aggregate_id: "2"}
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v50: enabled
+    reload_delay_timer: 100
+
+  # LAG3: leaf5+leaf6 → server s6 (port-active/single-active, untagged vlan 30)
+  - name: leaf5-leaf6-lag3
+    type: lacp
+    mode: port-active
+    min_links: 1
+    revertive: true
+    preferred_active_node: leaf5
+    standby_signaling: lacp
+    lacp:
+      interval: fast
+      system_id_mac: "00:00:00:00:55:66"
+      system_priority: 32768
+      fallback:
+        mode: static
+        timeout: 60
+    members:
+      - {node: leaf5, interface: ethernet-1-5, aggregate_id: "3"}
+      - {node: leaf6, interface: ethernet-1-5, aggregate_id: "3"}
+    labels:
+      eda.nokia.com/role: edge
+      eda.nokia.com/untagged-v30: enabled
+    reload_delay_timer: 100

@@ -1,0 +1,32 @@
+---
+# yaml-language-server: $schema=../../schemas/topology_fragment_schema.json
+# Site-wide defaults: jumbo-frame MTU and login banners.
+
+# Default MTU settings (jumbo frames)
+default_mtu:
+  - name: default-port-mtu
+    interface_mtu: 9412
+    layer2_subif_mtu: 9412
+    layer3_mtu: 9394
+    node_selector:
+      - "eda.nokia.com/role=leaf"
+      - "eda.nokia.com/role = spine"
+  # Target specific nodes instead of using label selectors:
+  # - name: spine-only-mtu
+  #   interface_mtu: 9232
+  #   nodes:
+  #     - spine1
+  #     - spine2
+
+# Banners (login / MOTD)
+banners:
+  - name: nvd-banner
+    login_banner: "NVD: 3-stage-evpn-vxlan"
+    node_selector:
+      - "eda.nokia.com/role=leaf"
+      - "eda.nokia.com/role=spine"
+    # motd: "Welcome to the DC1 fabric"    # Message of the Day (after login)
+    # Target specific nodes instead of using label selectors:
+    # nodes:
+    #   - leaf1
+    #   - leaf2

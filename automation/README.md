@@ -68,6 +68,73 @@ Every design directory contains a `schemas/` folder with JSON Schema files.
 
 This catches malformed input before any transformation happens.
 
+### Splitting inputs across multiple files
+
+For larger fabrics, each topic can be split into fragments under a `.d/`
+directory. Either layout is accepted per topic — pick whichever is easier to
+maintain:
+
+```
+validated-designs/<design>/inputs/
+  topology.yaml              # single-file (legacy)
+  services.yaml
+  # — OR —
+  topology.d/
+    00-fabric.yaml           # design, fabric_name, underlay, spines, leafs
+    10-nodes.yaml            # node overrides
+    20-links.yaml            # ISL pinning
+    30-edge.yaml             # edge_interfaces, lags
+    90-overrides.yaml        # last-wins tweaks
+  services.d/
+    00-bridge-domains.yaml
+    10-routers.yaml
+    20-irbs.yaml
+```
+
+Fragments are loaded in **lexicographic filename order** (use `NN-name.yaml`
+prefixes to make ordering explicit — files without a numeric prefix still load
+but log a warning). They are then deep-merged with these rules:
+
+- **Dicts** are merged recursively (`underlay.spine_asn` from one fragment and
+  `underlay.leaf_asn_start` from another both end up in the result).
+- **Lists of objects with a `name` field** (`bridge_domains`, `routers`,
+  `nodes`, `irb_interfaces`, `vlans`, `routed_interfaces`, `static_routes`,
+  `prefix_sets`, `routing_policies`, `edge_interfaces`, `lags`, …) are merged
+  by name; a duplicate name in a later fragment **replaces** the earlier
+  entry and emits a warning. Items without a `name` field are appended.
+- **Plain string lists** (`fabric_export_policies`, `fabric_import_policies`)
+  are replaced wholesale; the warning identifies the source file.
+- **Scalar conflicts** (e.g. two fragments setting `mgmt_subnet`) emit a
+  warning; later wins.
+- **Identity-key conflicts** on `design` or `fabric_name` are **fatal**.
+
+Each fragment is validated against a relaxed copy of the strict schema (top-
+level `required` removed), so a fragment that defines only `nodes:` is fine,
+while one that defines `underlay:` must still supply all its required sub-
+keys. After merging, the combined dict is re-validated against the strict
+schema, so missing required top-level keys are caught with a clear error.
+
+For IDE support, each design ships an on-disk
+`schemas/<topic>_fragment_schema.json` next to the strict
+`schemas/<topic>_schema.json`. Reference it from each fragment with:
+
+```yaml
+# yaml-language-server: $schema=../../schemas/topology_fragment_schema.json
+```
+
+(Use `services_fragment_schema.json` for `services.d/` fragments.) The loader
+prefers the on-disk fragment schema when present and falls back to an
+in-memory derivation if it's missing — so removing the file doesn't break
+runtime, only IDE validation. To regenerate the fragment schemas after
+editing the strict ones:
+
+```bash
+python -m automation.codegen.generate_fragment_schemas
+```
+
+Mixing single-file and `.d/` for the **same** topic raises an error;
+mixing across topics (monolithic topology + fragmented services) is fine.
+
 ## Layer 2: Design Builder
 
 ### Dispatch
@@ -92,7 +159,10 @@ From minimal input (`spines: {count: 2}`, `leafs: {count: 8}`), the builder:
 
 2. **Generates ISL links** -- computes full-mesh leaf-to-spine connectivity with
    port allocation from the highest interface index downward (platform-aware),
-   handling breakout ports (e.g., 400G to 4x100G) when configured.
+   handling breakout ports (e.g., 400G to 4x100G) when configured. Optional
+   per-link overrides under `topology.links` (matched by leaf-spine pair) pin
+   specific ISLs to chosen interfaces while letting the design auto-allocate
+   the rest.
 
 3. **Passes through services** -- bridge domains, routers, IRBs, VLANs, static
    routes come directly from `services.yaml` with minimal transformation.

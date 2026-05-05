@@ -1,0 +1,35 @@
+---
+# yaml-language-server: $schema=../../schemas/topology_fragment_schema.json
+# Unconstrained additions/overrides outside the locked design.
+# Resources here are labeled nvd-design:extras.
+
+extras:
+  configlets:
+    # Target by label selector
+    - name: contact-info
+      endpoint_selector:
+        - eda.nokia.com/role=leaf
+        - eda.nokia.com/role=spine
+      priority: 100
+      configs:
+        - path: '.system.information'
+          operation: Create
+          config: '{ "contact": "support@nokia.com" }'
+    # Target by explicit node names:
+    # - name: leaf1-custom
+    #   endpoints:
+    #     - leaf1
+    #   priority: 200
+    #   configs:
+    #     - path: '.system.information'
+    #       operation: Update
+    #       config: '{ "location": "rack-a1" }'
+    # Override a design-generated configlet (match by name):
+    # - name: bgp-evpn-rapid
+    #   endpoint_selector:
+    #     - eda.nokia.com/role=leaf
+    #   priority: 110
+    #   configs:
+    #     - path: '.network-instance{.name=="default"}.protocols.bgp.afi-safi{.afi-safi-name=="evpn"}.evpn'
+    #       operation: Update
+    #       config: '{ "rapid-update": "false" }'

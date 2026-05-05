@@ -1,0 +1,40 @@
+---
+# yaml-language-server: $schema=../../schemas/topology_fragment_schema.json
+# 3-Stage EVPN VXLAN — Fabric identity, underlay, node groups, EDA settings.
+
+design: 3-stage-evpn-vxlan
+fabric_name: dc1
+environment: containerlab
+
+underlay:
+  spine_asn: 65500
+  leaf_asn_start: 65411
+  system0_prefix: 192.168.254.0/24
+  # Leafs get IPs from .11 upward
+  # Spines get IPs from .101 upward
+
+spines:
+  count: 2
+  platform: "7220 IXR-D3L"
+  version: "25.10.2"
+  mgmt_base_ipv4: "172.21.21.101"
+  # name_template: "spine{i}"        # default: spine1, spine2 (omit for default)
+  # name_template: "dc1-spine-{i:02}" # custom: dc1-spine-01, dc1-spine-02
+  labels:
+    eda.nokia.com/role: spine
+  breakouts: []
+
+leafs:
+  count: 8
+  platform: "7220 IXR-D3L"
+  version: "25.10.2"
+  mgmt_base_ipv4: "172.21.21.11"
+  # name_template: "leaf{i}"          # default: leaf1, leaf2, ... (omit for default)
+  # name_template: "dc1-leaf-{i:02}"  # custom: dc1-leaf-01, dc1-leaf-02, ...
+  labels:
+    eda.nokia.com/role: leaf
+
+# EDA-specific settings
+eda:
+  namespace: eda
+  # node_profile: ""                        # EDA NodeProfile name for onboarding

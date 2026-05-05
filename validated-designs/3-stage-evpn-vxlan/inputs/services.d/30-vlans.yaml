@@ -1,0 +1,57 @@
+---
+# yaml-language-server: $schema=../../schemas/services_fragment_schema.json
+# VLAN services — attach bridge domains to interfaces via label selectors.
+
+vlans:
+  # tagged VLAN 10 on leaf1-ethernet-1-3
+  - name: tagged-v10
+    bridge_domain: macvrf-v10
+    vlan_id: "10"
+    interface_selector:
+      - eda.nokia.com/tagged-v10=enabled
+ # untagged VLAN 10 on leaf2/leaf3 ethernet-1-3
+  - name: untagged-v10
+    bridge_domain: macvrf-v10
+    vlan_id: untagged
+    interface_selector:
+      - eda.nokia.com/untagged-v10=enabled
+
+  # untagged VLAN 20 on leaf4-ethernet-1-3
+  - name: untagged-v20
+    bridge_domain: macvrf-v20
+    vlan_id: untagged
+    interface_selector:
+      - eda.nokia.com/untagged-v20=enabled
+
+  # untagged VLAN 30 on LAG1 (leaf4-leaf5) + LAG3 (leaf5-leaf6)
+  - name: untagged-v30
+    bridge_domain: macvrf-v30
+    vlan_id: untagged
+    interface_selector:
+      - eda.nokia.com/untagged-v30=enabled
+
+  # untagged VLAN 40 on leaf1-ethernet-1-5
+  - name: untagged-v40
+    bridge_domain: macvrf-v40
+    vlan_id: untagged
+    interface_selector:
+      - eda.nokia.com/untagged-v40=enabled
+
+  # untagged VLAN 50 on LAG2 (leaf2-leaf3-leaf4-leaf5)
+  - name: untagged-v50
+    bridge_domain: macvrf-v50
+    vlan_id: untagged
+    interface_selector:
+      - eda.nokia.com/untagged-v50=enabled
+
+  # untagged VLAN 60 on leaf6-ethernet-1-6
+  - name: untagged-v60
+    bridge_domain: macvrf-v60
+    vlan_id: untagged
+    interface_selector:
+      - eda.nokia.com/untagged-v60=enabled
+##  - name: tagged-v99
+##    bridge_domain: macvrf-v99
+##    vlan_id: "99"
+##    interface_selector:
+##      - eda.nokia.com/tagged-v99=enabled

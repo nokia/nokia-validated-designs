@@ -1,0 +1,24 @@
+---
+# yaml-language-server: $schema=../../schemas/topology_fragment_schema.json
+# Per-node and per-link overrides on the auto-generated underlay.
+
+# Per-node overrides (optional — customize individual auto-generated nodes)
+# nodes:
+#   - name: leaf1
+#     mgmt_ipv4: "172.21.21.50"
+#     labels:
+#       eda.nokia.com/role: leaf
+#   - name: spine1
+#     version: "25.10.3"
+
+# Per-link overrides (optional — pin specific (leaf, spine) ISLs to chosen
+# ports while letting the design auto-allocate the rest). Each entry is matched
+# against the auto-generated link by its (leaf, spine) pair (orientation-
+# agnostic) and replaces both interface assignments. Breakout channels are
+# accepted (e.g. ethernet-1-32-1).
+links:
+  - name: leaf1-spine1
+    local_node: leaf1
+    local_interface: ethernet-1-29
+    remote_node: spine1
+    remote_interface: ethernet-1-1

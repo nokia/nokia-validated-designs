@@ -1,4 +1,0 @@
-- name: Accumulate config overrides
-  ansible.builtin.set_fact:
-    config_update: '{{ config_update + (config_overrides | default([])) }}'
-  when: config_overrides is defined and config_overrides | length > 0

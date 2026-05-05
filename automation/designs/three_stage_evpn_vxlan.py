@@ -116,6 +116,7 @@ def build(topology: dict, services: dict) -> FabricIntent:
         nodes=nodes,
         spine_cfg=spine_cfg,
         leaf_cfg=leaf_cfg,
+        link_overrides=topology.get("links", []),
     )
 
     # -----------------------------------------------------------------------
@@ -425,6 +426,7 @@ def _build_isl_links(
     nodes: list[NodeIntent],
     spine_cfg: dict,
     leaf_cfg: dict,
+    link_overrides: list[dict] | None = None,
 ) -> tuple[list[LinkIntent], list[BreakoutIntent]]:
     """
     Generate full-mesh leaf↔spine ISL links.
@@ -434,6 +436,12 @@ def _build_isl_links(
     - Leaf side: highest port index, counting down (one per spine)
 
     If breakouts are configured on spines, expands into channels.
+
+    If ``link_overrides`` is provided, each entry replaces the auto-allocated
+    interface assignment for the matching (leaf, spine) pair. Pair matching is
+    orientation-agnostic; the override's local/remote orientation is preserved
+    in the resulting LinkIntent. Each node's ``uplink_interfaces`` list is
+    rewritten to drop the auto-assigned port and add the user-supplied one.
     """
     spine_platform = get_platform(spine_cfg["platform"])
     leaf_platform = get_platform(leaf_cfg["platform"])
@@ -523,7 +531,107 @@ def _build_isl_links(
                 )
             )
 
+    if link_overrides:
+        _apply_link_overrides(links, link_overrides, nodes)
+
     return links, breakout_intents
+
+
+def _apply_link_overrides(
+    links: list[LinkIntent],
+    overrides: list[dict],
+    nodes: list[NodeIntent],
+) -> None:
+    """Apply user-supplied per-link overrides to the auto-allocated ISL list.
+
+    Mutates ``links`` in place and rewrites the matching nodes'
+    ``uplink_interfaces`` lists.
+
+    Each override is matched against the auto-allocated link sharing the same
+    unordered (local_node, remote_node) pair. The override's own orientation
+    and ``name`` are preserved on the resulting LinkIntent. After all
+    overrides are applied, the final link list is checked for (node, interface)
+    collisions to catch the case where two overrides — or an override and an
+    untouched auto-link — would land on the same physical port.
+    """
+    nodes_by_name = {n.name: n for n in nodes}
+
+    by_pair: dict[frozenset[str], int] = {}
+    for idx, link in enumerate(links):
+        by_pair[frozenset({link.local_node, link.remote_node})] = idx
+
+    seen: set[frozenset[str]] = set()
+    for ov in overrides:
+        a, b = ov["local_node"], ov["remote_node"]
+        if a not in nodes_by_name:
+            raise ValueError(
+                f"links override references unknown node '{a}'"
+            )
+        if b not in nodes_by_name:
+            raise ValueError(
+                f"links override references unknown node '{b}'"
+            )
+        if a == b:
+            raise ValueError(
+                f"links override has identical local_node and remote_node '{a}'"
+            )
+
+        key = frozenset({a, b})
+        if key in seen:
+            raise ValueError(
+                f"duplicate links override for pair {a}<->{b}"
+            )
+        seen.add(key)
+
+        if key not in by_pair:
+            raise ValueError(
+                f"links override {a}<->{b} does not match any auto-allocated "
+                f"leaf<->spine link (3-stage design generates one ISL per "
+                f"leaf/spine pair)"
+            )
+
+        idx = by_pair[key]
+        old = links[idx]
+
+        # Map old → new interface per node, regardless of override orientation.
+        new_intf_for: dict[str, str] = {
+            ov["local_node"]: ov["local_interface"],
+            ov["remote_node"]: ov["remote_interface"],
+        }
+        old_intf_for: dict[str, str] = {
+            old.local_node: old.local_interface,
+            old.remote_node: old.remote_interface,
+        }
+        for node_name, new_intf in new_intf_for.items():
+            old_intf = old_intf_for[node_name]
+            uplinks = nodes_by_name[node_name].uplink_interfaces
+            if old_intf in uplinks:
+                uplinks.remove(old_intf)
+            if new_intf not in uplinks:
+                uplinks.append(new_intf)
+
+        links[idx] = LinkIntent(
+            name=ov.get("name", old.name),
+            local_node=a,
+            local_interface=ov["local_interface"],
+            remote_node=b,
+            remote_interface=ov["remote_interface"],
+        )
+
+    seen_endpoints: dict[tuple[str, str], str] = {}
+    for link in links:
+        for node_name, intf in (
+            (link.local_node, link.local_interface),
+            (link.remote_node, link.remote_interface),
+        ):
+            ep = (node_name, intf)
+            if ep in seen_endpoints and seen_endpoints[ep] != link.name:
+                raise ValueError(
+                    f"links override produced an interface collision on "
+                    f"{node_name} {intf}: used by both '{seen_endpoints[ep]}' "
+                    f"and '{link.name}'"
+                )
+            seen_endpoints[ep] = link.name
 
 
 # ---------------------------------------------------------------------------

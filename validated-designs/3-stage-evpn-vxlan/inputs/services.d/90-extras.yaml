@@ -1,0 +1,55 @@
+---
+# yaml-language-server: $schema=../../schemas/services_fragment_schema.json
+# ─────────────────────────────────────────────────────────────────────
+# Extras — override design defaults or add new resources
+# Extras use merge-by-name: if the name matches an existing resource,
+# only the specified fields are overridden. New names are appended.
+# ─────────────────────────────────────────────────────────────────────
+# extras:
+#   # Override MAC settings on an existing bridge domain
+#   bridge_domains:
+#     - name: macvrf-v10
+#       mac_learning: false
+#       mac_aging: 600
+#
+#   # Override IRB MTU or add dual-stack addressing
+#   irb_interfaces:
+#     - name: irb-v10
+#       ip_mtu: 1500
+#       proxy_nd: true
+#       ip_addresses:
+#         - ipv4: { ip_prefix: "172.16.10.254/24", primary: true }
+#           ipv6: { ip_prefix: "2001:db8:10::1/64", primary: true }
+#
+#   # Override or add a router
+#   routers:
+#     - name: vrf1
+#       node_selector:
+#         - eda.nokia.com/role=leaf
+#         - eda.nokia.com/name=spine1          # extend to spine1
+#
+#   # Override or add a VLAN binding
+#   vlans:
+#     - name: tagged-v10
+#       vlan_id: "100"                          # change VLAN ID
+#
+#   # Add a new routed interface
+#   routed_interfaces:
+#     - name: leaf2-uplink
+#       interface: leaf2-ethernet-1-4
+#       router: vrf1
+#       vlan_id: "null"
+#       ip_mtu: 9000
+#       ipv4_addresses:
+#         - ipPrefix: 172.16.101.0/31
+#           primary: true
+#
+#   # Add a new static route
+#   static_routes:
+#     - name: default-route-vrf2
+#       router: vrf2
+#       nodes: [leaf1, leaf2]
+#       prefixes: ["0.0.0.0/0"]
+#       nexthop_group:
+#         nexthops:
+#           - ipPrefix: 172.16.40.1

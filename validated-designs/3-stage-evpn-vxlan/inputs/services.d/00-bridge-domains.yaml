@@ -1,0 +1,39 @@
+---
+# yaml-language-server: $schema=../../schemas/services_fragment_schema.json
+# Bridge Domains (mac-vrfs)
+
+bridge_domains:
+  - name: macvrf-v10
+    vni: 100101
+    evi: 10
+  - name: macvrf-v20
+    vni: 10020
+    evi: 20
+  - name: macvrf-v30
+    vni: 10030
+    evi: 30
+  - name: macvrf-v40
+    vni: 10040
+    evi: 40
+  - name: macvrf-v50
+    vni: 10050
+    evi: 50
+  - name: macvrf-v60
+    vni: 10060
+    evi: 60
+#  - name: macvrf-v99
+#    vni: 10099
+#    evi: 99
+# Bridge domain with all optional fields (override via extras):
+#   - name: macvrf-example
+#     vni: 99999
+#     evi: 999
+#     # Design defaults applied automatically — override via extras:
+#     # mac_learning: true
+#     # mac_aging: 300                        # seconds (0 = disabled)
+#     # mac_duplication:
+#     #   enabled: true
+#     #   hold_down_time: 9
+#     #   monitoring_window: 3
+#     #   action: StopLearning               # StopLearning | Blackhole | UseNetInstanceAction
+#     #   num_moves: 5
