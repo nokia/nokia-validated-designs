@@ -1,0 +1,12 @@
+
+  mh1-l3a->mh2-l3a: loss=0.04% (4/10420)
+
+  mh1-l3b->mh2-l3b: loss=0.02% (2/10420)
+
+  mh1b-l3a->mh2b-l3a: loss=0.06% (6/10420)
+
+  mh1b-l3b->mh2b-l3b: loss=0.01% (1/10420)
+
+  sh1-l3->sh2-l3: loss=0.02% (2/10420)
+
+[GW redundancy, isolate dcgw1] worst-flow loss=0.06% avg=0.03% over 5 hashed flows

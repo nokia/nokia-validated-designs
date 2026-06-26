@@ -430,4 +430,32 @@ python -m automation.deploy \
 python -m automation.deploy \
   --design validated-designs/3-stage-evpn-vxlan \
   --mode eda --generate-clab --generate-only
+
+# Export individual, numbered CR manifests for inspection/review
+python -m automation.deploy \
+  --design validated-designs/3-stage-evpn-vxlan \
+  --export-manifests build/manifests
+
+# ...with Argo CD sync-wave annotations (for GitOps review)
+python -m automation.deploy \
+  --design validated-designs/3-stage-evpn-vxlan \
+  --export-manifests build/manifests --sync-wave
 ```
+
+### Manifest export (`--export-manifests`)
+
+`--export-manifests OUTDIR` writes each generated EDA CR to its own
+zero-padded, numbered YAML file (e.g. `0010-Init-init-base.yaml`,
+`0130-TopoNode-spine2.yaml`, …). The numeric prefixes follow the generator's
+dependency order, so a directory read by filename (`kubectl apply -f OUTDIR/`,
+Argo CD, Flux) reproduces that order. Add `--sync-wave` to stamp each CR with
+an `argocd.argoproj.io/sync-wave` annotation.
+
+This is intended for **inspection, review, and GitOps tooling** — *not* as a
+replacement for `--mode eda`. Applying the files with raw `kubectl apply -f`
+loses the EDA executor's atomic transactions and rollback, its node-sync
+gating (waiting for TopoNodes to reach `Synced` before applying fabric/service
+CRs), its safe TopoNode handling (existing nodes are skipped to avoid
+re-onboarding), and its prune/diff semantics. For real deployments, go through
+EDA (or a GitOps controller with sync-waves/health checks), not plain
+`kubectl`.

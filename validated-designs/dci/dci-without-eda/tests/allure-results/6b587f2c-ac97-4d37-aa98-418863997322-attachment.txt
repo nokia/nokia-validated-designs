@@ -1,0 +1,2 @@
+
+[L3 WAN failover] loss=5.26316% outage~=1.0371909618377686s

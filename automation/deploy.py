@@ -151,6 +151,25 @@ def main() -> int:
         help="Write the built FabricIntent as YAML files to OUTDIR and exit",
     )
     parser.add_argument(
+        "--export-manifests",
+        metavar="OUTDIR",
+        help=(
+            "Write each EDA CR as its own numbered YAML file to OUTDIR (for "
+            "inspection/review) and exit. Files are ordered by filename to "
+            "mirror generation order. NOTE: this is for inspection, not "
+            "deployment — applying with 'kubectl apply -f' loses EDA's atomic "
+            "transactions, node-sync gating, and safe TopoNode handling."
+        ),
+    )
+    parser.add_argument(
+        "--sync-wave",
+        action="store_true",
+        help=(
+            "With --export-manifests, add argocd.argoproj.io/sync-wave "
+            "annotations so Argo CD preserves apply order"
+        ),
+    )
+    parser.add_argument(
         "--verbose", "-v", action="store_true", help="Enable verbose logging"
     )
 
@@ -209,6 +228,28 @@ def main() -> int:
         _export_yaml(intent, Path(args.export_yaml))
         summary["success"] = True
         summary["export_yaml_dir"] = str(args.export_yaml)
+        return _finish(summary, start, rc=0)
+
+    # ---------------------------------------------------------------
+    # --export-manifests short-circuit (numbered per-CR YAML, inspection)
+    # ---------------------------------------------------------------
+    if args.export_manifests:
+        from automation.generators.eda_generator import export_manifests
+
+        outdir = Path(args.export_manifests)
+        logging.info("Generating EDA CRs for manifest export...")
+        resources = eda_generate(intent)
+        written = export_manifests(resources, outdir, sync_wave=args.sync_wave)
+        print(
+            f"\n✅ Exported {len(written)} EDA CR manifests to {outdir}"
+        )
+        print(
+            "   These are for inspection/review. Deploy via EDA "
+            "('--mode eda') for atomic transactions and node-sync gating."
+        )
+        summary["success"] = True
+        summary["export_manifests_dir"] = str(outdir)
+        summary["resources_generated"] = len(written)
         return _finish(summary, start, rc=0)
 
     # ---------------------------------------------------------------

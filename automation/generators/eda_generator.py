@@ -15,9 +15,11 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
+import yaml
 from pydantic import BaseModel
 
 from automation.eda_models.registry import (
@@ -303,6 +305,73 @@ def generate(intent: FabricIntent, output_dir: Path | None = None) -> list[dict]
         logger.info("Wrote %d CRs to %s", len(resources), tx_path)
 
     return resources
+
+
+# ---------------------------------------------------------------------------
+# Manifest export (inspection / GitOps review)
+# ---------------------------------------------------------------------------
+
+
+def _sanitize_filename(value: str) -> str:
+    """Make a CR name safe to embed in a filename."""
+    safe = re.sub(r"[^A-Za-z0-9._-]", "-", value).strip("-")
+    return safe or "unnamed"
+
+
+def export_manifests(
+    resources: list[dict],
+    output_dir: Path,
+    *,
+    step: int = 10,
+    sync_wave: bool = False,
+) -> list[Path]:
+    """Write each EDA CR to its own numbered YAML file for inspection.
+
+    The ``resources`` list is already in dependency order, so the numeric
+    filename prefix (zero-padded, ``step`` apart) reproduces that order under
+    ``kubectl apply -f``/Argo, which read a directory in lexical filename order.
+
+    Args:
+        resources: Ordered list of EDA CR dicts (from :func:`generate`).
+        output_dir: Directory to (re)create the manifest files in.
+        step: Increment between numeric filename prefixes (default 10, so
+            there's room to hand-insert resources between generated ones).
+        sync_wave: When True, stamp each CR with an
+            ``argocd.argoproj.io/sync-wave`` annotation matching its order
+            so Argo CD applies them in the same sequence.
+
+    Returns:
+        The list of written file paths, in order.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Clear any previously generated manifests so stale CRs don't linger.
+    for stale in output_dir.glob("*.yaml"):
+        stale.unlink()
+
+    total = len(resources)
+    width = max(3, len(str(total * step)))
+    written: list[Path] = []
+
+    for idx, cr in enumerate(resources, start=1):
+        prefix = str(idx * step).zfill(width)
+        kind = cr.get("kind", "Unknown")
+        name = cr.get("metadata", {}).get("name", "unnamed")
+        filename = f"{prefix}-{kind}-{_sanitize_filename(name)}.yaml"
+
+        if sync_wave:
+            cr = json.loads(json.dumps(cr))  # deep copy, don't mutate caller's dict
+            meta = cr.setdefault("metadata", {})
+            annotations = meta.setdefault("annotations", {})
+            annotations["argocd.argoproj.io/sync-wave"] = str(idx)
+
+        path = output_dir / filename
+        with open(path, "w") as f:
+            yaml.safe_dump(cr, f, sort_keys=False, default_flow_style=False)
+        written.append(path)
+
+    logger.info("Wrote %d manifest files to %s", len(written), output_dir)
+    return written
 
 
 # ---------------------------------------------------------------------------

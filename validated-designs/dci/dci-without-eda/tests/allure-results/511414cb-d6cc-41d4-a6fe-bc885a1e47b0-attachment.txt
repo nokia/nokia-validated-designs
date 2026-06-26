@@ -1,0 +1,18 @@
+
+  mh1-l2a->mh2-l2a: loss=0.07% (10/14584)
+
+  mh1b-l2a->mh2b-l2a: loss=0.05% (8/14584)
+
+  sh1-l2->sh2-l2: loss=0.05% (8/14584)
+
+  mh1-l2c->mh2-l2c: loss=3.70% (540/14584)
+
+  sh1-l2b->sh2-l2b: loss=3.70% (540/14584)
+
+  mh1-l3a->mh2-l3a: loss=0.02% (3/14584)
+
+  mh1b-l3a->mh2b-l3a: loss=0.03% (5/14584)
+
+  sh1-l3->sh2-l3: loss=0.10% (14/14584)
+
+[diagonal failure dcgw1+dcgw4] worst-flow loss=3.70% avg=0.97% over 8 flows

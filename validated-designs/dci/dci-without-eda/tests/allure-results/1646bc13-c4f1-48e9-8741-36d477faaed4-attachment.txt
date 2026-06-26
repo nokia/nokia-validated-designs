@@ -1,0 +1,2 @@
+
+[ECMP] dcgw1 forwarded=8442 dcgw2 forwarded=8393 (share 50%/50%)

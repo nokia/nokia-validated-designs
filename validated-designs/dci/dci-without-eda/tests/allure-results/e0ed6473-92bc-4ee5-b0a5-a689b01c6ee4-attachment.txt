@@ -1,0 +1,22 @@
+
+  mh1-l2a->mh2-l2a: loss=0.00% (0/16668)
+
+  mh1-l2b->mh2-l2b: loss=0.00% (0/16668)
+
+  mh1b-l2a->mh2b-l2a: loss=0.00% (0/16668)
+
+  mh1b-l2b->mh2b-l2b: loss=0.00% (0/16668)
+
+  sh1-l2->sh2-l2: loss=0.00% (0/16668)
+
+  mh1-l3a->mh2-l3a: loss=0.00% (0/16668)
+
+  mh1-l3b->mh2-l3b: loss=0.00% (0/16668)
+
+  mh1b-l3a->mh2b-l3a: loss=0.00% (0/16668)
+
+  mh1b-l3b->mh2b-l3b: loss=0.00% (0/16668)
+
+  sh1-l3->sh2-l3: loss=0.00% (0/16668)
+
+[WAN transport failover, disable ldp -> sr-isis] worst-flow loss=0.00% avg=0.00% over 10 flows

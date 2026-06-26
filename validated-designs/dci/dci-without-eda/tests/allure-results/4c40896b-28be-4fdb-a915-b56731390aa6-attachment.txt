@@ -1,0 +1,2 @@
+
+[L2 per-service] BD-A(vlan100)->dcgw1 (dcgw1=6749 dcgw2=39) ; BD-B(vlan110)->dcgw2 (dcgw1=45 dcgw2=6753)
