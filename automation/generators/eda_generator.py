@@ -44,6 +44,7 @@ from automation.eda_models.registry import (
     POLICY as CR_POLICY,
     PREFIX_SET as CR_PREFIX_SET,
 )
+from automation.eda_models.profiles import Registry, get_default_registry
 from automation.core.models import (
     BannerIntent,
     BridgeDomainIntent,
@@ -151,17 +152,68 @@ DERIVED_SOURCE_VALUE = "derived"
 # ---------------------------------------------------------------------------
 
 
-def generate(intent: FabricIntent, output_dir: Path | None = None) -> list[dict]:
+# Attribute names on a Registry, keyed by the module-level CR_* global the
+# CR builders read. Rebinding these globals lets a selected EDA profile drive
+# the apiVersion strings without threading a registry into every builder.
+_CR_GLOBALS: dict[str, str] = {
+    "CR_INIT": "INIT",
+    "CR_NODE_USER": "NODE_USER",
+    "CR_NODE_PROFILE": "NODE_PROFILE",
+    "CR_TOPO_NODE": "TOPO_NODE",
+    "CR_TOPO_LINK": "TOPO_LINK",
+    "CR_INDEX_ALLOCATION_POOL": "INDEX_ALLOCATION_POOL",
+    "CR_IP_ALLOCATION_POOL": "IP_ALLOCATION_POOL",
+    "CR_INTERFACE": "INTERFACE",
+    "CR_FABRIC": "FABRIC",
+    "CR_BRIDGE_DOMAIN": "BRIDGE_DOMAIN",
+    "CR_ROUTER": "ROUTER",
+    "CR_IRB_INTERFACE": "IRB_INTERFACE",
+    "CR_VLAN": "VLAN",
+    "CR_ROUTED_INTERFACE": "ROUTED_INTERFACE",
+    "CR_STATIC_ROUTE": "STATIC_ROUTE",
+    "CR_CONFIGLET": "CONFIGLET",
+    "CR_DEFAULT_MTU": "DEFAULT_MTU",
+    "CR_BANNER": "BANNER",
+    "CR_POLICY": "POLICY",
+    "CR_PREFIX_SET": "PREFIX_SET",
+}
+
+
+def _bind_registry(registry: Registry) -> None:
+    """Rebind the module-level CR_* descriptors to *registry*'s CR types."""
+    g = globals()
+    for cr_global, attr in _CR_GLOBALS.items():
+        g[cr_global] = getattr(registry, attr)
+
+
+def generate(
+    intent: FabricIntent,
+    output_dir: Path | None = None,
+    registry: Registry | None = None,
+) -> list[dict]:
     """
     Generate all EDA CRs from a FabricIntent.
 
     Args:
         intent: The complete fabric intent
         output_dir: If set, write eda_transaction.json here
+        registry: EDA registry profile to source apiVersions from
+            (default profile when omitted).
 
     Returns:
         Ordered list of EDA CR dicts
     """
+    registry = registry or get_default_registry()
+
+    # A fresh 26.4.x install serves services/protocols at v2 with breaking spec
+    # shape changes — delegate to the v2 backend, which reuses the unchanged
+    # builders from this module.
+    if getattr(registry, "generator_variant", "v1") == "v2":
+        from automation.generators import eda_generator_v2
+        return eda_generator_v2.generate(intent, output_dir=output_dir, registry=registry)
+
+    _bind_registry(registry)
+
     ns = intent.eda.namespace
     design = intent.design
     resources: list[dict] = []

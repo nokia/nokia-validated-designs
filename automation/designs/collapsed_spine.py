@@ -41,6 +41,7 @@ from automation.core.models import (
 )
 from automation.core.platforms import get_platform
 from automation.designs._common_builders import (
+    apply_node_overrides as _apply_node_overrides,
     build_banners as _build_banners,
     build_default_mtus as _build_default_mtus,
     build_edge_interfaces as _build_edge_interfaces,
@@ -51,6 +52,9 @@ from automation.designs._common_builders import (
     build_routing_policies as _build_routing_policies,
     build_static_routes as _build_static_routes,
     build_vlans as _build_vlans,
+    increment_ip as _increment_ip,
+    validate_mgmt_ips as _validate_mgmt_ips,
+    validate_unique_names as _validate_unique_names,
 )
 
 logger = logging.getLogger(__name__)
@@ -299,50 +303,6 @@ def _build_nodes(
     _validate_mgmt_ips(nodes)
 
     return nodes
-
-
-def _validate_unique_names(nodes: list[NodeIntent]) -> None:
-    seen: dict[str, int] = {}
-    for node in nodes:
-        if node.name in seen:
-            raise ValueError(f"Duplicate node name '{node.name}'")
-        seen[node.name] = 1
-
-
-def _apply_node_overrides(
-    nodes: list[NodeIntent], overrides: list[dict]
-) -> None:
-    by_name = {n.name: n for n in nodes}
-    for ovr in overrides:
-        name = ovr["name"]
-        if name not in by_name:
-            raise ValueError(
-                f"Node override references unknown node '{name}'. "
-                f"Known nodes: {sorted(by_name)}"
-            )
-        node = by_name[name]
-        if "platform" in ovr:
-            node.platform = ovr["platform"]
-        if "version" in ovr:
-            node.version = ovr["version"]
-        if "mgmt_ipv4" in ovr:
-            node.mgmt_ipv4 = ovr["mgmt_ipv4"]
-        if "labels" in ovr:
-            node.labels = {**node.labels, **ovr["labels"]}
-
-
-def _validate_mgmt_ips(nodes: list[NodeIntent]) -> None:
-    seen: dict[str, str] = {}
-    for node in nodes:
-        if not node.mgmt_ipv4:
-            continue
-        ip = str(ipaddress.IPv4Address(node.mgmt_ipv4))
-        if ip in seen:
-            raise ValueError(
-                f"Duplicate management IP {ip}: assigned to both "
-                f"'{seen[ip]}' and '{node.name}'"
-            )
-        seen[ip] = node.name
 
 
 # ---------------------------------------------------------------------------
@@ -621,13 +581,3 @@ def _default_routing_policies(
             internal=True,
         ),
     )
-
-
-# ---------------------------------------------------------------------------
-# Utilities
-# ---------------------------------------------------------------------------
-
-
-def _increment_ip(base_ip: str, offset: int) -> str:
-    """Increment an IPv4 address by an offset."""
-    return str(ipaddress.IPv4Address(base_ip) + offset)

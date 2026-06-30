@@ -15,10 +15,12 @@ Breaking changes vs 25.x
 
 from __future__ import annotations
 
+import sys as _sys
 from typing import Any
 
 from . import default as _base
 from . import v25_3
+from ._phases import make_phase_entrypoints
 from .default import (
     _bd_access_interfaces,
     _build_bridge_table,
@@ -152,30 +154,9 @@ def build_routing_policy_updates(hv: dict) -> list[dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
-# Phase-scoped entry points
+# Phase-scoped entry points  (shared composition; see _phases.py)
 # ---------------------------------------------------------------------------
 
-def build_topology_updates(hv: dict) -> list[dict[str, Any]]:
-    updates: list[dict] = []
-    updates += build_interface_updates(hv, scope="topology")
-    updates += build_subinterface_updates(hv, scope="topology")
-    updates += build_bfd_updates(hv)
-    updates += build_system_updates(hv, scope="topology")
-    return updates
-
-
-def build_fabric_updates(hv: dict) -> list[dict[str, Any]]:
-    updates: list[dict] = []
-    updates += build_network_instance_updates(hv, scope="fabric")
-    updates += build_routing_policy_updates(hv)
-    return updates
-
-
-def build_services_updates(hv: dict) -> list[dict[str, Any]]:
-    updates: list[dict] = []
-    updates += build_interface_updates(hv, scope="services")
-    updates += build_subinterface_updates(hv, scope="services")
-    updates += build_tunnel_interface_updates(hv)
-    updates += build_network_instance_updates(hv, scope="services")
-    updates += build_system_updates(hv, scope="services")
-    return updates
+build_topology_updates, build_fabric_updates, build_services_updates = (
+    make_phase_entrypoints(_sys.modules[__name__])
+)

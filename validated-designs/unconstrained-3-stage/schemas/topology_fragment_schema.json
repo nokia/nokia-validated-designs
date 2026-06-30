@@ -232,7 +232,8 @@
           "type": "string"
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "Kubernetes-style label key/value pairs."
     },
     "bfd": {
       "type": "object",
@@ -591,21 +592,25 @@
       "additionalProperties": false,
       "properties": {
         "name": {
-          "type": "string"
+          "type": "string",
+          "description": "Unique interface resource name."
         },
         "node": {
-          "type": "string"
+          "type": "string",
+          "description": "Node this interface belongs to."
         },
         "interface": {
           "type": "string",
-          "pattern": "^ethernet-[0-9]+-[0-9]+$"
+          "pattern": "^ethernet-[0-9]+-[0-9]+$",
+          "description": "Physical interface name (e.g. 'ethernet-1-3')."
         },
         "encap": {
           "type": "string",
           "enum": [
             "dot1q",
             "null"
-          ]
+          ],
+          "description": "Encapsulation type."
         },
         "labels": {
           "$ref": "#/$defs/labels"
@@ -625,36 +630,43 @@
       "additionalProperties": false,
       "properties": {
         "name": {
-          "type": "string"
+          "type": "string",
+          "description": "Unique LAG resource name."
         },
         "type": {
           "type": "string",
           "enum": [
             "lacp"
-          ]
+          ],
+          "description": "LAG type."
         },
         "mode": {
           "type": "string",
           "enum": [
             "all-active",
             "port-active"
-          ]
+          ],
+          "description": "ESI multi-homing mode."
         },
         "min_links": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "description": "Minimum active links."
         },
         "revertive": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Enable revertive behavior (port-active only)."
         },
         "preferred_active_node": {
-          "type": "string"
+          "type": "string",
+          "description": "Preferred active node for port-active LAGs."
         },
         "standby_signaling": {
           "type": "string",
           "enum": [
             "lacp"
-          ]
+          ],
+          "description": "Standby signaling method."
         },
         "lacp": {
           "type": "object",
@@ -670,16 +682,19 @@
               "enum": [
                 "fast",
                 "slow"
-              ]
+              ],
+              "description": "LACP PDU interval."
             },
             "system_id_mac": {
               "type": "string",
-              "pattern": "^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$"
+              "pattern": "^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$",
+              "description": "LACP system ID MAC address."
             },
             "system_priority": {
               "type": "integer",
               "minimum": 0,
-              "maximum": 65535
+              "maximum": 65535,
+              "description": "LACP system priority."
             },
             "fallback": {
               "type": "object",
@@ -689,11 +704,13 @@
                   "type": "string",
                   "enum": [
                     "static"
-                  ]
+                  ],
+                  "description": "LACP fallback mode."
                 },
                 "timeout": {
                   "type": "integer",
-                  "minimum": 1
+                  "minimum": 1,
+                  "description": "Fallback timeout in seconds."
                 }
               }
             }
@@ -712,23 +729,28 @@
             "additionalProperties": false,
             "properties": {
               "node": {
-                "type": "string"
+                "type": "string",
+                "description": "Member node name."
               },
               "interface": {
-                "type": "string"
+                "type": "string",
+                "description": "Member interface name."
               },
               "aggregate_id": {
-                "type": "string"
+                "type": "string",
+                "description": "LAG aggregate ID."
               }
             }
-          }
+          },
+          "description": "LAG member interfaces."
         },
         "labels": {
           "$ref": "#/$defs/labels"
         },
         "reload_delay_timer": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "description": "Reload delay timer in seconds."
         }
       }
     },
@@ -813,29 +835,34 @@
         "interface_mtu": {
           "type": "integer",
           "minimum": 1500,
-          "maximum": 11000
+          "maximum": 11000,
+          "description": "Default MTU for Ethernet interfaces (includes Ethernet headers, excludes 4-byte FCS trailer)."
         },
         "layer2_subif_mtu": {
           "type": "integer",
           "minimum": 1500,
-          "maximum": 11000
+          "maximum": 11000,
+          "description": "Default MTU for Layer 2 (bridged) sub-interfaces."
         },
         "layer3_mtu": {
           "type": "integer",
           "minimum": 1280,
-          "maximum": 11000
+          "maximum": 11000,
+          "description": "Default IP MTU for Layer 3 interfaces."
         },
         "node_selector": {
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "Label selector to select nodes on which to configure the defaults."
         },
         "nodes": {
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "Explicit list of nodes on which to configure the defaults."
         }
       }
     },
@@ -851,22 +878,26 @@
           "description": "Unique Banner resource name."
         },
         "login_banner": {
-          "type": "string"
+          "type": "string",
+          "description": "Login banner displayed before a user has logged into the node."
         },
         "motd": {
-          "type": "string"
+          "type": "string",
+          "description": "Message of the Day displayed after a user has logged into the node."
         },
         "node_selector": {
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "Label selector to select nodes on which to configure the banners."
         },
         "nodes": {
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "Explicit list of nodes on which to configure the banners."
         }
       }
     },

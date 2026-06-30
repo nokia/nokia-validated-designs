@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -35,15 +36,8 @@ from automation.generators.eda_generator import (
     MANAGED_BY_LABEL,
     MANAGED_BY_VALUE,
 )
-from automation.eda_models.registry import (
-    INIT, NODE_USER, NODE_PROFILE, TOPO_NODE, TOPO_LINK,
-    INDEX_ALLOCATION_POOL, IP_ALLOCATION_POOL,
-    INTERFACE, FABRIC,
-    BRIDGE_DOMAIN, ROUTER, IRB_INTERFACE, VLAN, ROUTED_INTERFACE,
-    STATIC_ROUTE, CONFIGLET, DEFAULT_MTU, BANNER,
-    POLICY, PREFIX_SET,
-    CRType,
-)
+from automation.eda_models.registry import CRType
+from automation.eda_models.profiles import Registry, get_default_registry
 
 # Suppress InsecureRequestWarning for self-signed certs
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -111,21 +105,22 @@ DESTROY_PHASE_KINDS: dict[str, set[str]] = {
     },
 }
 
-# Resource types in correct destroy order (services first, topo last).
+# Resource kinds in correct destroy order (services first, topo last).
 # Interface appears AFTER TopoLink because ISLs reference Interfaces.
-DESTROY_ORDER: list[CRType] = [
+# Resolved to CR types per-instance via the client's registry profile.
+DESTROY_ORDER_KINDS: list[str] = [
     # --- services ---
-    CONFIGLET, STATIC_ROUTE, ROUTED_INTERFACE,
-    VLAN, IRB_INTERFACE, ROUTER, BRIDGE_DOMAIN,
+    "Configlet", "StaticRoute", "RoutedInterface",
+    "VLAN", "IRBInterface", "Router", "BridgeDomain",
     # Policy/PrefixSet come after the service CRs that reference them
     # (e.g. Router.importPolicy) and before Fabric.
-    POLICY, PREFIX_SET,
+    "Policy", "PrefixSet",
     # --- fabric ---
-    FABRIC,
+    "Fabric",
     # --- topology (Interface after TopoLink!) ---
-    TOPO_LINK, INTERFACE, DEFAULT_MTU, BANNER,
-    TOPO_NODE, IP_ALLOCATION_POOL, INDEX_ALLOCATION_POOL,
-    NODE_PROFILE, NODE_USER, INIT,
+    "TopoLink", "Interface", "DefaultMTU", "Banner",
+    "TopoNode", "IPAllocationPool", "IndexAllocationPool",
+    "NodeProfile", "NodeUser", "Init",
 ]
 
 
@@ -177,14 +172,17 @@ class EdaClient:
         username: str | None = None,
         password: str | None = None,
         verify_ssl: bool = False,
+        registry: Registry | None = None,
     ):
         self.url = (url or os.environ.get("EDA_URL", "")).rstrip("/")
         self.username = username or os.environ.get("EDA_USER", "admin")
         self.password = password or os.environ.get("EDA_PASSWORD", "admin")
         self.verify_ssl = verify_ssl
+        self.registry = registry or get_default_registry()
         self._token: str | None = None
         self._token_expires_at: float = 0.0
         self._client_secret: str | None = None
+        self._keycloak_base: str | None = None
         self._ref_profile_cache: dict[tuple[str, str], dict | None] = {}
         self._session = requests.Session()
         self._session.verify = self.verify_ssl
@@ -193,6 +191,14 @@ class EdaClient:
             raise ValueError(
                 "EDA URL must be provided via --eda-url or EDA_URL env var"
             )
+
+    def _destroy_order(self) -> list[CRType]:
+        """CR types in destroy order, resolved against the active registry."""
+        return [
+            self.registry.BY_KIND[kind]
+            for kind in DESTROY_ORDER_KINDS
+            if kind in self.registry.BY_KIND
+        ]
 
     @staticmethod
     def _extract_namespace(resources: list[dict], default: str = "eda") -> str:
@@ -207,6 +213,45 @@ class EdaClient:
     # Authentication
     # ------------------------------------------------------------------
 
+    # EDA's Keycloak/identity reverse-proxy base path moved between releases.
+    # 26.4.x serves it under ``/core/proxy/v1/identity``; 25.12 and earlier use
+    # ``/core/httpproxy/v1/keycloak``. Probe in newest-first order and cache.
+    _KEYCLOAK_BASE_CANDIDATES = (
+        "/core/proxy/v1/identity",
+        "/core/httpproxy/v1/keycloak",
+    )
+
+    def _resolve_keycloak_base(self) -> str:
+        """Return the working Keycloak base URL for this EDA release.
+
+        Probes the candidate proxy paths against the ``eda`` realm's OIDC
+        discovery document and caches the first that responds 200.
+        """
+        if self._keycloak_base is not None:
+            return self._keycloak_base
+
+        for path in self._KEYCLOAK_BASE_CANDIDATES:
+            base = f"{self.url}{path}"
+            probe = f"{base}/realms/eda/.well-known/openid-configuration"
+            try:
+                resp = self._session.get(probe, timeout=10)
+            except requests.RequestException:
+                continue
+            if resp.status_code == 200:
+                logger.info("Resolved Keycloak base path: %s", path)
+                self._keycloak_base = base
+                return base
+
+        # Fall back to the legacy path; authenticate() will surface a clear
+        # HTTP error if it is also unavailable.
+        fallback = f"{self.url}{self._KEYCLOAK_BASE_CANDIDATES[-1]}"
+        logger.warning(
+            "Could not probe a Keycloak base path; falling back to %s",
+            fallback,
+        )
+        self._keycloak_base = fallback
+        return fallback
+
     def authenticate(self) -> str:
         """
         Authenticate with EDA's Keycloak identity provider.
@@ -218,7 +263,7 @@ class EdaClient:
 
         Only username and password are required.
         """
-        keycloak_base = f"{self.url}/core/httpproxy/v1/keycloak"
+        keycloak_base = self._resolve_keycloak_base()
 
         # Step 1: Discover eda-api-server client secret (cached per-session)
         if self._client_secret is None:
@@ -336,6 +381,30 @@ class EdaClient:
             resp = self._session.request(method, url, **kwargs)
         return resp
 
+    def get_eda_version(self) -> str | None:
+        """Return the running EDA release (e.g. ``"26.4.2"``), or ``None``.
+
+        Queries the authenticated ``/core/about/version`` endpoint and parses
+        the ``eda.version`` build string (``"v26.4.2-2605212019-g73187ba6"``).
+        Returns ``None`` if the endpoint is unavailable or unparseable so the
+        caller can fall back to a default profile.
+        """
+        url = f"{self.url}/core/about/version"
+        try:
+            resp = self._request("GET", url, timeout=10)
+            if resp.status_code != 200:
+                logger.warning("Could not query EDA version: HTTP %d", resp.status_code)
+                return None
+            raw = (resp.json().get("eda") or {}).get("version", "")
+        except (requests.RequestException, ValueError) as e:
+            logger.warning("Could not query EDA version: %s", e)
+            return None
+        m = re.search(r"v?(\d+\.\d+(?:\.\d+)?)", raw)
+        if not m:
+            logger.warning("Could not parse EDA version from %r", raw)
+            return None
+        return m.group(1)
+
     # ------------------------------------------------------------------
     # Transaction payload formatting
     # ------------------------------------------------------------------
@@ -414,7 +483,7 @@ class EdaClient:
             target_kinds = None  # query all
 
         resource_types = [
-            crt for crt in DESTROY_ORDER
+            crt for crt in self._destroy_order()
             if target_kinds is None or crt.kind in target_kinds
         ]
 
@@ -498,8 +567,8 @@ class EdaClient:
         self._ensure_auth()
         name = f"srlinux-ghcr-{version}"
         url = (
-            f"{self.url}/apps/{NODE_PROFILE.api_version}"
-            f"/namespaces/{namespace}/{NODE_PROFILE.plural}/{name}"
+            f"{self.url}/apps/{self.registry.NODE_PROFILE.api_version}"
+            f"/namespaces/{namespace}/{self.registry.NODE_PROFILE.plural}/{name}"
         )
         spec: dict | None = None
         try:
@@ -571,8 +640,8 @@ class EdaClient:
         """
         self._ensure_auth()
         url = (
-            f"{self.url}/apps/{TOPO_NODE.api_version}"
-            f"/namespaces/{namespace}/{TOPO_NODE.plural}"
+            f"{self.url}/apps/{self.registry.TOPO_NODE.api_version}"
+            f"/namespaces/{namespace}/{self.registry.TOPO_NODE.plural}"
         )
         try:
             resp = self._request("GET", url)
@@ -926,7 +995,7 @@ class EdaClient:
                     topo_ns = self._extract_namespace(resources)
                     all_node_stubs = [
                         {"metadata": {"name": n, "namespace": topo_ns},
-                         "apiVersion": TOPO_NODE.api_version}
+                         "apiVersion": self.registry.TOPO_NODE.api_version}
                         for n in all_node_names
                     ]
                     self._wait_for_nodes_sync(all_node_stubs)
@@ -1034,7 +1103,7 @@ class EdaClient:
             managed_by_kind.setdefault(kind, []).append(cr)
 
         tx_crs: list[dict] = []
-        for crt in DESTROY_ORDER:
+        for crt in self._destroy_order():
             if crt.kind in SHARED_KINDS:
                 continue
             for cr in managed_by_kind.get(crt.kind, []):
@@ -1213,8 +1282,8 @@ class EdaClient:
         def _check(name: str) -> tuple[str, str | None]:
             """Return (name, node_state) — None on error."""
             url = (
-                f"{self.url}/apps/{TOPO_NODE.api_version}"
-                f"/namespaces/{ns}/{TOPO_NODE.plural}/{name}"
+                f"{self.url}/apps/{self.registry.TOPO_NODE.api_version}"
+                f"/namespaces/{ns}/{self.registry.TOPO_NODE.plural}/{name}"
             )
             try:
                 resp = self._request("GET", url)

@@ -319,7 +319,7 @@ class TestNameTemplate:
 
 
 class TestExtrasMerge:
-    """Test extras merge functions for all resource types."""
+    """Test the data-driven extras merge for all resource types."""
 
     @pytest.fixture()
     def base_intent(self) -> FabricIntent:
@@ -329,46 +329,57 @@ class TestExtrasMerge:
         topo, svc = load_inputs(design_dir)
         return build_intent(topo, svc)
 
+    @staticmethod
+    def _merge(resource, design_list, extras, model_cls, pre_process=None):
+        from automation.core.extras import ExtrasSpec, apply_extras
+
+        merged = apply_extras(
+            {resource: list(design_list)},
+            {resource: extras},
+            {resource: ExtrasSpec(model_cls, pre_process)},
+        )
+        return merged[resource]
+
     def test_merge_extras_routers_override(self, base_intent):
-        from automation.designs.three_stage_evpn_vxlan import _merge_extras_routers
+        from automation.core.models import RouterIntent
 
         original = list(base_intent.routers)
         extras = [{"name": "vrf1", "node_selector": ["eda.nokia.com/role=spine"]}]
-        result = _merge_extras_routers(original, extras)
+        result = self._merge("routers", original, extras, RouterIntent)
         vrf1 = next(r for r in result if r.name == "vrf1")
         assert "eda.nokia.com/role=spine" in vrf1.node_selector
         assert len(result) == len(original)
 
     def test_merge_extras_routers_append(self, base_intent):
-        from automation.designs.three_stage_evpn_vxlan import _merge_extras_routers
+        from automation.core.models import RouterIntent
 
         original = list(base_intent.routers)
         extras = [{"name": "vrf-new", "vni": 99999, "evi": 999, "node_selector": ["eda.nokia.com/role=leaf"]}]
-        result = _merge_extras_routers(original, extras)
+        result = self._merge("routers", original, extras, RouterIntent)
         assert len(result) == len(original) + 1
         new_r = next(r for r in result if r.name == "vrf-new")
         assert new_r.vni == 99999
 
     def test_merge_extras_vlans_override(self, base_intent):
-        from automation.designs.three_stage_evpn_vxlan import _merge_extras_vlans
+        from automation.core.models import VlanIntent
 
         original = list(base_intent.vlans)
         extras = [{"name": "tagged-v10", "vlan_id": "100"}]
-        result = _merge_extras_vlans(original, extras)
+        result = self._merge("vlans", original, extras, VlanIntent)
         v10 = next(v for v in result if v.name == "tagged-v10")
         assert v10.vlan_id == "100"
         assert len(result) == len(original)
 
     def test_merge_extras_vlans_append(self, base_intent):
-        from automation.designs.three_stage_evpn_vxlan import _merge_extras_vlans
+        from automation.core.models import VlanIntent
 
         original = list(base_intent.vlans)
         extras = [{"name": "new-vlan", "bridge_domain": "macvrf-v10", "vlan_id": "200", "interface_selector": ["foo=bar"]}]
-        result = _merge_extras_vlans(original, extras)
+        result = self._merge("vlans", original, extras, VlanIntent)
         assert len(result) == len(original) + 1
 
     def test_merge_extras_routed_interfaces_append(self, base_intent):
-        from automation.designs.three_stage_evpn_vxlan import _merge_extras_routed_interfaces
+        from automation.core.models import RoutedInterfaceIntent
 
         original = list(base_intent.routed_interfaces)
         extras = [{
@@ -379,23 +390,23 @@ class TestExtrasMerge:
             "ip_mtu": 9000,
             "ipv4_addresses": [{"ipPrefix": "172.16.101.0/31", "primary": True}],
         }]
-        result = _merge_extras_routed_interfaces(original, extras)
+        result = self._merge("routed_interfaces", original, extras, RoutedInterfaceIntent)
         assert len(result) == len(original) + 1
         new_ri = next(ri for ri in result if ri.name == "leaf2-uplink")
         assert new_ri.ip_mtu == 9000
 
     def test_merge_extras_routed_interfaces_override(self, base_intent):
-        from automation.designs.three_stage_evpn_vxlan import _merge_extras_routed_interfaces
+        from automation.core.models import RoutedInterfaceIntent
 
         original = list(base_intent.routed_interfaces)
         extras = [{"name": "leaf-s5", "ip_mtu": 9000}]
-        result = _merge_extras_routed_interfaces(original, extras)
+        result = self._merge("routed_interfaces", original, extras, RoutedInterfaceIntent)
         assert len(result) == len(original)
         ri = next(r for r in result if r.name == "leaf-s5")
         assert ri.ip_mtu == 9000
 
     def test_merge_extras_static_routes_append(self, base_intent):
-        from automation.designs.three_stage_evpn_vxlan import _merge_extras_static_routes
+        from automation.core.models import StaticRouteIntent
 
         original = list(base_intent.static_routes)
         extras = [{
@@ -405,26 +416,30 @@ class TestExtrasMerge:
             "prefixes": ["0.0.0.0/0"],
             "nexthop_group": {"nexthops": [{"ipPrefix": "172.16.40.1"}]},
         }]
-        result = _merge_extras_static_routes(original, extras)
+        result = self._merge("static_routes", original, extras, StaticRouteIntent)
         assert len(result) == len(original) + 1
 
     def test_merge_extras_static_routes_override(self, base_intent):
-        from automation.designs.three_stage_evpn_vxlan import _merge_extras_static_routes
+        from automation.core.models import StaticRouteIntent
 
         original = list(base_intent.static_routes)
         extras = [{"name": "static-s5", "prefixes": ["10.0.0.0/8"]}]
-        result = _merge_extras_static_routes(original, extras)
+        result = self._merge("static_routes", original, extras, StaticRouteIntent)
         assert len(result) == len(original)
         sr = next(s for s in result if s.name == "static-s5")
         assert "10.0.0.0/8" in sr.prefixes
 
     def test_bridge_domain_mac_fields_forwarded(self, base_intent):
         """Verify extras mac overrides survive into the intent."""
-        from automation.designs.three_stage_evpn_vxlan import _merge_extras_bridge_domains
+        from automation.core.models import BridgeDomainIntent
+
+        def _set_origin(fields: dict) -> dict:
+            fields["origin"] = "extras"
+            return fields
 
         original = list(base_intent.bridge_domains)
         extras = [{"name": "macvrf-v10", "mac_learning": False, "mac_aging": 600}]
-        result = _merge_extras_bridge_domains(original, extras)
+        result = self._merge("bridge_domains", original, extras, BridgeDomainIntent, _set_origin)
         bd = next(b for b in result if b.name == "macvrf-v10")
         assert bd.mac_learning is False
         assert bd.mac_aging == 600

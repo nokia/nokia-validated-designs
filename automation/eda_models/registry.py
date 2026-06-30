@@ -1,104 +1,87 @@
 """Centralized EDA API version, kind, and plural mappings.
 
-Single source of truth for all EDA CR type metadata. When EDA promotes
-an API (e.g. v1alpha1 -> v1), update only this file.
+Backward-compatible facade over :mod:`automation.eda_models.profiles`. The
+module-level constants below are bound to the **default** EDA profile
+(:data:`profiles.DEFAULT_EDA_VERSION`) so existing imports keep working.
+
+To target a different EDA release, select a profile explicitly with
+:func:`automation.eda_models.profiles.get_registry` and thread the resulting
+``Registry`` through the generator/executor (see ``--eda-version``).
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from automation.eda_models.profiles import (  # noqa: F401
+    CRType,
+    Registry,
+    SrlSupport,
+    SrlTrain,
+    DEFAULT_EDA_VERSION,
+    get_default_registry,
+    get_registry,
+    list_eda_versions,
+)
+
+# Default profile — the source of the legacy module-level constants.
+_DEFAULT = get_default_registry()
+
+# ---------------------------------------------------------------------------
+# Target EDA release and supported SR Linux versions (default profile)
+# ---------------------------------------------------------------------------
+
+EDA_VERSION = _DEFAULT.eda_version
+
+# Known-good, explicitly tested exact versions. The deploy-time gate now uses
+# a floor + per-train range (see ``check_srl_version``); this list is retained
+# for acceptance tests and backward compatibility.
+SUPPORTED_SRL_VERSIONS: list[str] = list(_DEFAULT.tested_srl_versions)
+
+
+def check_srl_version(version: str, registry: Registry | None = None) -> str | None:
+    """Return an error message if *version* is unsupported, else ``None``.
+
+    Uses the floor + per-train support window of *registry* (default profile
+    when omitted) rather than an exact-match allow-list.
+    """
+    reg = registry or _DEFAULT
+    return reg.check_srl_version(version)
+
+
+def check_srl_floor(version: str, registry: Registry | None = None) -> str | None:
+    """Return an error if *version* is below the SR Linux floor, else ``None``.
+
+    Floor-only gate used on the Ansible path (the version-dispatched builders
+    resolve any 24.10+ release; sub-floor versions would silently fall back to
+    the 24.10 base builder and emit possibly-wrong payloads).
+    """
+    reg = registry or _DEFAULT
+    return reg.check_srl_floor(version)
 
 
 # ---------------------------------------------------------------------------
-# Target EDA release and supported SR Linux versions
+# CR type descriptors (default profile)
 # ---------------------------------------------------------------------------
 
-EDA_VERSION = "25.12.4"
+INIT = _DEFAULT.INIT
+NODE_USER = _DEFAULT.NODE_USER
+NODE_PROFILE = _DEFAULT.NODE_PROFILE
+TOPO_NODE = _DEFAULT.TOPO_NODE
+TOPO_LINK = _DEFAULT.TOPO_LINK
+INDEX_ALLOCATION_POOL = _DEFAULT.INDEX_ALLOCATION_POOL
+IP_ALLOCATION_POOL = _DEFAULT.IP_ALLOCATION_POOL
+INTERFACE = _DEFAULT.INTERFACE
+FABRIC = _DEFAULT.FABRIC
+BRIDGE_DOMAIN = _DEFAULT.BRIDGE_DOMAIN
+ROUTER = _DEFAULT.ROUTER
+IRB_INTERFACE = _DEFAULT.IRB_INTERFACE
+VLAN = _DEFAULT.VLAN
+ROUTED_INTERFACE = _DEFAULT.ROUTED_INTERFACE
+STATIC_ROUTE = _DEFAULT.STATIC_ROUTE
+CONFIGLET = _DEFAULT.CONFIGLET
+DEFAULT_MTU = _DEFAULT.DEFAULT_MTU
+BANNER = _DEFAULT.BANNER
+POLICY = _DEFAULT.POLICY
+PREFIX_SET = _DEFAULT.PREFIX_SET
 
-SUPPORTED_SRL_VERSIONS: list[str] = [
-    "24.10.1",
-    "24.10.2",
-    "24.10.3",
-    "24.10.4",
-    "25.3.1",
-    "25.3.2",
-    "25.3.3",
-    "25.7.1",
-    "25.7.2",
-    "25.10.1",
-    "25.10.2",
-]
-
-
-def check_srl_version(version: str) -> str | None:
-    """Return an error message if *version* is unsupported, else None."""
-    if version in SUPPORTED_SRL_VERSIONS:
-        return None
-    return (
-        f"SR Linux version {version!r} is not supported by EDA {EDA_VERSION}. "
-        f"Supported versions: {', '.join(SUPPORTED_SRL_VERSIONS)}"
-    )
-
-
-# ---------------------------------------------------------------------------
-# CR type descriptors
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class CRType:
-    """Immutable descriptor for an EDA Custom Resource type."""
-
-    api_version: str
-    kind: str
-    plural: str
-
-
-# --- Bootstrap ---
-INIT = CRType("bootstrap.eda.nokia.com/v1alpha1", "Init", "inits")
-
-# --- Core ---
-NODE_USER = CRType("core.eda.nokia.com/v1", "NodeUser", "nodeusers")
-NODE_PROFILE = CRType("core.eda.nokia.com/v1", "NodeProfile", "nodeprofiles")
-TOPO_NODE = CRType("core.eda.nokia.com/v1", "TopoNode", "toponodes")
-TOPO_LINK = CRType("core.eda.nokia.com/v1", "TopoLink", "topolinks")
-INDEX_ALLOCATION_POOL = CRType("core.eda.nokia.com/v1", "IndexAllocationPool", "indexallocationpools")
-IP_ALLOCATION_POOL = CRType("core.eda.nokia.com/v1", "IPAllocationPool", "ipallocationpools")
-
-# --- Interfaces ---
-INTERFACE = CRType("interfaces.eda.nokia.com/v1alpha1", "Interface", "interfaces")
-
-# --- Fabrics ---
-FABRIC = CRType("fabrics.eda.nokia.com/v1alpha1", "Fabric", "fabrics")
-
-# --- Services ---
-BRIDGE_DOMAIN = CRType("services.eda.nokia.com/v1", "BridgeDomain", "bridgedomains")
-ROUTER = CRType("services.eda.nokia.com/v1", "Router", "routers")
-IRB_INTERFACE = CRType("services.eda.nokia.com/v1", "IRBInterface", "irbinterfaces")
-VLAN = CRType("services.eda.nokia.com/v1", "VLAN", "vlans")
-ROUTED_INTERFACE = CRType("services.eda.nokia.com/v1", "RoutedInterface", "routedinterfaces")
-
-# --- Protocols ---
-STATIC_ROUTE = CRType("protocols.eda.nokia.com/v1", "StaticRoute", "staticroutes")
-
-# --- Config ---
-CONFIGLET = CRType("config.eda.nokia.com/v1alpha1", "Configlet", "configlets")
-
-# --- Siteinfo ---
-DEFAULT_MTU = CRType("siteinfo.eda.nokia.com/v1alpha1", "DefaultMTU", "defaultmtus")
-BANNER = CRType("siteinfo.eda.nokia.com/v1alpha1", "Banner", "banners")
-
-# --- Routing policies ---
-POLICY = CRType("routingpolicies.eda.nokia.com/v1alpha1", "Policy", "policys")
-PREFIX_SET = CRType("routingpolicies.eda.nokia.com/v1alpha1", "PrefixSet", "prefixsets")
-
-ALL_TYPES: list[CRType] = [
-    INIT, NODE_USER, NODE_PROFILE, TOPO_NODE, TOPO_LINK,
-    INDEX_ALLOCATION_POOL, IP_ALLOCATION_POOL,
-    INTERFACE, FABRIC,
-    BRIDGE_DOMAIN, ROUTER, IRB_INTERFACE, VLAN, ROUTED_INTERFACE,
-    STATIC_ROUTE, CONFIGLET, DEFAULT_MTU, BANNER,
-    POLICY, PREFIX_SET,
-]
-
-BY_KIND: dict[str, CRType] = {t.kind: t for t in ALL_TYPES}
+ALL_TYPES: list[CRType] = _DEFAULT.ALL_TYPES
+BY_KIND: dict[str, CRType] = _DEFAULT.BY_KIND

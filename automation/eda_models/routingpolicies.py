@@ -77,6 +77,8 @@ class PolicyBgp(_EDABase):
     local_preference: int | None = Field(None, alias="localPreference", description="Set a new LOCAL_PREF value for matching BGP routes.", title="Set Local Preference", ge=0, le=4294967295)
     med: PolicySetMed | None = Field(None, description="Set a new MED value.", title="Set MED")
     set_origin: Literal['egp', 'igp', 'incomplete'] | None = Field(None, alias="setOrigin", description="Set a new ORIGIN attribute for matching BGP routes.", title="Set Origin")
+    as_path_match: PolicyAsPath | None = Field(None, alias="asPathMatch", description="AS Path match criteria.", title="AS Path")
+    evpn_route_type: list[int] | None = Field(None, alias="evpnRouteType", description="Match conditions for EVPN route types.", title="EVPN Route Type")
 
 
 class PolicyDefaultAction(_EDABase):

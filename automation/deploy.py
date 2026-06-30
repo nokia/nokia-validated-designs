@@ -43,7 +43,13 @@ from typing import Any
 from automation.core.fabric_builder import build_intent, build_intent_from_netbox
 from automation.core.models import FabricIntent
 from automation.core.schema_validator import load_inputs
-from automation.eda_models.registry import check_srl_version, EDA_VERSION
+from automation.eda_models.registry import check_srl_version, check_srl_floor
+from automation.eda_models.profiles import (
+    DEFAULT_EDA_VERSION,
+    get_registry,
+    list_eda_versions,
+    normalize_eda_version,
+)
 from automation.executors.eda import EdaClient
 from automation.generators.eda_generator import generate as eda_generate
 
@@ -100,6 +106,19 @@ def main() -> int:
         choices=["eda", "ansible"],
         default="eda",
         help="Deployment mode (default: eda)",
+    )
+    parser.add_argument(
+        "--eda-version",
+        default=None,
+        metavar="VERSION",
+        help=(
+            "Target EDA release (selects CR apiVersions and the SR Linux "
+            "support window). Matched by major.minor, so '26.4', '26.4.2' and "
+            "the raw build string all select the same profile. "
+            f"Available profiles: {', '.join(list_eda_versions())}. "
+            "When omitted in --mode eda, the version is auto-detected from the "
+            f"live cluster (falling back to {DEFAULT_EDA_VERSION})."
+        ),
     )
     parser.add_argument(
         "--generate-only",
@@ -237,8 +256,9 @@ def main() -> int:
         from automation.generators.eda_generator import export_manifests
 
         outdir = Path(args.export_manifests)
+        args.eda_version = _resolve_eda_version(args)
         logging.info("Generating EDA CRs for manifest export...")
-        resources = eda_generate(intent)
+        resources = eda_generate(intent, registry=get_registry(args.eda_version))
         written = export_manifests(resources, outdir, sync_wave=args.sync_wave)
         print(
             f"\n✅ Exported {len(written)} EDA CR manifests to {outdir}"
@@ -270,9 +290,11 @@ def main() -> int:
             return _finish(summary, start, rc=0)
 
     if args.mode == "eda":
+        args.eda_version = _resolve_eda_version(args)
+        registry = get_registry(args.eda_version)
         srl_versions = {node.version for node in intent.nodes if node.version}
         for ver in sorted(srl_versions):
-            err = check_srl_version(ver)
+            err = check_srl_version(ver, registry)
             if err:
                 logging.error(err)
                 summary["errors"].append(err)
@@ -280,7 +302,7 @@ def main() -> int:
         if srl_versions:
             logging.info(
                 "SRL version check passed (EDA %s): %s",
-                EDA_VERSION,
+                registry.eda_version,
                 ", ".join(sorted(srl_versions)),
             )
 
@@ -288,8 +310,8 @@ def main() -> int:
             rc = _run_destroy(args, intent, summary)
             return _finish(summary, start, rc=rc)
 
-        logging.info("Generating EDA CRs...")
-        resources = eda_generate(intent, output_dir=build_dir)
+        logging.info("Generating EDA CRs (EDA %s)...", registry.eda_version)
+        resources = eda_generate(intent, output_dir=build_dir, registry=registry)
         logging.info("Generated %d EDA CRs → %s", len(resources), build_dir)
 
         if args.generate_only:
@@ -311,6 +333,19 @@ def main() -> int:
 
     if args.mode == "ansible":
         from automation.generators.ansible_generator import generate as ansible_generate
+
+        srl_versions = {node.version for node in intent.nodes if node.version}
+        for ver in sorted(srl_versions):
+            err = check_srl_floor(ver)
+            if err:
+                logging.error(err)
+                summary["errors"].append(err)
+                return _finish(summary, start, rc=1)
+        if srl_versions:
+            logging.info(
+                "SRL version floor check passed: %s",
+                ", ".join(sorted(srl_versions)),
+            )
 
         ansible_dir = design_dir / f"{design_dir.name}-ansible"
         logging.info("Generating Ansible project...")
@@ -416,6 +451,50 @@ def _export_yaml(intent: FabricIntent, outdir: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# EDA version resolution
+# ---------------------------------------------------------------------------
+
+
+def _resolve_eda_version(args: argparse.Namespace) -> str:
+    """Resolve the EDA version string used to select the registry profile.
+
+    Precedence: an explicit ``--eda-version`` always wins. Otherwise, if EDA
+    connection details are available, the running release is auto-detected from
+    the live cluster's ``/core/about/version`` endpoint. Falls back to
+    :data:`DEFAULT_EDA_VERSION` when neither is possible. The returned value is
+    matched by major.minor in :func:`get_registry`.
+    """
+    if args.eda_version:
+        return args.eda_version
+
+    url = args.eda_url or os.environ.get("EDA_URL", "")
+    if url:
+        try:
+            probe = EdaClient(
+                url=args.eda_url,
+                username=args.eda_user,
+                password=args.eda_password,
+            )
+            detected = probe.get_eda_version()
+            if detected:
+                logging.info(
+                    "Auto-detected EDA version %s → profile %s",
+                    detected,
+                    normalize_eda_version(detected),
+                )
+                return detected
+        except Exception as e:  # noqa: BLE001 - detection is best-effort
+            logging.warning("EDA version auto-detection failed: %s", e)
+
+    logging.warning(
+        "Could not auto-detect EDA version; using default profile %s "
+        "(pass --eda-version to override)",
+        DEFAULT_EDA_VERSION,
+    )
+    return DEFAULT_EDA_VERSION
+
+
+# ---------------------------------------------------------------------------
 # Phases
 # ---------------------------------------------------------------------------
 
@@ -426,6 +505,7 @@ def _run_destroy(args: argparse.Namespace, intent: FabricIntent, summary: dict) 
             url=args.eda_url,
             username=args.eda_user,
             password=args.eda_password,
+            registry=get_registry(args.eda_version),
         )
     except ValueError as e:
         logging.error(str(e))
@@ -461,6 +541,7 @@ def _run_diff(args: argparse.Namespace, intent: FabricIntent, resources, summary
             url=args.eda_url,
             username=args.eda_user,
             password=args.eda_password,
+            registry=get_registry(args.eda_version),
         )
     except ValueError as e:
         logging.error(str(e))
@@ -485,6 +566,7 @@ def _run_apply(args: argparse.Namespace, intent: FabricIntent, resources, summar
             url=args.eda_url,
             username=args.eda_user,
             password=args.eda_password,
+            registry=get_registry(args.eda_version),
         )
     except ValueError as e:
         logging.error(str(e))

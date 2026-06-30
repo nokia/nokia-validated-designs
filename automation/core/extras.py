@@ -8,11 +8,51 @@ boilerplate merge functions.
 
 from __future__ import annotations
 
-from typing import Any, Callable, TypeVar
+from dataclasses import dataclass
+from typing import Callable, TypeVar
 
 from pydantic import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
+
+
+@dataclass(frozen=True)
+class ExtrasSpec:
+    """How to merge one ``extras`` resource list into a design-generated list.
+
+    ``model_cls`` is the Pydantic intent model to instantiate for brand-new
+    entries; ``pre_process`` is an optional per-raw-dict hook (e.g. to tag
+    ``origin="extras"`` or coerce nested types).
+    """
+
+    model_cls: type[BaseModel]
+    pre_process: Callable[[dict], dict] | None = None
+
+
+def apply_extras(
+    current: dict[str, list],
+    extras: dict,
+    table: dict[str, ExtrasSpec],
+) -> dict[str, list]:
+    """Merge each ``extras`` resource list into *current* per the *table*.
+
+    For every ``resource -> ExtrasSpec`` entry, if ``extras[resource]`` is
+    non-empty its overrides are merged by name into ``current[resource]`` via
+    :func:`merge_by_name`. Resources absent from *extras* are left untouched.
+    Returns a new dict; *current* is not mutated.
+
+    Resources with bespoke semantics (e.g. configlets, which fully replace by
+    name rather than overlay) are intentionally not table-driven and should be
+    handled explicitly by the caller.
+    """
+    result = dict(current)
+    for resource, spec in table.items():
+        raw = extras.get(resource)
+        if raw:
+            result[resource] = merge_by_name(
+                result[resource], raw, spec.model_cls, pre_process=spec.pre_process
+            )
+    return result
 
 
 def merge_by_name(

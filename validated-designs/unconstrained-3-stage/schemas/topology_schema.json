@@ -1,10 +1,16 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "unconstrained-3-stage/topology",
-  "title": "Unconstrained 3-Stage Fabric — Topology Schema",
+  "title": "Unconstrained 3-Stage Fabric \u2014 Topology Schema",
   "description": "Full-coverage topology schema for a 3-stage Clos fabric. Every EDA API resource field is directly configurable.",
   "type": "object",
-  "required": ["design", "fabric_name", "underlay", "nodes", "links"],
+  "required": [
+    "design",
+    "fabric_name",
+    "underlay",
+    "nodes",
+    "links"
+  ],
   "additionalProperties": false,
   "properties": {
     "design": {
@@ -19,7 +25,10 @@
     },
     "environment": {
       "type": "string",
-      "enum": ["containerlab", "physical"],
+      "enum": [
+        "containerlab",
+        "physical"
+      ],
       "default": "containerlab"
     },
     "credentials": {
@@ -27,8 +36,14 @@
       "additionalProperties": false,
       "description": "SR Linux credentials used by generated artefacts (clab, Ansible, gnmic).",
       "properties": {
-        "username": { "type": "string", "default": "admin" },
-        "password": { "type": "string", "default": "NokiaSrl1!" }
+        "username": {
+          "type": "string",
+          "default": "admin"
+        },
+        "password": {
+          "type": "string",
+          "default": "NokiaSrl1!"
+        }
       }
     },
     "mgmt_subnet": {
@@ -38,7 +53,11 @@
     },
     "underlay": {
       "type": "object",
-      "required": ["spine_asn", "leaf_asn_start", "system0_prefix"],
+      "required": [
+        "spine_asn",
+        "leaf_asn_start",
+        "system0_prefix"
+      ],
       "additionalProperties": false,
       "properties": {
         "spine_asn": {
@@ -75,30 +94,49 @@
     "fabric": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Mirror of the EDA Fabric spec (fabrics_eda_nokia_com_v1alpha1.json). Each block maps 1:1 to its camelCase EDA counterpart (underlay_protocol → underlayProtocol, etc.).",
+      "description": "Mirror of the EDA Fabric spec (fabrics_eda_nokia_com_v1alpha1.json). Each block maps 1:1 to its camelCase EDA counterpart (underlay_protocol \u2192 underlayProtocol, etc.).",
       "properties": {
-        "underlay_protocol": { "$ref": "#/$defs/underlayProtocol" },
-        "overlay_protocol":  { "$ref": "#/$defs/overlayProtocol" },
-        "inter_switch_links": { "$ref": "#/$defs/interSwitchLinks" }
+        "underlay_protocol": {
+          "$ref": "#/$defs/underlayProtocol"
+        },
+        "overlay_protocol": {
+          "$ref": "#/$defs/overlayProtocol"
+        },
+        "inter_switch_links": {
+          "$ref": "#/$defs/interSwitchLinks"
+        }
       },
       "allOf": [
         {
           "if": {
             "properties": {
               "overlay_protocol": {
-                "properties": { "protocol": { "const": "IBGP" } },
-                "required": ["protocol"]
+                "properties": {
+                  "protocol": {
+                    "const": "IBGP"
+                  }
+                },
+                "required": [
+                  "protocol"
+                ]
               }
             },
-            "required": ["overlay_protocol"]
+            "required": [
+              "overlay_protocol"
+            ]
           },
           "then": {
             "properties": {
               "overlay_protocol": {
-                "required": ["bgp"],
+                "required": [
+                  "bgp"
+                ],
                 "properties": {
                   "bgp": {
-                    "required": ["autonomous_system", "cluster_id"]
+                    "required": [
+                      "autonomous_system",
+                      "cluster_id"
+                    ]
                   }
                 }
               }
@@ -110,93 +148,153 @@
     "nodes": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/node" },
+      "items": {
+        "$ref": "#/$defs/node"
+      },
       "description": "Individual node definitions."
     },
     "links": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/link" },
+      "items": {
+        "$ref": "#/$defs/link"
+      },
       "description": "Inter-switch links."
     },
     "edge_interfaces": {
       "type": "array",
-      "items": { "$ref": "#/$defs/edgeInterface" },
+      "items": {
+        "$ref": "#/$defs/edgeInterface"
+      },
       "description": "Server-facing edge interfaces."
     },
     "lags": {
       "type": "array",
-      "items": { "$ref": "#/$defs/lag" },
+      "items": {
+        "$ref": "#/$defs/lag"
+      },
       "description": "LAG interfaces."
     },
     "configlets": {
       "type": "array",
-      "items": { "$ref": "#/$defs/configlet" },
+      "items": {
+        "$ref": "#/$defs/configlet"
+      },
       "description": "Raw SR Linux configlet patches."
     },
     "default_mtu": {
       "type": "array",
-      "items": { "$ref": "#/$defs/defaultMtu" },
+      "items": {
+        "$ref": "#/$defs/defaultMtu"
+      },
       "description": "Default MTU settings for fabric nodes."
     },
     "banners": {
       "type": "array",
-      "items": { "$ref": "#/$defs/banner" },
+      "items": {
+        "$ref": "#/$defs/banner"
+      },
       "description": "Login and MOTD banner settings for fabric nodes."
     },
     "prefix_sets": {
       "type": "array",
-      "items": { "$ref": "#/$defs/prefixSet" },
+      "items": {
+        "$ref": "#/$defs/prefixSet"
+      },
       "description": "Prefix sets referenced by routing_policies in services.yaml."
     },
     "fabric_export_policies": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "Names of routing_policies to attach as fabric-wide export policies on the Fabric CR."
     },
     "fabric_import_policies": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "Names of routing_policies to attach as fabric-wide import policies on the Fabric CR."
     },
     "eda": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "node_profile": { "type": "string" },
-        "namespace": { "type": "string", "default": "eda" }
+        "node_profile": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string",
+          "default": "eda"
+        }
       }
     }
   },
   "$defs": {
     "labels": {
-      "type": "object",
-      "patternProperties": {
-        "^[a-zA-Z0-9_./-]+$": { "type": "string" }
-      },
-      "additionalProperties": false
+      "$ref": "https://nvd.nokia.com/schemas/common/topology-defs#/$defs/labels"
     },
     "bfd": {
       "type": "object",
       "additionalProperties": false,
       "description": "BFD timers; fields and ranges mirror the EDA underlay/overlay BFD sub-schema.",
       "properties": {
-        "enabled": { "type": "boolean", "default": false },
-        "desired_min_transmit_int": { "type": "integer", "minimum": 10000, "maximum": 100000000 },
-        "required_min_receive":     { "type": "integer", "minimum": 10000, "maximum": 100000000 },
-        "detection_multiplier":     { "type": "integer", "minimum": 3,     "maximum": 20 },
-        "min_echo_receive_interval":{ "type": "integer", "minimum": 0,     "maximum": 100000000 },
-        "ttl":                      { "type": "integer", "minimum": 2,     "maximum": 255 }
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "desired_min_transmit_int": {
+          "type": "integer",
+          "minimum": 10000,
+          "maximum": 100000000
+        },
+        "required_min_receive": {
+          "type": "integer",
+          "minimum": 10000,
+          "maximum": 100000000
+        },
+        "detection_multiplier": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 20
+        },
+        "min_echo_receive_interval": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000000
+        },
+        "ttl": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 255
+        }
       }
     },
     "bgpTimers": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "connect_retry":                    { "type": "integer", "minimum": 1, "maximum": 65535 },
-        "hold_time":                        { "type": "integer", "minimum": 0, "maximum": 65535 },
-        "keep_alive":                       { "type": "integer", "minimum": 0, "maximum": 21845 },
-        "minimum_advertisement_interval":   { "type": "integer", "minimum": 1, "maximum": 255   }
+        "connect_retry": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "hold_time": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "keep_alive": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 21845
+        },
+        "minimum_advertisement_interval": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 255
+        }
       }
     },
     "underlayProtocol": {
@@ -208,7 +306,14 @@
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "type": "string", "enum": ["EBGP", "OSPFv2", "OSPFv3"] },
+          "items": {
+            "type": "string",
+            "enum": [
+              "EBGP",
+              "OSPFv2",
+              "OSPFv3"
+            ]
+          },
           "description": "List of underlay protocols. Multiple may be combined (e.g. [EBGP, OSPFv2]); OSPFv2 and OSPFv3 are mutually exclusive."
         },
         "bgp": {
@@ -216,11 +321,28 @@
           "additionalProperties": false,
           "description": "Underlay BGP-specific options (used when protocol contains EBGP).",
           "properties": {
-            "asn_pool":      { "type": "string", "description": "Reference to an IndexAllocationPool. Defaults to the design's auto-generated pool when omitted." },
-            "export_policy": { "type": "array", "items": { "type": "string" } },
-            "import_policy": { "type": "array", "items": { "type": "string" } },
-            "keychain":      { "type": "string" },
-            "timers":        { "$ref": "#/$defs/bgpTimers" }
+            "asn_pool": {
+              "type": "string",
+              "description": "Reference to an IndexAllocationPool. Defaults to the design's auto-generated pool when omitted."
+            },
+            "export_policy": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "import_policy": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "keychain": {
+              "type": "string"
+            },
+            "timers": {
+              "$ref": "#/$defs/bgpTimers"
+            }
           }
         },
         "ospf": {
@@ -231,14 +353,24 @@
             "address_family": {
               "type": "array",
               "uniqueItems": true,
-              "items": { "type": "string", "enum": ["IPV4-UNICAST", "IPV6-UNICAST"] },
+              "items": {
+                "type": "string",
+                "enum": [
+                  "IPV4-UNICAST",
+                  "IPV6-UNICAST"
+                ]
+              },
               "description": "OSPFv3-only: enabled address families. Both are enabled by default."
             }
           }
         },
-        "bfd": { "$ref": "#/$defs/bfd" }
+        "bfd": {
+          "$ref": "#/$defs/bfd"
+        }
       },
-      "required": ["protocol"]
+      "required": [
+        "protocol"
+      ]
     },
     "overlayProtocol": {
       "type": "object",
@@ -247,27 +379,73 @@
       "properties": {
         "protocol": {
           "type": "string",
-          "enum": ["IBGP", "EBGP"],
+          "enum": [
+            "IBGP",
+            "EBGP"
+          ],
           "description": "EBGP reuses the underlay BGP sessions; IBGP builds dedicated route-reflector / client peerings."
         },
         "bgp": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "autonomous_system": { "type": "integer", "minimum": 1, "maximum": 4294967295, "description": "Required when overlay protocol is IBGP." },
-            "cluster_id":        { "type": "string", "description": "Required when overlay protocol is IBGP." },
-            "export_policy":     { "type": "array", "items": { "type": "string" } },
-            "import_policy":     { "type": "array", "items": { "type": "string" } },
-            "keychain":          { "type": "string" },
-            "rr_node_selector":         { "type": "array", "items": { "type": "string" }, "description": "Label selectors for route reflectors. Defaults to spine selectors when omitted." },
-            "rr_client_node_selector":  { "type": "array", "items": { "type": "string" }, "description": "Label selectors for route-reflector clients. Defaults to leaf selectors when omitted." },
-            "rr_ip_addresses":          { "type": "array", "items": { "type": "string" } },
-            "timers":                   { "$ref": "#/$defs/bgpTimers" }
+            "autonomous_system": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4294967295,
+              "description": "Required when overlay protocol is IBGP."
+            },
+            "cluster_id": {
+              "type": "string",
+              "description": "Required when overlay protocol is IBGP."
+            },
+            "export_policy": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "import_policy": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "keychain": {
+              "type": "string"
+            },
+            "rr_node_selector": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Label selectors for route reflectors. Defaults to spine selectors when omitted."
+            },
+            "rr_client_node_selector": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Label selectors for route-reflector clients. Defaults to leaf selectors when omitted."
+            },
+            "rr_ip_addresses": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "timers": {
+              "$ref": "#/$defs/bgpTimers"
+            }
           }
         },
-        "bfd": { "$ref": "#/$defs/bfd" }
+        "bfd": {
+          "$ref": "#/$defs/bfd"
+        }
       },
-      "required": ["protocol"]
+      "required": [
+        "protocol"
+      ]
     },
     "interSwitchLinks": {
       "type": "object",
@@ -276,21 +454,48 @@
       "properties": {
         "unnumbered": {
           "type": "string",
-          "enum": ["IPV6"],
+          "enum": [
+            "IPV6"
+          ],
           "description": "EDA only supports IPV6 link-local unnumbered today. Omit and provide pool_ipv4 for IPv4-numbered ISLs."
         },
-        "pool_ipv4": { "type": "string", "description": "Name of a SubnetAllocationPool used for IPv4-numbered ISLs. Mutually exclusive with unnumbered." },
-        "pool_ipv6": { "type": "string", "description": "Name of a SubnetAllocationPool used for IPv6 global ISL addresses. Compatible with unnumbered=IPV6 for dual-stack." },
-        "ip_mtu":    { "type": "integer", "minimum": 1280, "maximum": 9486 },
-        "vlan_id":   { "type": "integer", "minimum": 1, "maximum": 4094 }
+        "pool_ipv4": {
+          "type": "string",
+          "description": "Name of a SubnetAllocationPool used for IPv4-numbered ISLs. Mutually exclusive with unnumbered."
+        },
+        "pool_ipv6": {
+          "type": "string",
+          "description": "Name of a SubnetAllocationPool used for IPv6 global ISL addresses. Compatible with unnumbered=IPV6 for dual-stack."
+        },
+        "ip_mtu": {
+          "type": "integer",
+          "minimum": 1280,
+          "maximum": 9486
+        },
+        "vlan_id": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4094
+        }
       },
       "not": {
-        "required": ["unnumbered", "pool_ipv4"]
+        "required": [
+          "unnumbered",
+          "pool_ipv4"
+        ]
       }
     },
     "node": {
       "type": "object",
-      "required": ["name", "role", "platform", "version", "asn", "system0_ipv4", "mgmt_ipv4"],
+      "required": [
+        "name",
+        "role",
+        "platform",
+        "version",
+        "asn",
+        "system0_ipv4",
+        "mgmt_ipv4"
+      ],
       "additionalProperties": false,
       "properties": {
         "name": {
@@ -300,7 +505,10 @@
         },
         "role": {
           "type": "string",
-          "enum": ["leaf", "spine"],
+          "enum": [
+            "leaf",
+            "spine"
+          ],
           "description": "Node role."
         },
         "platform": {
@@ -328,27 +536,44 @@
           "format": "ipv4",
           "description": "Management IPv4 address."
         },
-        "labels": { "$ref": "#/$defs/labels" },
+        "labels": {
+          "$ref": "#/$defs/labels"
+        },
         "uplink_interfaces": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Uplink interface names (informational)."
         }
       }
     },
     "link": {
       "type": "object",
-      "required": ["name", "local_node", "local_interface", "remote_node", "remote_interface"],
+      "required": [
+        "name",
+        "local_node",
+        "local_interface",
+        "remote_node",
+        "remote_interface"
+      ],
       "additionalProperties": false,
       "properties": {
-        "name": { "type": "string", "description": "Link resource name." },
-        "local_node": { "type": "string" },
+        "name": {
+          "type": "string",
+          "description": "Link resource name."
+        },
+        "local_node": {
+          "type": "string"
+        },
         "local_interface": {
           "type": "string",
           "pattern": "^ethernet-[0-9]+-[0-9]+(-[0-9]+)?$",
           "description": "Local interface (supports breakout syntax)."
         },
-        "remote_node": { "type": "string" },
+        "remote_node": {
+          "type": "string"
+        },
         "remote_interface": {
           "type": "string",
           "pattern": "^ethernet-[0-9]+-[0-9]+(-[0-9]+)?$",
@@ -357,163 +582,39 @@
       }
     },
     "edgeInterface": {
-      "type": "object",
-      "required": ["name", "node", "interface", "encap"],
-      "additionalProperties": false,
-      "properties": {
-        "name": { "type": "string" },
-        "node": { "type": "string" },
-        "interface": {
-          "type": "string",
-          "pattern": "^ethernet-[0-9]+-[0-9]+$"
-        },
-        "encap": {
-          "type": "string",
-          "enum": ["dot1q", "null"]
-        },
-        "labels": { "$ref": "#/$defs/labels" }
-      }
+      "$ref": "https://nvd.nokia.com/schemas/common/topology-defs#/$defs/edgeInterface"
     },
     "lag": {
-      "type": "object",
-      "required": ["name", "type", "mode", "min_links", "lacp", "members"],
-      "additionalProperties": false,
-      "properties": {
-        "name": { "type": "string" },
-        "type": { "type": "string", "enum": ["lacp"] },
-        "mode": { "type": "string", "enum": ["all-active", "port-active"] },
-        "min_links": { "type": "integer", "minimum": 1 },
-        "revertive": { "type": "boolean" },
-        "preferred_active_node": { "type": "string" },
-        "standby_signaling": { "type": "string", "enum": ["lacp"] },
-        "lacp": {
-          "type": "object",
-          "required": ["interval", "system_id_mac", "system_priority"],
-          "additionalProperties": false,
-          "properties": {
-            "interval": { "type": "string", "enum": ["fast", "slow"] },
-            "system_id_mac": {
-              "type": "string",
-              "pattern": "^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$"
-            },
-            "system_priority": { "type": "integer", "minimum": 0, "maximum": 65535 },
-            "fallback": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "mode": { "type": "string", "enum": ["static"] },
-                "timeout": { "type": "integer", "minimum": 1 }
-              }
-            }
-          }
-        },
-        "members": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "object",
-            "required": ["node", "interface", "aggregate_id"],
-            "additionalProperties": false,
-            "properties": {
-              "node": { "type": "string" },
-              "interface": { "type": "string" },
-              "aggregate_id": { "type": "string" }
-            }
-          }
-        },
-        "labels": { "$ref": "#/$defs/labels" },
-        "reload_delay_timer": { "type": "integer", "minimum": 0 }
-      }
+      "$ref": "https://nvd.nokia.com/schemas/common/topology-defs#/$defs/lag"
     },
     "configlet": {
-      "type": "object",
-      "required": ["name", "configs"],
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Configlet resource name."
-        },
-        "endpoint_selector": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Label selectors to match target nodes."
-        },
-        "endpoints": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Explicit list of target node names."
-        },
-        "priority": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 1000,
-          "default": 100,
-          "description": "Configlet priority (higher = applied later)."
-        },
-        "configs": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "object",
-            "required": ["path", "operation", "config"],
-            "additionalProperties": false,
-            "properties": {
-              "path": {
-                "type": "string",
-                "description": "JSON path in the SR Linux YANG model."
-              },
-              "operation": {
-                "type": "string",
-                "enum": ["Create", "Update", "Delete"],
-                "description": "Config operation type."
-              },
-              "config": {
-                "type": "string",
-                "description": "JSON config payload as a string."
-              }
-            }
-          }
-        }
-      }
+      "$ref": "https://nvd.nokia.com/schemas/common/topology-defs#/$defs/configlet"
     },
     "defaultMtu": {
-      "type": "object",
-      "required": ["name"],
-      "additionalProperties": false,
-      "properties": {
-        "name": { "type": "string", "description": "Unique DefaultMTU resource name." },
-        "interface_mtu": { "type": "integer", "minimum": 1500, "maximum": 11000 },
-        "layer2_subif_mtu": { "type": "integer", "minimum": 1500, "maximum": 11000 },
-        "layer3_mtu": { "type": "integer", "minimum": 1280, "maximum": 11000 },
-        "node_selector": { "type": "array", "items": { "type": "string" } },
-        "nodes": { "type": "array", "items": { "type": "string" } }
-      }
+      "$ref": "https://nvd.nokia.com/schemas/common/topology-defs#/$defs/defaultMtu"
     },
     "banner": {
-      "type": "object",
-      "required": ["name"],
-      "additionalProperties": false,
-      "properties": {
-        "name": { "type": "string", "description": "Unique Banner resource name." },
-        "login_banner": { "type": "string" },
-        "motd": { "type": "string" },
-        "node_selector": { "type": "array", "items": { "type": "string" } },
-        "nodes": { "type": "array", "items": { "type": "string" } }
-      }
+      "$ref": "https://nvd.nokia.com/schemas/common/topology-defs#/$defs/banner"
     },
     "prefixSet": {
       "type": "object",
-      "required": ["name", "prefixes"],
+      "required": [
+        "name",
+        "prefixes"
+      ],
       "additionalProperties": false,
       "properties": {
-        "name": { "type": "string" },
+        "name": {
+          "type": "string"
+        },
         "prefixes": {
           "type": "array",
           "minItems": 1,
           "items": {
             "type": "object",
-            "required": ["ip_prefix"],
+            "required": [
+              "ip_prefix"
+            ],
             "additionalProperties": false,
             "properties": {
               "ip_prefix": {

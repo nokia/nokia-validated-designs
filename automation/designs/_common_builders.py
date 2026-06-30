@@ -12,6 +12,8 @@ generation) intentionally remain in the per-design modules.
 
 from __future__ import annotations
 
+import ipaddress
+
 from automation.core.models import (
     BannerIntent,
     DefaultMtuIntent,
@@ -19,6 +21,7 @@ from automation.core.models import (
     LacpConfig,
     LagIntent,
     LagMember,
+    NodeIntent,
     PolicyAction,
     PolicyMatch,
     PolicyStatementIntent,
@@ -30,6 +33,68 @@ from automation.core.models import (
     StaticRouteIntent,
     VlanIntent,
 )
+
+
+# ---------------------------------------------------------------------------
+# Node-generation scaffolding shared by constrained designs
+# ---------------------------------------------------------------------------
+
+
+def validate_unique_names(nodes: list[NodeIntent]) -> None:
+    """Raise ValueError if any two nodes share the same name."""
+    seen: dict[str, int] = {}
+    for node in nodes:
+        if node.name in seen:
+            raise ValueError(
+                f"Duplicate node name '{node.name}': name_template must include "
+                f"{{i}} placeholder to produce unique names"
+            )
+        seen[node.name] = 1
+
+
+def validate_mgmt_ips(nodes: list[NodeIntent]) -> None:
+    """Raise ValueError if any two nodes share the same mgmt_ipv4."""
+    seen: dict[str, str] = {}
+    for node in nodes:
+        if not node.mgmt_ipv4:
+            continue
+        ip = str(ipaddress.IPv4Address(node.mgmt_ipv4))
+        if ip in seen:
+            raise ValueError(
+                f"Duplicate management IP {ip}: "
+                f"assigned to both '{seen[ip]}' and '{node.name}'"
+            )
+        seen[ip] = node.name
+
+
+def apply_node_overrides(nodes: list[NodeIntent], overrides: list[dict]) -> None:
+    """Apply per-node overrides to auto-generated nodes (in-place).
+
+    Raises ValueError if an override references a node name that was not
+    auto-generated.
+    """
+    by_name = {n.name: n for n in nodes}
+    for ovr in overrides:
+        name = ovr["name"]
+        if name not in by_name:
+            raise ValueError(
+                f"Node override references unknown node '{name}'. "
+                f"Auto-generated nodes: {sorted(by_name)}"
+            )
+        node = by_name[name]
+        if "platform" in ovr:
+            node.platform = ovr["platform"]
+        if "version" in ovr:
+            node.version = ovr["version"]
+        if "mgmt_ipv4" in ovr:
+            node.mgmt_ipv4 = ovr["mgmt_ipv4"]
+        if "labels" in ovr:
+            node.labels = {**node.labels, **ovr["labels"]}
+
+
+def increment_ip(base_ip: str, offset: int) -> str:
+    """Increment an IPv4 address by an offset."""
+    return str(ipaddress.IPv4Address(base_ip) + offset)
 
 
 def build_edge_interfaces(raw: list[dict]) -> list[EdgeInterfaceIntent]:

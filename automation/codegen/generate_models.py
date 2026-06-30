@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import re
 import textwrap
+from dataclasses import dataclass
 from pathlib import Path
 
 SPEC_DIR = Path(__file__).parent / "openapi_specs"
@@ -61,6 +62,69 @@ RESOURCE_MAP: dict[str, tuple[str, list[str]]] = {
         ["Policy", "PrefixSet"],
     ),
 }
+
+
+# EDA 26.4.x (fresh install) resource map. ``services``/``protocols`` are v2 and
+# every other group graduated v1alpha1 -> v1, with breaking spec shape changes.
+# These models live in their own subpackage so the 25.12 (default) models are
+# untouched.
+RESOURCE_MAP_26_4: dict[str, tuple[str, list[str]]] = {
+    "services_eda_nokia_com_v2.json": (
+        "services",
+        ["BridgeDomain", "Router", "IRBInterface", "VLAN", "RoutedInterface"],
+    ),
+    "core_eda_nokia_com_v1.json": (
+        "core",
+        [
+            "TopoNode", "TopoLink", "NodeProfile", "NodeUser",
+            "IndexAllocationPool", "IPAllocationPool",
+        ],
+    ),
+    "fabrics_eda_nokia_com_v1.json": (
+        "fabrics",
+        ["Fabric"],
+    ),
+    "interfaces_eda_nokia_com_v1.json": (
+        "interfaces",
+        ["Interface"],
+    ),
+    "protocols_eda_nokia_com_v2.json": (
+        "protocols",
+        ["StaticRoute"],
+    ),
+    "config_eda_nokia_com_v1.json": (
+        "config",
+        ["Configlet"],
+    ),
+    "bootstrap_eda_nokia_com_v1.json": (
+        "bootstrap",
+        ["Init"],
+    ),
+    "routingpolicies_eda_nokia_com_v1.json": (
+        "routingpolicies",
+        ["Policy", "PrefixSet"],
+    ),
+    "siteinfo_eda_nokia_com_v1.json": (
+        "siteinfo",
+        ["DefaultMTU", "Banner"],
+    ),
+}
+
+
+@dataclass(frozen=True)
+class Target:
+    """One model-generation target: a spec set rendered into a package dir."""
+
+    name: str
+    spec_dir: Path
+    out_dir: Path
+    resource_map: dict[str, tuple[str, list[str]]]
+
+
+TARGETS: list[Target] = [
+    Target("eda_25_12 (default)", SPEC_DIR, OUT_DIR, RESOURCE_MAP),
+    Target("eda_26_4", SPEC_DIR / "eda_26_4", OUT_DIR / "eda_26_4", RESOURCE_MAP_26_4),
+]
 
 
 def _to_snake(name: str) -> str:
@@ -166,27 +230,75 @@ def _field_kwargs(name: str, prop: dict) -> str:
     return ", ".join(args)
 
 
-def _generate_class(
+def _nested_for(prop: dict, class_prefix: str) -> tuple[str, dict] | None:
+    """Return ``(class_name, schema)`` for an inline object sub-schema, else None.
+
+    Mirrors the nested-class naming used by :func:`_python_type` so the
+    collection pass and the emission pass agree on class names.
+    """
+    if "enum" in prop:
+        return None
+    t = prop.get("type", "string")
+    if t == "array":
+        items = prop.get("items", {})
+        if items.get("type") == "object" and items.get("properties"):
+            return class_prefix + _to_class_name(prop.get("title", "Item")), items
+        return None
+    if t == "object" and prop.get("properties"):
+        return class_prefix + _to_class_name(prop.get("title", "Config")), prop
+    return None
+
+
+def _collect_class(
     class_name: str,
     schema: dict,
     parent_prefix: str,
-    all_classes: list[tuple[str, str]],
+    collected: dict[str, dict],
+    order: list[str],
 ) -> None:
-    """Generate a Pydantic model class from an OpenAPI object schema."""
-    props = schema.get("properties", {})
-    required = set(schema.get("required", []))
-    nested_queue: list[tuple[str, dict]] = []
+    """Collect inline object schemas keyed by generated class name.
+
+    When two inline sub-schemas resolve to the same class name (e.g. the ``bgp``
+    block under both ``underlayProtocol`` and ``overlayProtocol`` both become
+    ``FabricBgp``), their ``properties``/``required`` are **unioned** rather than
+    one silently shadowing the other. This prevents fields that exist on only
+    one side (e.g. ``asnPool`` on the underlay) from being dropped — the bug
+    previously worked around by a hand-applied MANUAL PATCH.
+    """
+    entry = collected.get(class_name)
+    if entry is None:
+        entry = {"properties": {}, "required": set(), "prefix": parent_prefix}
+        collected[class_name] = entry
+        order.append(class_name)
+
+    entry["required"] |= set(schema.get("required", []))
+    for prop_name, prop in schema.get("properties", {}).items():
+        # Union: first definition of a field wins for its type/kwargs; fields
+        # unique to a later schema are appended.
+        if prop_name not in entry["properties"]:
+            entry["properties"][prop_name] = prop
+        nested = _nested_for(prop, parent_prefix)
+        if nested is not None:
+            sub_name, sub_schema = nested
+            _collect_class(sub_name, sub_schema, parent_prefix, collected, order)
+
+
+def _emit_class(class_name: str, entry: dict) -> str:
+    """Render a Pydantic model class from a collected (merged) schema entry."""
+    props: dict = entry["properties"]
+    required: set = entry["required"]
+    prefix: str = entry["prefix"]
 
     lines = [f"class {class_name}(_EDABase):"]
 
     if not props:
         lines.append("    pass")
-        all_classes.append((class_name, "\n".join(lines)))
-        return
+        return "\n".join(lines)
 
+    throwaway: list[tuple[str, dict]] = []
     for prop_name, prop in props.items():
         snake = _to_snake(prop_name)
-        py_type = _python_type(prop, parent_prefix, nested_queue)
+        py_type = _python_type(prop, prefix, throwaway)
         field_kwargs = _field_kwargs(prop_name, prop)
         is_required = prop_name in required
         default = prop.get("default")
@@ -214,23 +326,22 @@ def _generate_class(
                 else:
                     lines.append(f"    {snake}: {py_type} | None = None")
 
-    all_classes.append((class_name, "\n".join(lines)))
-
-    # Generate nested classes (depth-first so they appear before parent)
-    for sub_name, sub_schema in nested_queue:
-        _generate_class(sub_name, sub_schema, parent_prefix, all_classes)
+    return "\n".join(lines)
 
 
-def generate_module(spec_file: str, module_name: str, kinds: list[str]) -> str:
+def generate_module(
+    spec_file: str, module_name: str, kinds: list[str], spec_dir: Path = SPEC_DIR
+) -> str:
     """Generate a Python module with Pydantic models for the given resource kinds."""
-    spec_path = SPEC_DIR / spec_file
+    spec_path = spec_dir / spec_file
     with open(spec_path) as f:
         spec = json.load(f)
 
     schemas = spec.get("components", {}).get("schemas", {})
 
-    # Find the spec schema for each resource kind
-    all_classes: list[tuple[str, str]] = []
+    # Collect inline schemas keyed by class name (unioning collisions), then emit.
+    collected: dict[str, dict] = {}
+    order: list[str] = []
     generated_kind_classes: list[str] = []
 
     for kind in kinds:
@@ -253,20 +364,13 @@ def generate_module(spec_file: str, module_name: str, kinds: list[str]) -> str:
         class_name = f"{kind}Spec"
         prefix = kind
 
-        _generate_class(class_name, spec_schema, prefix, all_classes)
+        _collect_class(class_name, spec_schema, prefix, collected, order)
         generated_kind_classes.append(class_name)
         print(f"  ✓ {kind} → {class_name} ({len(spec_schema.get('properties', {}))} fields)")
 
-    # De-duplicate classes (nested types may repeat)
-    seen = set()
-    unique_classes = []
-    for name, code in all_classes:
-        if name not in seen:
-            seen.add(name)
-            unique_classes.append((name, code))
-
-    # Topological sort: nested classes before parents
-    # Simple approach: reverse the list (depth-first generates children first)
+    # Emit one class per collected name. Reverse so nested children appear
+    # before the parents that reference them (collection records parents first).
+    unique_classes = [(name, _emit_class(name, collected[name])) for name in order]
     unique_classes.reverse()
 
     # Determine imports
@@ -313,16 +417,17 @@ def generate_module(spec_file: str, module_name: str, kinds: list[str]) -> str:
     return module_code
 
 
-def main():
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+def _generate_target(target: Target) -> None:
+    """Generate all model modules + __init__ for a single target package."""
+    target.out_dir.mkdir(parents=True, exist_ok=True)
 
     all_exports: dict[str, list[str]] = {}
 
-    for spec_file, (module_name, kinds) in RESOURCE_MAP.items():
-        print(f"\n{module_name} ({spec_file}):")
-        code = generate_module(spec_file, module_name, kinds)
+    for spec_file, (module_name, kinds) in target.resource_map.items():
+        print(f"\n[{target.name}] {module_name} ({spec_file}):")
+        code = generate_module(spec_file, module_name, kinds, spec_dir=target.spec_dir)
 
-        out_path = OUT_DIR / f"{module_name}.py"
+        out_path = target.out_dir / f"{module_name}.py"
         out_path.write_text(code)
         print(f"  → {out_path}")
 
@@ -340,16 +445,20 @@ def main():
     ]
     for module_name, classes in all_exports.items():
         if classes:
-            names = ", ".join(classes)
             init_lines.append(f"from .{module_name} import (  # noqa: F401")
             for cls in classes:
                 init_lines.append(f"    {cls},")
             init_lines.append(")")
 
     init_lines.append("")
-    (OUT_DIR / "__init__.py").write_text("\n".join(init_lines))
+    (target.out_dir / "__init__.py").write_text("\n".join(init_lines))
 
-    print(f"\n✅ Generated models in {OUT_DIR}")
+    print(f"\n✅ Generated {target.name} models in {target.out_dir}")
+
+
+def main():
+    for target in TARGETS:
+        _generate_target(target)
 
 
 if __name__ == "__main__":

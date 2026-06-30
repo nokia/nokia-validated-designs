@@ -4,36 +4,52 @@
   "title": "Collapsed-Spine Services Input",
   "description": "Defines overlay services for a collapsed-spine EVPN-VXLAN fabric. Bridge domains may be EVPNVXLAN (default) or SIMPLE (L2-only). IRBs support dual-stack IPv4/IPv6; routed interfaces support dual-stack as well.",
   "type": "object",
-  "required": ["bridge_domains"],
+  "required": [
+    "bridge_domains"
+  ],
   "additionalProperties": false,
   "properties": {
     "bridge_domains": {
       "type": "array",
-      "items": { "$ref": "#/$defs/bridgeDomain" }
+      "items": {
+        "$ref": "#/$defs/bridgeDomain"
+      }
     },
     "routers": {
       "type": "array",
-      "items": { "$ref": "#/$defs/router" }
+      "items": {
+        "$ref": "#/$defs/router"
+      }
     },
     "irb_interfaces": {
       "type": "array",
-      "items": { "$ref": "#/$defs/irbInterface" }
+      "items": {
+        "$ref": "#/$defs/irbInterface"
+      }
     },
     "vlans": {
       "type": "array",
-      "items": { "$ref": "#/$defs/vlan" }
+      "items": {
+        "$ref": "#/$defs/vlan"
+      }
     },
     "routed_interfaces": {
       "type": "array",
-      "items": { "$ref": "#/$defs/routedInterface" }
+      "items": {
+        "$ref": "#/$defs/routedInterface"
+      }
     },
     "static_routes": {
       "type": "array",
-      "items": { "$ref": "#/$defs/staticRoute" }
+      "items": {
+        "$ref": "#/$defs/staticRoute"
+      }
     },
     "routing_policies": {
       "type": "array",
-      "items": { "$ref": "#/$defs/routingPolicy" }
+      "items": {
+        "$ref": "#/$defs/routingPolicy"
+      }
     },
     "extras": {
       "type": "object",
@@ -43,71 +59,130 @@
   "$defs": {
     "bridgeDomain": {
       "type": "object",
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "additionalProperties": false,
       "properties": {
-        "name": { "type": "string" },
+        "name": {
+          "type": "string"
+        },
         "type": {
           "type": "string",
-          "enum": ["EVPNVXLAN", "SIMPLE"],
+          "enum": [
+            "EVPNVXLAN",
+            "SIMPLE"
+          ],
           "default": "EVPNVXLAN",
           "description": "Bridge domain type. SIMPLE = local L2 (no VXLAN), EVPNVXLAN = EVPN-extended (requires vni+evi)."
         },
-        "vni": { "type": "integer", "minimum": 1, "maximum": 16777215 },
-        "evi": { "type": "integer", "minimum": 1, "maximum": 65535 },
-        "mac_learning": { "type": "boolean" },
-        "mac_aging": { "type": "integer", "minimum": 0 },
+        "vni": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777215
+        },
+        "evi": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "mac_learning": {
+          "type": "boolean"
+        },
+        "mac_aging": {
+          "type": "integer",
+          "minimum": 0
+        },
         "mac_duplication": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "enabled": { "type": "boolean" },
-            "hold_down_time": { "type": "integer", "minimum": 0 },
-            "monitoring_window": { "type": "integer", "minimum": 1 },
-            "action": { "type": "string", "enum": ["StopLearning", "Blackhole", "UseNetInstanceAction"] },
-            "num_moves": { "type": "integer", "minimum": 1 }
+            "enabled": {
+              "type": "boolean"
+            },
+            "hold_down_time": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "monitoring_window": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "action": {
+              "type": "string",
+              "enum": [
+                "StopLearning",
+                "Blackhole",
+                "UseNetInstanceAction"
+              ]
+            },
+            "num_moves": {
+              "type": "integer",
+              "minimum": 1
+            }
           }
         },
-        "export_target": { "type": "string", "pattern": "^target:.+$", "description": "Optional BGP-EVPN export route target. Overrides the default 'target:1:<evi>'." },
-        "import_target": { "type": "string", "pattern": "^target:.+$", "description": "Optional BGP-EVPN import route target. Overrides the default 'target:1:<evi>'." }
+        "export_target": {
+          "type": "string",
+          "pattern": "^target:.+$",
+          "description": "Optional BGP-EVPN export route target. Overrides the default 'target:1:<evi>'."
+        },
+        "import_target": {
+          "type": "string",
+          "pattern": "^target:.+$",
+          "description": "Optional BGP-EVPN import route target. Overrides the default 'target:1:<evi>'."
+        }
       },
       "allOf": [
         {
           "if": {
             "anyOf": [
-              { "not": { "required": ["type"] } },
-              { "properties": { "type": { "const": "EVPNVXLAN" } } }
+              {
+                "not": {
+                  "required": [
+                    "type"
+                  ]
+                }
+              },
+              {
+                "properties": {
+                  "type": {
+                    "const": "EVPNVXLAN"
+                  }
+                }
+              }
             ]
           },
-          "then": { "required": ["vni", "evi"] }
+          "then": {
+            "required": [
+              "vni",
+              "evi"
+            ]
+          }
         }
       ]
     },
     "router": {
-      "type": "object",
-      "required": ["name", "vni", "evi", "node_selector"],
-      "additionalProperties": false,
-      "properties": {
-        "name": { "type": "string" },
-        "vni": { "type": "integer", "minimum": 1, "maximum": 16777215 },
-        "evi": { "type": "integer", "minimum": 1, "maximum": 65535 },
-        "node_selector": {
-          "type": "array",
-          "items": { "type": "string", "pattern": "^[a-zA-Z0-9_./-]+=.+$" },
-          "minItems": 1
-        },
-        "export_target": { "type": "string", "pattern": "^target:.+$", "description": "Optional BGP-EVPN export route target. Overrides the default 'target:1:<evi>'." },
-        "import_target": { "type": "string", "pattern": "^target:.+$", "description": "Optional BGP-EVPN import route target. Overrides the default 'target:1:<evi>'." }
-      }
+      "$ref": "https://nvd.nokia.com/schemas/common/services-defs#/$defs/router"
     },
     "irbInterface": {
       "type": "object",
-      "required": ["name", "bridge_domain", "router"],
+      "required": [
+        "name",
+        "bridge_domain",
+        "router"
+      ],
       "additionalProperties": false,
       "properties": {
-        "name": { "type": "string" },
-        "bridge_domain": { "type": "string" },
-        "router": { "type": "string" },
+        "name": {
+          "type": "string"
+        },
+        "bridge_domain": {
+          "type": "string"
+        },
+        "router": {
+          "type": "string"
+        },
         "ipv4": {
           "type": "string",
           "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$"
@@ -117,87 +192,151 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "anyOf": [{ "required": ["ipv4"] }, { "required": ["ipv6"] }],
+            "anyOf": [
+              {
+                "required": [
+                  "ipv4"
+                ]
+              },
+              {
+                "required": [
+                  "ipv6"
+                ]
+              }
+            ],
             "properties": {
               "ipv4": {
                 "type": "object",
-                "required": ["ip_prefix"],
+                "required": [
+                  "ip_prefix"
+                ],
                 "additionalProperties": false,
                 "properties": {
-                  "ip_prefix": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$" },
-                  "primary": { "type": "boolean" }
+                  "ip_prefix": {
+                    "type": "string",
+                    "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$"
+                  },
+                  "primary": {
+                    "type": "boolean"
+                  }
                 }
               },
               "ipv6": {
                 "type": "object",
-                "required": ["ip_prefix"],
+                "required": [
+                  "ip_prefix"
+                ],
                 "additionalProperties": false,
                 "properties": {
-                  "ip_prefix": { "type": "string" },
-                  "primary": { "type": "boolean" }
+                  "ip_prefix": {
+                    "type": "string"
+                  },
+                  "primary": {
+                    "type": "boolean"
+                  }
                 }
               }
             }
           },
           "description": "Dual-stack gateway addresses (IPv4 and/or IPv6) for this IRB."
         },
-        "proxy_arp": { "type": "boolean", "default": true },
-        "proxy_nd": { "type": "boolean", "default": false },
-        "arp_timeout": { "type": "integer", "minimum": 1 },
-        "description": { "type": "string" },
-        "ip_mtu": { "type": "integer", "minimum": 1280, "maximum": 9500 },
+        "proxy_arp": {
+          "type": "boolean",
+          "default": true
+        },
+        "proxy_nd": {
+          "type": "boolean",
+          "default": false
+        },
+        "arp_timeout": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "ip_mtu": {
+          "type": "integer",
+          "minimum": 1280,
+          "maximum": 9500
+        },
         "learn_unsolicited": {
           "type": "string",
-          "enum": ["NONE", "GLOBAL", "LINK-LOCAL", "BOTH"],
+          "enum": [
+            "NONE",
+            "GLOBAL",
+            "LINK-LOCAL",
+            "BOTH"
+          ],
           "default": "NONE"
         },
-        "evpn_route_advertisement_type": { "type": "object", "additionalProperties": true },
+        "evpn_route_advertisement_type": {
+          "type": "object",
+          "additionalProperties": true
+        },
         "host_route_populate": {
           "oneOf": [
-            { "type": "boolean" },
-            { "type": "object", "additionalProperties": true }
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "additionalProperties": true
+            }
           ]
         }
       }
     },
     "vlan": {
-      "type": "object",
-      "required": ["name", "bridge_domain", "vlan_id", "interface_selector"],
-      "additionalProperties": false,
-      "properties": {
-        "name": { "type": "string" },
-        "bridge_domain": { "type": "string" },
-        "vlan_id": {
-          "type": "string",
-          "pattern": "^(untagged|[0-9]+)$"
-        },
-        "interface_selector": {
-          "type": "array",
-          "items": { "type": "string", "pattern": "^[a-zA-Z0-9_./-]+=.+$" },
-          "minItems": 1
-        }
-      }
+      "$ref": "https://nvd.nokia.com/schemas/common/services-defs#/$defs/vlan"
     },
     "routedInterface": {
       "type": "object",
-      "required": ["name", "interface", "router", "vlan_id"],
+      "required": [
+        "name",
+        "interface",
+        "router",
+        "vlan_id"
+      ],
       "additionalProperties": false,
       "properties": {
-        "name": { "type": "string" },
-        "interface": { "type": "string" },
-        "router": { "type": "string" },
-        "vlan_id": { "type": "string" },
-        "ip_mtu": { "type": "integer", "minimum": 1280, "maximum": 9500 },
-        "arp_timeout": { "type": "integer", "minimum": 1 },
+        "name": {
+          "type": "string"
+        },
+        "interface": {
+          "type": "string"
+        },
+        "router": {
+          "type": "string"
+        },
+        "vlan_id": {
+          "type": "string"
+        },
+        "ip_mtu": {
+          "type": "integer",
+          "minimum": 1280,
+          "maximum": 9500
+        },
+        "arp_timeout": {
+          "type": "integer",
+          "minimum": 1
+        },
         "ipv4_addresses": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["ipPrefix"],
+            "required": [
+              "ipPrefix"
+            ],
             "additionalProperties": false,
             "properties": {
-              "ipPrefix": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$" },
-              "primary": { "type": "boolean" }
+              "ipPrefix": {
+                "type": "string",
+                "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$"
+              },
+              "primary": {
+                "type": "boolean"
+              }
             }
           }
         },
@@ -205,50 +344,94 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["ipPrefix"],
+            "required": [
+              "ipPrefix"
+            ],
             "additionalProperties": false,
             "properties": {
-              "ipPrefix": { "type": "string" },
-              "primary": { "type": "boolean" }
+              "ipPrefix": {
+                "type": "string"
+              },
+              "primary": {
+                "type": "boolean"
+              }
             }
           }
         }
       },
       "anyOf": [
-        { "required": ["ipv4_addresses"] },
-        { "required": ["ipv6_addresses"] }
+        {
+          "required": [
+            "ipv4_addresses"
+          ]
+        },
+        {
+          "required": [
+            "ipv6_addresses"
+          ]
+        }
       ]
     },
     "staticRoute": {
       "type": "object",
-      "required": ["name", "router", "nodes", "prefixes", "nexthop_group"],
+      "required": [
+        "name",
+        "router",
+        "nodes",
+        "prefixes",
+        "nexthop_group"
+      ],
       "additionalProperties": false,
       "properties": {
-        "name": { "type": "string" },
-        "router": { "type": "string" },
-        "nodes": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "name": {
+          "type": "string"
+        },
+        "router": {
+          "type": "string"
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
         "prefixes": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "minItems": 1
         },
         "nexthop_group": {
           "type": "object",
-          "required": ["nexthops"],
+          "required": [
+            "nexthops"
+          ],
           "additionalProperties": false,
           "properties": {
-            "blackhole": { "type": "boolean" },
-            "resolve": { "type": "boolean" },
+            "blackhole": {
+              "type": "boolean"
+            },
+            "resolve": {
+              "type": "boolean"
+            },
             "nexthops": {
               "type": "array",
               "minItems": 1,
               "items": {
                 "type": "object",
-                "required": ["ipPrefix"],
+                "required": [
+                  "ipPrefix"
+                ],
                 "additionalProperties": false,
                 "properties": {
-                  "ipPrefix": { "type": "string" },
-                  "resolve": { "type": "boolean" }
+                  "ipPrefix": {
+                    "type": "string"
+                  },
+                  "resolve": {
+                    "type": "boolean"
+                  }
                 }
               }
             }
@@ -258,28 +441,58 @@
     },
     "routingPolicy": {
       "type": "object",
-      "required": ["name", "statements"],
+      "required": [
+        "name",
+        "statements"
+      ],
       "additionalProperties": false,
       "properties": {
-        "name": { "type": "string" },
-        "default_action": { "type": "string", "enum": ["accept", "reject"] },
+        "name": {
+          "type": "string"
+        },
+        "default_action": {
+          "type": "string",
+          "enum": [
+            "accept",
+            "reject"
+          ]
+        },
         "statements": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["name"],
+            "required": [
+              "name"
+            ],
             "additionalProperties": false,
             "properties": {
-              "name": { "type": "string" },
+              "name": {
+                "type": "string"
+              },
               "match": {
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
-                  "prefix_set": { "type": "string" },
-                  "protocol": { "type": "string", "enum": ["local", "bgp", "aggregate", "bgp_evpn", "static"] },
+                  "prefix_set": {
+                    "type": "string"
+                  },
+                  "protocol": {
+                    "type": "string",
+                    "enum": [
+                      "local",
+                      "bgp",
+                      "aggregate",
+                      "bgp_evpn",
+                      "static"
+                    ]
+                  },
                   "bgp_evpn_route_types": {
                     "type": "array",
-                    "items": { "type": "integer", "minimum": 1, "maximum": 5 }
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 5
+                    }
                   }
                 }
               },
@@ -287,8 +500,17 @@
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
-                  "result": { "type": "string", "enum": ["accept", "reject"] },
-                  "set_local_preference": { "type": "integer", "minimum": 0 }
+                  "result": {
+                    "type": "string",
+                    "enum": [
+                      "accept",
+                      "reject"
+                    ]
+                  },
+                  "set_local_preference": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
                 }
               }
             }

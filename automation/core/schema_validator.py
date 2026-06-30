@@ -16,12 +16,132 @@ import copy
 import json
 import logging
 import re
+from functools import lru_cache
 from pathlib import Path
 
 import jsonschema
 import yaml
+from referencing import Registry, Resource
 
 logger = logging.getLogger(__name__)
+
+# Directory holding the shared $defs documents that design schemas $ref.
+_COMMON_SCHEMAS_DIR = Path(__file__).resolve().parent.parent / "schemas"
+_COMMON_SCHEMA_FILES = ("common_services_defs.json", "common_topology_defs.json")
+
+
+@lru_cache(maxsize=1)
+def _common_registry() -> Registry:
+    """Build a ``referencing`` registry of the shared common-defs documents.
+
+    Design schemas reference these via their absolute ``$id`` (e.g.
+    ``https://nvd.nokia.com/schemas/common/services-defs#/$defs/router``); the
+    registry lets ``jsonschema`` resolve those cross-file ``$ref``s at
+    validation time.
+    """
+    resources: list[tuple[str, Resource]] = []
+    for fname in _COMMON_SCHEMA_FILES:
+        path = _COMMON_SCHEMAS_DIR / fname
+        if not path.exists():
+            logger.warning("Common schema defs not found: %s", path)
+            continue
+        contents = json.loads(path.read_text())
+        resource = Resource.from_contents(contents)
+        resources.append((contents["$id"], resource))
+    return Registry().with_resources(resources)
+
+
+def _validate(instance, schema: dict) -> None:
+    """Validate *instance* against *schema*, resolving shared common $defs."""
+    validator = jsonschema.Draft202012Validator(schema, registry=_common_registry())
+    validator.validate(instance)
+
+
+@lru_cache(maxsize=1)
+def _common_defs_by_id() -> dict[str, dict]:
+    """Map each common-defs ``$id`` to its ``$defs`` block."""
+    out: dict[str, dict] = {}
+    for fname in _COMMON_SCHEMA_FILES:
+        path = _COMMON_SCHEMAS_DIR / fname
+        if not path.exists():
+            continue
+        contents = json.loads(path.read_text())
+        out[contents["$id"]] = contents.get("$defs", {})
+    return out
+
+
+def bundle_common_refs(schema: dict) -> dict:
+    """Inline external common-defs ``$ref``s into the schema's local ``$defs``.
+
+    Produces a self-contained schema (no cross-file ``$ref``) so generated
+    fragment schemas validate in editors / YAML language servers without a
+    reference registry. The referenced common defs (and their transitive
+    same-document dependencies) are copied in and the external refs rewritten
+    to local ``#/$defs/<name>`` pointers.
+    """
+    schema = copy.deepcopy(schema)
+    defs_by_id = _common_defs_by_id()
+    if not defs_by_id:
+        return schema
+
+    def _external(ref: str) -> tuple[str, str] | None:
+        if not isinstance(ref, str) or "#/$defs/" not in ref:
+            return None
+        base, _, frag = ref.partition("#/$defs/")
+        return (base, frag) if base in defs_by_id else None
+
+    # Collect external (common_id, def_name) references anywhere in the schema.
+    needed: set[tuple[str, str]] = set()
+
+    def _find(node) -> None:
+        if isinstance(node, dict):
+            ext = _external(node.get("$ref", ""))
+            if ext is not None:
+                needed.add(ext)
+            for v in node.values():
+                _find(v)
+        elif isinstance(node, list):
+            for v in node:
+                _find(v)
+
+    _find(schema)
+
+    # Transitively pull same-document deps inside each common doc (e.g. lag/
+    # edgeInterface both reference the local ``labels`` def).
+    frontier = list(needed)
+    while frontier:
+        cid, name = frontier.pop()
+        stack = [defs_by_id[cid].get(name, {})]
+        while stack:
+            node = stack.pop()
+            if isinstance(node, dict):
+                ref = node.get("$ref")
+                if isinstance(ref, str) and ref.startswith("#/$defs/"):
+                    sub = ref[len("#/$defs/"):]
+                    if (cid, sub) not in needed:
+                        needed.add((cid, sub))
+                        frontier.append((cid, sub))
+                stack.extend(node.values())
+            elif isinstance(node, list):
+                stack.extend(node)
+
+    local_defs = schema.setdefault("$defs", {})
+    for cid, name in needed:
+        local_defs[name] = copy.deepcopy(defs_by_id[cid][name])
+
+    def _rewrite(node) -> None:
+        if isinstance(node, dict):
+            ext = _external(node.get("$ref", ""))
+            if ext is not None:
+                node["$ref"] = f"#/$defs/{ext[1]}"
+            for v in node.values():
+                _rewrite(v)
+        elif isinstance(node, list):
+            for v in node:
+                _rewrite(v)
+
+    _rewrite(schema)
+    return schema
 
 
 # Top-level keys whose values must agree across all fragments. A mismatch
@@ -68,7 +188,7 @@ def validate_input(data: dict, schema_path: Path) -> None:
     Raises jsonschema.ValidationError on failure.
     """
     schema = load_json_schema(schema_path)
-    jsonschema.validate(instance=data, schema=schema)
+    _validate(data, schema)
     logger.info("Validation passed against %s", schema_path.name)
 
 
@@ -285,7 +405,7 @@ def _load_topic(
         data = load_yaml(path)
         if fragment_schema is not None:
             try:
-                jsonschema.validate(instance=data, schema=fragment_schema)
+                _validate(data, fragment_schema)
             except jsonschema.ValidationError as e:
                 raise jsonschema.ValidationError(
                     f"Fragment {d_dir.name}/{path.name}: {e.message}",
@@ -304,7 +424,7 @@ def _load_topic(
 
     if schema is not None:
         try:
-            jsonschema.validate(instance=merged, schema=schema)
+            _validate(merged, schema)
         except jsonschema.ValidationError as e:
             raise jsonschema.ValidationError(
                 f"Merged {kind} fragments fail strict validation: {e.message}",

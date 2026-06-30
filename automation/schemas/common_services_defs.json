@@ -1,54 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "common/services-defs",
+  "$id": "https://nvd.nokia.com/schemas/common/services-defs",
   "title": "Shared Services Schema Definitions",
-  "description": "Reusable $defs for services schemas across all NVD designs.",
+  "description": "Reusable $defs for services schemas across all NVD designs. Only resources whose shape is identical across every design live here; design-specific resources (bridgeDomain, irbInterface, routedInterface, staticRoute, routingPolicy) stay local to each design schema.",
   "$defs": {
-    "bridgeDomain": {
-      "type": "object",
-      "required": ["name", "vni", "evi"],
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Bridge domain resource name."
-        },
-        "vni": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 16777215,
-          "description": "VXLAN Network Identifier."
-        },
-        "evi": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 65535,
-          "description": "EVPN Instance identifier."
-        },
-        "mac_learning": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable MAC learning."
-        },
-        "mac_aging": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "MAC aging time in seconds (0 = disabled)."
-        },
-        "mac_duplication": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "enabled": { "type": "boolean" },
-            "hold_down_time": { "type": "integer", "minimum": 0 },
-            "monitoring_window": { "type": "integer", "minimum": 0 },
-            "action": { "type": "string" },
-            "num_moves": { "type": "integer", "minimum": 0 }
-          },
-          "description": "MAC duplication detection settings."
-        }
-      }
-    },
     "router": {
       "type": "object",
       "required": ["name", "vni", "evi", "node_selector"],
@@ -56,7 +11,7 @@
       "properties": {
         "name": {
           "type": "string",
-          "description": "Router (ip-vrf) resource name."
+          "description": "Router (IP-VRF) resource name."
         },
         "vni": {
           "type": "integer",
@@ -72,8 +27,22 @@
         },
         "node_selector": {
           "type": "array",
-          "items": { "type": "string" },
-          "description": "Label selectors to select nodes for this router."
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_./-]+=.+$"
+          },
+          "minItems": 1,
+          "description": "Label selectors to match nodes for this router (e.g. 'eda.nokia.com/role=leaf')."
+        },
+        "export_target": {
+          "type": "string",
+          "pattern": "^target:.+$",
+          "description": "Optional BGP-EVPN export route target (e.g. 'target:1:777'). Overrides the default 'target:1:<evi>'."
+        },
+        "import_target": {
+          "type": "string",
+          "pattern": "^target:.+$",
+          "description": "Optional BGP-EVPN import route target (e.g. 'target:1:777'). Overrides the default 'target:1:<evi>'."
         }
       }
     },
@@ -84,134 +53,25 @@
       "properties": {
         "name": {
           "type": "string",
-          "description": "VLAN resource name."
+          "description": "VLAN service resource name."
         },
         "bridge_domain": {
           "type": "string",
-          "description": "Bridge domain this VLAN is attached to."
+          "description": "Bridge domain this VLAN belongs to (must exist in bridge_domains)."
         },
         "vlan_id": {
           "type": "string",
-          "description": "VLAN ID number or 'untagged'."
+          "pattern": "^(untagged|[0-9]+)$",
+          "description": "VLAN ID ('untagged' or numeric string like '10')."
         },
         "interface_selector": {
           "type": "array",
-          "items": { "type": "string" },
-          "description": "Label selectors to match interfaces for this VLAN."
-        }
-      }
-    },
-    "routedInterface": {
-      "type": "object",
-      "required": ["name", "interface", "router", "vlan_id", "ipv4_addresses"],
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Routed interface resource name."
-        },
-        "interface": {
-          "type": "string",
-          "description": "Interface resource name."
-        },
-        "router": {
-          "type": "string",
-          "description": "Router (ip-vrf) this interface is bound to."
-        },
-        "vlan_id": {
-          "type": "string",
-          "description": "VLAN ID for the sub-interface ('null' for untagged)."
-        },
-        "ip_mtu": {
-          "type": "integer",
-          "minimum": 1280,
-          "maximum": 9394,
-          "default": 1500,
-          "description": "IP MTU for this interface."
-        },
-        "arp_timeout": {
-          "type": "integer",
-          "minimum": 60,
-          "default": 14400,
-          "description": "ARP timeout in seconds."
-        },
-        "ipv4_addresses": {
-          "type": "array",
-          "minItems": 1,
           "items": {
-            "type": "object",
-            "required": ["ipPrefix"],
-            "properties": {
-              "ipPrefix": {
-                "type": "string",
-                "description": "IPv4 prefix (e.g. '172.16.100.0/31')."
-              },
-              "primary": {
-                "type": "boolean",
-                "default": true,
-                "description": "Primary address flag."
-              }
-            }
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_./-]+=.+$"
           },
-          "description": "IPv4 address assignments."
-        }
-      }
-    },
-    "staticRoute": {
-      "type": "object",
-      "required": ["name", "router", "nodes", "prefixes", "nexthop_group"],
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Static route resource name."
-        },
-        "router": {
-          "type": "string",
-          "description": "Router (ip-vrf) for the static route."
-        },
-        "nodes": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Nodes on which to install this route."
-        },
-        "prefixes": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Destination prefixes."
-        },
-        "nexthop_group": {
-          "type": "object",
-          "required": ["nexthops"],
-          "additionalProperties": false,
-          "properties": {
-            "blackhole": {
-              "type": "boolean",
-              "default": false
-            },
-            "resolve": {
-              "type": "boolean",
-              "default": false
-            },
-            "nexthops": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "required": ["ipPrefix"],
-                "properties": {
-                  "ipPrefix": {
-                    "type": "string",
-                    "description": "Next-hop IPv4 address."
-                  },
-                  "resolve": {
-                    "type": "boolean",
-                    "default": false
-                  }
-                }
-              }
-            }
-          },
-          "description": "Next-hop group configuration."
+          "minItems": 1,
+          "description": "Label selectors to match interfaces for this VLAN."
         }
       }
     }

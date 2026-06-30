@@ -21,10 +21,12 @@ Breaking changes vs 24.10.x
 
 from __future__ import annotations
 
+import sys as _sys
 from typing import Any
 
 from . import default as _base
 from .default import _build_routing_policy, _get, _local_pref_legacy
+from ._phases import make_phase_entrypoints
 
 PROTECTED_NIS = _base.PROTECTED_NIS
 PROTECTED_INTERFACES = _base.PROTECTED_INTERFACES
@@ -214,33 +216,9 @@ def build_routing_policy_updates(hv: dict) -> list[dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
-# Phase-scoped entry points
+# Phase-scoped entry points  (shared composition; see _phases.py)
 # ---------------------------------------------------------------------------
 
-def build_topology_updates(hv: dict) -> list[dict[str, Any]]:
-    """Topology phase: system0, underlay interfaces/subinterfaces, BFD, hostname, LLDP."""
-    updates: list[dict] = []
-    updates += build_interface_updates(hv, scope="topology")
-    updates += build_subinterface_updates(hv, scope="topology")
-    updates += build_bfd_updates(hv)
-    updates += build_system_updates(hv, scope="topology")
-    return updates
-
-
-def build_fabric_updates(hv: dict) -> list[dict[str, Any]]:
-    """Fabric phase: default NI (BGP underlay/overlay) + routing-policy."""
-    updates: list[dict] = []
-    updates += build_network_instance_updates(hv, scope="fabric")
-    updates += build_routing_policy_updates(hv)
-    return updates
-
-
-def build_services_updates(hv: dict) -> list[dict[str, Any]]:
-    """Services phase: edge, LAG, IRB, VXLAN, mac-vrf, ip-vrf, ES, event-handler."""
-    updates: list[dict] = []
-    updates += build_interface_updates(hv, scope="services")
-    updates += build_subinterface_updates(hv, scope="services")
-    updates += build_tunnel_interface_updates(hv)
-    updates += build_network_instance_updates(hv, scope="services")
-    updates += build_system_updates(hv, scope="services")
-    return updates
+build_topology_updates, build_fabric_updates, build_services_updates = (
+    make_phase_entrypoints(_sys.modules[__name__])
+)

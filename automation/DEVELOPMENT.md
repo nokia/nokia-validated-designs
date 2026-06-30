@@ -70,26 +70,22 @@ change structure:
    file can be removed from `openapi_specs/` and the old entry removed from
    `RESOURCE_MAP`. The new spec file replaces it.
 
-#### Known codegen drift — re-apply after regen
+#### Inline sub-schema collisions (fixed; guarded by a test)
 
-The generator collapses inline sub-schemas with the same property name
-into a single class, and only keeps the fields from one side. When a
-schema appears in two places with different fields (e.g. `underlayProtocol.bgp`
-vs `overlayProtocol.bgp`), fields unique to one side are silently dropped
-from the emitted model — and Pydantic's default `extra="ignore"` then drops
-them again at construction time, so the bug is invisible at build time and
-only surfaces as a missing field in the deployed CR.
+When two inline sub-schemas resolve to the same generated class name (e.g.
+`underlayProtocol.bgp` and `overlayProtocol.bgp` both map to `FabricBgp`),
+the generator **unions** their `properties`/`required` rather than letting one
+shadow the other. This was previously a silent field-drop: fields unique to one
+side (e.g. `asnPool` on the underlay) were lost, and Pydantic's default
+`extra="ignore"` dropped them again at construction time — invisible at build
+time, surfacing only as a fabric with BGP sessions up and zero routes.
 
-Currently patched by hand (search for `MANUAL PATCH` in `eda_models/`):
-
-- `FabricBgp.asn_pool` (`asnPool`) — present on underlay.bgp only; dropping
-  it leaves `underlayProtocol.bgp: {}` on the Fabric CR, which stops EDA's
-  reconciler from generating the derived eBGP underlay policies and leaves
-  the fabric with BGP sessions up but zero routes exchanged.
-
-After every codegen run, grep for `MANUAL PATCH` and re-apply. The real
-fix is a generator change that merges inline sub-schemas by full JSON
-pointer rather than by leaf property name.
+The union lives in `_collect_class()` in `codegen/generate_models.py`. A
+regression test (`tests/unit/test_eda_models.py`) asserts the previously-dropped
+fields (`FabricBgp.asn_pool`, `StaticRouteBfd.local_discriminator`/
+`remote_discriminator`, `PolicyBgp.as_path_match`/`evpn_route_type`) remain
+present, so a regression fails CI rather than production. No `MANUAL PATCH` is
+needed after regen.
 
 ### 1c. Update the executor if endpoint paths changed
 
@@ -131,6 +127,95 @@ The registry tests (`test_registry.py`) verify structural invariants
 lowercase). The EDA generator tests (`test_eda_generator.py`) verify that
 all generated CRs use apiVersions from the registry and have the required
 metadata fields.
+
+### 1f. Adding a new EDA release profile (the 26.4.2 case)
+
+Adding support for a new EDA release is **profile-only** when the CR apiVersions
+and spec shapes are unchanged; otherwise it needs a version-scoped model package
++ generator backend. Always verify against the live API rather than assuming —
+verified ground truth beats the version number.
+
+> **CRITICAL — a *fresh install* and an *in-place upgrade* serve different API
+> versions.** A clean 26.4.2 install serves the new native models, but a cluster
+> upgraded from 25.12 keeps serving the *old* apiVersions for already-migrated
+> resources (for backward compat). Always verify against a **freshly installed**
+> cluster of the target release, or you'll lock in the wrong versions. (We did
+> exactly that once: an upgraded cluster reported `services/v1` everywhere and
+> sent us down a wrong path — a fresh install revealed `services/v2`.)
+
+Worked example — **EDA 26.4.2** (verified against a fresh install's `/apps`
+discovery + REST API): `services` and `protocols` graduated to **v2**, and every
+other group we use graduated `v1alpha1` → **v1** (`bootstrap`, `interfaces`,
+`fabrics`, `config`, `siteinfo`, `routingpolicies`; `core` stays `v1`). The v2
+spec shapes also changed (`vni` → `encapOptions.vxlan`, `nodeSelector` →
+`nodeSelectors`, IRB/RoutedInterface `ipv4`/`ipv6` blocks, recased Interface
+enums, `Init.mgmt` DHCP fields removed, …). So `_PROFILE_26_4` sets
+`generator_variant="v2"`, ships its own model package (`eda_models/eda_26_4/`,
+generated from the `openapi_specs/eda_26_4/` specs via the `RESOURCE_MAP_26_4`
+target in `generate_models.py`), and `eda_generator.generate()` dispatches to
+`eda_generator_v2` for that variant. The v2 backend reuses the version-neutral
+v1 builders (NodeProfile, TopoNode/Link, pools, StaticRoute) and reimplements
+only the divergent kinds against the v2 models.
+
+How to verify a release before writing the profile (needs a token — see the
+auth note below):
+
+```bash
+# 1. Which version does each group actually serve?
+curl -sk -H "Authorization: Bearer $TOKEN" https://<host>:9443/openapi/v3 \
+  | jq -r '.paths | keys[] | select(startswith("/apps/"))'
+
+# 2. Spot-check a resource's real apiVersion + spec shape (use the served version)
+curl -sk -H "Authorization: Bearer $TOKEN" \
+  https://<host>:9443/apps/services.eda.nokia.com/v2/namespaces/eda/bridgedomains/<name> \
+  | jq '{apiVersion, spec}'
+
+# 3. Dry-run the generated CRs (non-mutating) — expect success:true, 0 errors.
+#    POST /core/transaction/v2 {"dryRun": true, "crs": [{"type":{"replace":{"value": <cr>}}}]}
+#    then GET /core/transaction/v2/result/summary/<id> (success) and
+#    .../result/execution/<id> (per-CR + generalErrors). NB: an unlicensed
+#    cluster fails the *commit* with generalError "cannot change targets as
+#    there is no valid license" even though every CR validated fine.
+```
+
+Then add a `Registry(...)` to `_PROFILES` (its `eda_version` is the **major.minor**
+key, e.g. `"26.4"`) and a `test_profiles.py` assertion locking in the observed
+apiVersions.
+
+**Profile selection is major.minor + auto-detected.** Profiles are keyed by
+`major.minor` because patch releases aren't expected to break CR/API shapes, so
+`get_registry()` matches `"26.4"`, `"26.4.2"` and the raw `"v26.4.2-..."` build
+string to the same `26.4` profile (see `normalize_eda_version()`). At deploy
+time `--eda-version` is **optional**: when omitted in `--mode eda`, the running
+release is auto-detected from the cluster's authenticated `GET
+/core/about/version` (`eda.version`) via `EdaClient.get_eda_version()`, then the
+profile is selected by major.minor (falling back to `DEFAULT_EDA_VERSION` if the
+cluster is unreachable or the minor has no profile). Pass `--eda-version`
+explicitly to override detection.
+
+> **Auth path moved in 26.4.x.** The Keycloak/identity reverse proxy moved from
+> `/core/httpproxy/v1/keycloak` (≤25.12) to `/core/proxy/v1/identity` (26.4.x).
+> `EdaClient._resolve_keycloak_base()` probes both (newest first) via each
+> realm's `.well-known/openid-configuration`, so a single client works across
+> releases. If a future release moves it again, add the new prefix to
+> `_KEYCLOAK_BASE_CANDIDATES`.
+
+When a release genuinely changes CR *spec shapes* (not just versions), use a
+version-scoped model package + a dedicated generator backend selected by the
+profile's `generator_variant`, keeping the older release's models untouched —
+that's exactly the `eda_26_4` / `eda_generator_v2` setup described above.
+
+> **26.4 mgmt0 must be a CIDR.** 25.12 set `Init.mgmt.ipv4DHCP=true`, so the node
+> got its mgmt0 address via DHCP and EDA never rendered a static mgmt0. bootstrap
+> v1 dropped those DHCP fields, so 26.4 instead renders a **static** mgmt0 from
+> `TopoNode.productionAddress.ipv4` — and SR Linux validates that as an
+> `ip-prefix`. A bare IP (`172.21.21.11`) fails node config validation; it must
+> be zoned with the management subnet's prefix (`172.21.21.11/24`). `eda_generator_v2`
+> derives the prefix via `clab_generator._derive_mgmt_subnet(intent)` and zones
+> each TopoNode's `productionAddress`. This surfaces only at *node config*
+> validation: the transaction is accepted, but `result/execution/<id>` reports
+> per-node `nodesWithConfigChanges[].errors` ("Unable to load JSON … ip-prefix
+> … Must match the pattern") with `success:false` and no `generalErrors`.
 
 ---
 

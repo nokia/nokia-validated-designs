@@ -4,13 +4,19 @@
   "title": "3-Stage EVPN VXLAN Topology Input",
   "description": "Defines the physical topology for a 3-stage Clos fabric with EVPN VXLAN overlay.",
   "type": "object",
-  "required": ["design", "fabric_name", "underlay", "spines", "leafs"],
+  "required": [
+    "design",
+    "fabric_name",
+    "underlay",
+    "spines",
+    "leafs"
+  ],
   "additionalProperties": false,
   "properties": {
     "design": {
       "type": "string",
       "const": "3-stage-evpn-vxlan",
-      "description": "Design identifier — must be '3-stage-evpn-vxlan'."
+      "description": "Design identifier \u2014 must be '3-stage-evpn-vxlan'."
     },
     "fabric_name": {
       "type": "string",
@@ -19,7 +25,10 @@
     },
     "environment": {
       "type": "string",
-      "enum": ["containerlab", "physical"],
+      "enum": [
+        "containerlab",
+        "physical"
+      ],
       "default": "containerlab",
       "description": "Deployment environment."
     },
@@ -47,7 +56,11 @@
     },
     "underlay": {
       "type": "object",
-      "required": ["spine_asn", "leaf_asn_start", "system0_prefix"],
+      "required": [
+        "spine_asn",
+        "leaf_asn_start",
+        "system0_prefix"
+      ],
       "additionalProperties": false,
       "properties": {
         "spine_asn": {
@@ -79,47 +92,65 @@
     },
     "nodes": {
       "type": "array",
-      "items": { "$ref": "#/$defs/nodeOverride" },
+      "items": {
+        "$ref": "#/$defs/nodeOverride"
+      },
       "description": "Per-node overrides for auto-generated nodes. Each entry matches a node by name and overrides specific properties."
     },
     "links": {
       "type": "array",
-      "items": { "$ref": "#/$defs/linkOverride" },
-      "description": "Per-link overrides for auto-generated ISLs. Each entry matches the auto-allocated link by its (leaf, spine) node pair (orientation-agnostic) and overrides the interface allocation. Only valid leaf↔spine pairs are accepted."
+      "items": {
+        "$ref": "#/$defs/linkOverride"
+      },
+      "description": "Per-link overrides for auto-generated ISLs. Each entry matches the auto-allocated link by its (leaf, spine) node pair (orientation-agnostic) and overrides the interface allocation. Only valid leaf\u2194spine pairs are accepted."
     },
     "edge_interfaces": {
       "type": "array",
-      "items": { "$ref": "#/$defs/edgeInterface" },
+      "items": {
+        "$ref": "#/$defs/edgeInterface"
+      },
       "description": "Server-facing (edge) interfaces."
     },
     "lags": {
       "type": "array",
-      "items": { "$ref": "#/$defs/lag" },
+      "items": {
+        "$ref": "#/$defs/lag"
+      },
       "description": "LAG (Link Aggregation Group) interfaces."
     },
     "default_mtu": {
       "type": "array",
-      "items": { "$ref": "#/$defs/defaultMtu" },
+      "items": {
+        "$ref": "#/$defs/defaultMtu"
+      },
       "description": "Default MTU settings for fabric nodes."
     },
     "banners": {
       "type": "array",
-      "items": { "$ref": "#/$defs/banner" },
+      "items": {
+        "$ref": "#/$defs/banner"
+      },
       "description": "Login and MOTD banner settings for fabric nodes."
     },
     "prefix_sets": {
       "type": "array",
-      "items": { "$ref": "#/$defs/prefixSet" },
+      "items": {
+        "$ref": "#/$defs/prefixSet"
+      },
       "description": "Prefix sets referenced by routing policies. Overrides design-generated 'prefixset-{fabric_name}' when a name matches."
     },
     "fabric_export_policies": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "Names of routing policies to attach to the fabric's default eBGP group as export policies. Defaults to the design-generated 'ebgp-isl-export-policy-{fabric_name}'."
     },
     "fabric_import_policies": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "Names of routing policies to attach to the fabric's default eBGP group as import policies. Defaults to the design-generated 'ebgp-isl-import-policy-{fabric_name}'."
     },
     "eda": {
@@ -144,7 +175,9 @@
       "properties": {
         "configlets": {
           "type": "array",
-          "items": { "$ref": "#/$defs/configlet" },
+          "items": {
+            "$ref": "#/$defs/configlet"
+          },
           "description": "Additional or override configlets (raw SR Linux config patches)."
         }
       }
@@ -152,16 +185,16 @@
   },
   "$defs": {
     "labels": {
-      "type": "object",
-      "patternProperties": {
-        "^[a-zA-Z0-9_./-]+$": { "type": "string" }
-      },
-      "additionalProperties": false,
-      "description": "Kubernetes-style label key/value pairs."
+      "$ref": "https://nvd.nokia.com/schemas/common/topology-defs#/$defs/labels"
     },
     "nodeGroup": {
       "type": "object",
-      "required": ["count", "platform", "version", "mgmt_base_ipv4"],
+      "required": [
+        "count",
+        "platform",
+        "version",
+        "mgmt_base_ipv4"
+      ],
       "additionalProperties": false,
       "properties": {
         "count": {
@@ -196,7 +229,10 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["port_range", "mode"],
+            "required": [
+              "port_range",
+              "mode"
+            ],
             "properties": {
               "port_range": {
                 "type": "string",
@@ -214,7 +250,9 @@
     },
     "nodeOverride": {
       "type": "object",
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "additionalProperties": false,
       "properties": {
         "name": {
@@ -243,7 +281,12 @@
     },
     "linkOverride": {
       "type": "object",
-      "required": ["local_node", "local_interface", "remote_node", "remote_interface"],
+      "required": [
+        "local_node",
+        "local_interface",
+        "remote_node",
+        "remote_interface"
+      ],
       "additionalProperties": false,
       "properties": {
         "name": {
@@ -252,7 +295,7 @@
         },
         "local_node": {
           "type": "string",
-          "description": "Local node name. Must be one endpoint of an auto-allocated leaf↔spine pair."
+          "description": "Local node name. Must be one endpoint of an auto-allocated leaf\u2194spine pair."
         },
         "local_interface": {
           "type": "string",
@@ -261,7 +304,7 @@
         },
         "remote_node": {
           "type": "string",
-          "description": "Remote node name. Must be the other endpoint of an auto-allocated leaf↔spine pair."
+          "description": "Remote node name. Must be the other endpoint of an auto-allocated leaf\u2194spine pair."
         },
         "remote_interface": {
           "type": "string",
@@ -271,214 +314,23 @@
       }
     },
     "edgeInterface": {
-      "type": "object",
-      "required": ["name", "node", "interface", "encap"],
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Unique interface resource name."
-        },
-        "node": {
-          "type": "string",
-          "description": "Node this interface belongs to."
-        },
-        "interface": {
-          "type": "string",
-          "pattern": "^ethernet-[0-9]+-[0-9]+$",
-          "description": "Physical interface name (e.g. 'ethernet-1-3')."
-        },
-        "encap": {
-          "type": "string",
-          "enum": ["dot1q", "null"],
-          "description": "Encapsulation type."
-        },
-        "labels": {
-          "$ref": "#/$defs/labels"
-        }
-      }
+      "$ref": "https://nvd.nokia.com/schemas/common/topology-defs#/$defs/edgeInterface"
     },
     "lag": {
-      "type": "object",
-      "required": ["name", "type", "mode", "min_links", "lacp", "members"],
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Unique LAG resource name."
-        },
-        "type": {
-          "type": "string",
-          "enum": ["lacp"],
-          "description": "LAG type."
-        },
-        "mode": {
-          "type": "string",
-          "enum": ["all-active", "port-active"],
-          "description": "ESI multi-homing mode."
-        },
-        "min_links": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Minimum active links."
-        },
-        "revertive": {
-          "type": "boolean",
-          "description": "Enable revertive behavior (port-active only)."
-        },
-        "preferred_active_node": {
-          "type": "string",
-          "description": "Preferred active node for port-active LAGs."
-        },
-        "standby_signaling": {
-          "type": "string",
-          "enum": ["lacp"],
-          "description": "Standby signaling method."
-        },
-        "lacp": {
-          "type": "object",
-          "required": ["interval", "system_id_mac", "system_priority"],
-          "additionalProperties": false,
-          "properties": {
-            "interval": {
-              "type": "string",
-              "enum": ["fast", "slow"],
-              "description": "LACP PDU interval."
-            },
-            "system_id_mac": {
-              "type": "string",
-              "pattern": "^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$",
-              "description": "LACP system ID MAC address."
-            },
-            "system_priority": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 65535,
-              "description": "LACP system priority."
-            },
-            "fallback": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "mode": {
-                  "type": "string",
-                  "enum": ["static"],
-                  "description": "LACP fallback mode."
-                },
-                "timeout": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "description": "Fallback timeout in seconds."
-                }
-              }
-            }
-          }
-        },
-        "members": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "object",
-            "required": ["node", "interface", "aggregate_id"],
-            "additionalProperties": false,
-            "properties": {
-              "node": {
-                "type": "string",
-                "description": "Member node name."
-              },
-              "interface": {
-                "type": "string",
-                "description": "Member interface name."
-              },
-              "aggregate_id": {
-                "type": "string",
-                "description": "LAG aggregate ID."
-              }
-            }
-          },
-          "description": "LAG member interfaces."
-        },
-        "labels": {
-          "$ref": "#/$defs/labels"
-        },
-        "reload_delay_timer": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Reload delay timer in seconds."
-        }
-      }
+      "$ref": "https://nvd.nokia.com/schemas/common/topology-defs#/$defs/lag"
     },
     "defaultMtu": {
-      "type": "object",
-      "required": ["name"],
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Unique DefaultMTU resource name."
-        },
-        "interface_mtu": {
-          "type": "integer",
-          "minimum": 1500,
-          "maximum": 11000,
-          "description": "Default MTU for Ethernet interfaces (includes Ethernet headers, excludes 4-byte FCS trailer)."
-        },
-        "layer2_subif_mtu": {
-          "type": "integer",
-          "minimum": 1500,
-          "maximum": 11000,
-          "description": "Default MTU for Layer 2 (bridged) sub-interfaces."
-        },
-        "layer3_mtu": {
-          "type": "integer",
-          "minimum": 1280,
-          "maximum": 11000,
-          "description": "Default IP MTU for Layer 3 interfaces."
-        },
-        "node_selector": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Label selector to select nodes on which to configure the defaults."
-        },
-        "nodes": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Explicit list of nodes on which to configure the defaults."
-        }
-      }
+      "$ref": "https://nvd.nokia.com/schemas/common/topology-defs#/$defs/defaultMtu"
     },
     "banner": {
-      "type": "object",
-      "required": ["name"],
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Unique Banner resource name."
-        },
-        "login_banner": {
-          "type": "string",
-          "description": "Login banner displayed before a user has logged into the node."
-        },
-        "motd": {
-          "type": "string",
-          "description": "Message of the Day displayed after a user has logged into the node."
-        },
-        "node_selector": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Label selector to select nodes on which to configure the banners."
-        },
-        "nodes": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Explicit list of nodes on which to configure the banners."
-        }
-      }
+      "$ref": "https://nvd.nokia.com/schemas/common/topology-defs#/$defs/banner"
     },
     "prefixSet": {
       "type": "object",
-      "required": ["name", "prefixes"],
+      "required": [
+        "name",
+        "prefixes"
+      ],
       "additionalProperties": false,
       "properties": {
         "name": {
@@ -490,7 +342,9 @@
           "minItems": 1,
           "items": {
             "type": "object",
-            "required": ["ip_prefix"],
+            "required": [
+              "ip_prefix"
+            ],
             "additionalProperties": false,
             "properties": {
               "ip_prefix": {
@@ -508,56 +362,7 @@
       }
     },
     "configlet": {
-      "type": "object",
-      "required": ["name", "configs"],
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Configlet resource name."
-        },
-        "endpoint_selector": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Label selectors to match target nodes."
-        },
-        "endpoints": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Explicit list of target node names."
-        },
-        "priority": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 1000,
-          "default": 100,
-          "description": "Configlet priority (higher = applied later)."
-        },
-        "configs": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "object",
-            "required": ["path", "operation", "config"],
-            "additionalProperties": false,
-            "properties": {
-              "path": {
-                "type": "string",
-                "description": "JSON path in the SR Linux YANG model."
-              },
-              "operation": {
-                "type": "string",
-                "enum": ["Create", "Update", "Delete"],
-                "description": "Config operation type."
-              },
-              "config": {
-                "type": "string",
-                "description": "JSON config payload as a string."
-              }
-            }
-          }
-        }
-      }
+      "$ref": "https://nvd.nokia.com/schemas/common/topology-defs#/$defs/configlet"
     }
   }
 }

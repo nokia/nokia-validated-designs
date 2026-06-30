@@ -183,17 +183,20 @@
       "additionalProperties": false,
       "properties": {
         "name": {
-          "type": "string"
+          "type": "string",
+          "description": "Router (IP-VRF) resource name."
         },
         "vni": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 16777215
+          "maximum": 16777215,
+          "description": "VXLAN Network Identifier."
         },
         "evi": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 65535
+          "maximum": 65535,
+          "description": "EVPN Instance identifier."
         },
         "node_selector": {
           "type": "array",
@@ -201,7 +204,8 @@
             "type": "string",
             "pattern": "^[a-zA-Z0-9_./-]+=.+$"
           },
-          "minItems": 1
+          "minItems": 1,
+          "description": "Label selectors to match nodes for this router (e.g. 'eda.nokia.com/role=leaf')."
         },
         "export_target": {
           "type": "string",
@@ -378,14 +382,17 @@
       "additionalProperties": false,
       "properties": {
         "name": {
-          "type": "string"
+          "type": "string",
+          "description": "VLAN service resource name."
         },
         "bridge_domain": {
-          "type": "string"
+          "type": "string",
+          "description": "Bridge domain this VLAN belongs to (must exist in bridge_domains)."
         },
         "vlan_id": {
           "type": "string",
-          "pattern": "^(untagged|[0-9]+)$"
+          "pattern": "^(untagged|[0-9]+)$",
+          "description": "VLAN ID ('untagged' or numeric string like '10')."
         },
         "interface_selector": {
           "type": "array",
@@ -393,7 +400,8 @@
             "type": "string",
             "pattern": "^[a-zA-Z0-9_./-]+=.+$"
           },
-          "minItems": 1
+          "minItems": 1,
+          "description": "Label selectors to match interfaces for this VLAN."
         }
       }
     },

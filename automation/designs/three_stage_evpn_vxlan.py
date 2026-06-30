@@ -40,13 +40,14 @@ from automation.core.models import (
     StaticRouteIntent,
     VlanIntent,
 )
-from automation.core.extras import merge_by_name
+from automation.core.extras import ExtrasSpec, apply_extras, merge_by_name
 from automation.core.platforms import (
     expand_breakout,
     get_platform,
     interface_name,
 )
 from automation.designs._common_builders import (
+    apply_node_overrides as _apply_node_overrides,
     build_banners as _build_banners,
     build_default_mtus as _build_default_mtus,
     build_edge_interfaces as _build_edge_interfaces,
@@ -57,6 +58,9 @@ from automation.designs._common_builders import (
     build_routing_policies as _build_routing_policies,
     build_static_routes as _build_static_routes,
     build_vlans as _build_vlans,
+    increment_ip as _increment_ip,
+    validate_mgmt_ips as _validate_mgmt_ips,
+    validate_unique_names as _validate_unique_names,
 )
 
 logger = logging.getLogger(__name__)
@@ -166,36 +170,52 @@ def build(topology: dict, services: dict) -> FabricIntent:
     topo_extras = topology.get("extras", {})
     svc_extras = services.get("extras", {})
 
+    # Configlets fully replace by name (not a field overlay), so they stay a
+    # dedicated special case rather than going through the generic table.
     if topo_extras.get("configlets"):
         configlets = _merge_extras_configlets(
             configlets, topo_extras["configlets"]
         )
 
-    if svc_extras.get("bridge_domains"):
-        bridge_domains = _merge_extras_bridge_domains(
-            bridge_domains, svc_extras["bridge_domains"]
-        )
+    def _set_origin(fields: dict) -> dict:
+        fields["origin"] = "extras"
+        return fields
 
-    if svc_extras.get("irb_interfaces"):
-        irb_interfaces = _merge_extras_irb_interfaces(
-            irb_interfaces, svc_extras["irb_interfaces"], default_ip_mtu
-        )
+    def _irb_pre_process(fields: dict) -> dict:
+        if "ip_addresses" in fields:
+            fields["ip_addresses"] = [
+                IrbIpAddress(**a) for a in fields["ip_addresses"]
+            ]
+        fields.setdefault("ip_mtu", default_ip_mtu)
+        fields["origin"] = "extras"
+        return fields
 
-    if svc_extras.get("routers"):
-        routers = _merge_extras_routers(routers, svc_extras["routers"])
-
-    if svc_extras.get("vlans"):
-        vlans = _merge_extras_vlans(vlans, svc_extras["vlans"])
-
-    if svc_extras.get("routed_interfaces"):
-        routed_interfaces = _merge_extras_routed_interfaces(
-            routed_interfaces, svc_extras["routed_interfaces"]
-        )
-
-    if svc_extras.get("static_routes"):
-        static_routes = _merge_extras_static_routes(
-            static_routes, svc_extras["static_routes"]
-        )
+    _extras_table = {
+        "bridge_domains": ExtrasSpec(BridgeDomainIntent, _set_origin),
+        "irb_interfaces": ExtrasSpec(IrbInterfaceIntent, _irb_pre_process),
+        "routers": ExtrasSpec(RouterIntent),
+        "vlans": ExtrasSpec(VlanIntent),
+        "routed_interfaces": ExtrasSpec(RoutedInterfaceIntent),
+        "static_routes": ExtrasSpec(StaticRouteIntent),
+    }
+    _merged_extras = apply_extras(
+        {
+            "bridge_domains": bridge_domains,
+            "irb_interfaces": irb_interfaces,
+            "routers": routers,
+            "vlans": vlans,
+            "routed_interfaces": routed_interfaces,
+            "static_routes": static_routes,
+        },
+        svc_extras,
+        _extras_table,
+    )
+    bridge_domains = _merged_extras["bridge_domains"]
+    irb_interfaces = _merged_extras["irb_interfaces"]
+    routers = _merged_extras["routers"]
+    vlans = _merged_extras["vlans"]
+    routed_interfaces = _merged_extras["routed_interfaces"]
+    static_routes = _merged_extras["static_routes"]
 
     # -----------------------------------------------------------------------
     # Banners (optional)
@@ -358,62 +378,6 @@ def _build_nodes(
     _validate_mgmt_ips(nodes)
 
     return nodes
-
-
-def _validate_unique_names(nodes: list[NodeIntent]) -> None:
-    """Raise ValueError if any two nodes share the same name."""
-    seen: dict[str, int] = {}
-    for node in nodes:
-        if node.name in seen:
-            raise ValueError(
-                f"Duplicate node name '{node.name}': name_template must include "
-                f"{{i}} placeholder to produce unique names"
-            )
-        seen[node.name] = 1
-
-
-def _apply_node_overrides(
-    nodes: list[NodeIntent], overrides: list[dict]
-) -> None:
-    """Apply per-node overrides to auto-generated nodes (in-place).
-
-    Raises ValueError if an override references a node name that was not
-    auto-generated.
-    """
-    by_name = {n.name: n for n in nodes}
-
-    for ovr in overrides:
-        name = ovr["name"]
-        if name not in by_name:
-            raise ValueError(
-                f"Node override references unknown node '{name}'. "
-                f"Auto-generated nodes: {sorted(by_name)}"
-            )
-        node = by_name[name]
-
-        if "platform" in ovr:
-            node.platform = ovr["platform"]
-        if "version" in ovr:
-            node.version = ovr["version"]
-        if "mgmt_ipv4" in ovr:
-            node.mgmt_ipv4 = ovr["mgmt_ipv4"]
-        if "labels" in ovr:
-            node.labels = {**node.labels, **ovr["labels"]}
-
-
-def _validate_mgmt_ips(nodes: list[NodeIntent]) -> None:
-    """Raise ValueError if any two nodes share the same mgmt_ipv4."""
-    seen: dict[str, str] = {}
-    for node in nodes:
-        if not node.mgmt_ipv4:
-            continue
-        ip = str(ipaddress.IPv4Address(node.mgmt_ipv4))
-        if ip in seen:
-            raise ValueError(
-                f"Duplicate management IP {ip}: "
-                f"assigned to both '{seen[ip]}' and '{node.name}'"
-            )
-        seen[ip] = node.name
 
 
 # ---------------------------------------------------------------------------
@@ -862,63 +826,6 @@ def _merge_extras_configlets(
     return list(by_name.values())
 
 
-def _merge_extras_bridge_domains(
-    design: list[BridgeDomainIntent], extras_raw: list[dict]
-) -> list[BridgeDomainIntent]:
-    """Merge extras bridge domain overrides into design-generated ones."""
-    def _set_origin(fields: dict) -> dict:
-        fields["origin"] = "extras"
-        return fields
-
-    return merge_by_name(design, extras_raw, BridgeDomainIntent, pre_process=_set_origin)
-
-
-def _merge_extras_irb_interfaces(
-    design: list[IrbInterfaceIntent],
-    extras_raw: list[dict],
-    default_ip_mtu: int = 1500,
-) -> list[IrbInterfaceIntent]:
-    """Merge extras IRB overrides into design-generated ones."""
-    def _pre_process(fields: dict) -> dict:
-        if "ip_addresses" in fields:
-            fields["ip_addresses"] = [
-                IrbIpAddress(**a) for a in fields["ip_addresses"]
-            ]
-        fields.setdefault("ip_mtu", default_ip_mtu)
-        fields["origin"] = "extras"
-        return fields
-
-    return merge_by_name(design, extras_raw, IrbInterfaceIntent, pre_process=_pre_process)
-
-
-def _merge_extras_routers(
-    design: list[RouterIntent], extras_raw: list[dict]
-) -> list[RouterIntent]:
-    """Merge extras router overrides into design-generated ones."""
-    return merge_by_name(design, extras_raw, RouterIntent)
-
-
-def _merge_extras_vlans(
-    design: list[VlanIntent], extras_raw: list[dict]
-) -> list[VlanIntent]:
-    """Merge extras VLAN overrides into design-generated ones."""
-    return merge_by_name(design, extras_raw, VlanIntent)
-
-
-def _merge_extras_routed_interfaces(
-    design: list[RoutedInterfaceIntent], extras_raw: list[dict]
-) -> list[RoutedInterfaceIntent]:
-    """Merge extras routed interface overrides into design-generated ones."""
-    return merge_by_name(design, extras_raw, RoutedInterfaceIntent)
-
-
-def _merge_extras_static_routes(
-    design: list[StaticRouteIntent], extras_raw: list[dict]
-) -> list[StaticRouteIntent]:
-    """Merge extras static route overrides into design-generated ones."""
-    return merge_by_name(design, extras_raw, StaticRouteIntent)
-
-
 # ---------------------------------------------------------------------------
 # Routing-policy defaults
 # ---------------------------------------------------------------------------
@@ -1064,12 +971,6 @@ def _default_routing_policies(
 # ---------------------------------------------------------------------------
 # Utilities
 # ---------------------------------------------------------------------------
-
-
-def _increment_ip(base_ip: str, offset: int) -> str:
-    """Increment an IPv4 address by an offset."""
-    addr = ipaddress.IPv4Address(base_ip)
-    return str(addr + offset)
 
 
 def _parse_port_index(interface_name: str) -> int:

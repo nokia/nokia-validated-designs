@@ -22,6 +22,8 @@ class StaticRouteNexthops(_EDABase):
 class StaticRouteBfd(_EDABase):
     enabled: bool | None = Field(False, description="Defines whether BFD should be enabled towards the nexthops.", title="Enabled")
     local_address: str | None = Field(None, alias="localAddress", description="Defines the local address to use when establishing the BFD session with the nexthop.", title="Local Address")
+    local_discriminator: int | None = Field(None, alias="localDiscriminator", description="Defines the local discriminator.", title="Local Discriminator")
+    remote_discriminator: int | None = Field(None, alias="remoteDiscriminator", description="Defines the remote discriminator.", title="Remote Discriminator")
 
 
 class StaticRouteNexthopGroup(_EDABase):

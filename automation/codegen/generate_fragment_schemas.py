@@ -31,6 +31,7 @@ import sys
 from pathlib import Path
 
 from automation.core.schema_validator import (
+    bundle_common_refs,
     load_json_schema,
     make_fragment_schema,
 )
@@ -45,7 +46,9 @@ TOPICS = ("topology", "services")
 
 def _emit(strict_path: Path) -> Path | None:
     strict = load_json_schema(strict_path)
-    fragment = make_fragment_schema(strict)
+    # Bundle shared common $defs into the fragment so the on-disk file is
+    # self-contained for editors / YAML language servers.
+    fragment = bundle_common_refs(make_fragment_schema(strict))
     out_path = strict_path.with_name(
         strict_path.stem.replace("_schema", "_fragment_schema") + strict_path.suffix
     )

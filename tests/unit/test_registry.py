@@ -54,18 +54,31 @@ class TestSRLVersionCheck:
         for ver in SUPPORTED_SRL_VERSIONS:
             assert check_srl_version(ver) is None
 
-    def test_unsupported_version_returns_message(self):
-        err = check_srl_version("26.3.1")
+    def test_below_floor_returns_message(self):
+        # 23.10 is below the 24.10 floor.
+        err = check_srl_version("23.10.1")
         assert err is not None
-        assert "26.3.1" in err
+        assert "23.10.1" in err
         assert EDA_VERSION in err
+
+    def test_unknown_train_returns_message(self):
+        # 25.5 is at/above the floor but not a known train.
+        err = check_srl_version("25.5.1")
+        assert err is not None
+        assert EDA_VERSION in err
+
+    def test_known_train_open_patch_supported(self):
+        # 26.3 is a known train (so the v26 builder isn't rejected).
+        assert check_srl_version("26.3.1") is None
 
     def test_bogus_version_returns_message(self):
         assert check_srl_version("0.0.0") is not None
 
     def test_eda_version_is_string(self):
         assert isinstance(EDA_VERSION, str)
-        assert len(EDA_VERSION.split(".")) >= 3
+        # Profiles are keyed by major.minor (e.g. "25.12"); patch releases map
+        # to the same profile, so the profile version has at least 2 parts.
+        assert len(EDA_VERSION.split(".")) >= 2
 
     def test_supported_versions_non_empty(self):
         assert len(SUPPORTED_SRL_VERSIONS) > 0

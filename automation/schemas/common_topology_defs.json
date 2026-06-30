@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "common/topology-defs",
+  "$id": "https://nvd.nokia.com/schemas/common/topology-defs",
   "title": "Shared Topology Schema Definitions",
   "description": "Reusable $defs for topology schemas across all NVD designs.",
   "$defs": {

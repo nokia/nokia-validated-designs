@@ -12,8 +12,8 @@ routers:
     # EDA and SR Linux CLI). Pattern: ^target:.+$
     # export_target: target:1:777
     # import_target: target:1:777
-  - name: vrf2
-    vni: 10501
-    evi: 501
-    node_selector:
-      - eda.nokia.com/role=leaf
+#  - name: vrf2
+#    vni: 10501
+#    evi: 501
+#    node_selector:
+#      - eda.nokia.com/role=leaf

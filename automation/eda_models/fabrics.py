@@ -2,16 +2,6 @@
 Auto-generated Pydantic v2 models for EDA fabrics API.
 
 DO NOT EDIT — regenerate with: python -m automation.codegen.generate_models
-
-NOTE: The ``FabricBgp.asn_pool`` field below is a manual patch. The codegen
-collapses the two inline ``bgp`` sub-schemas under ``underlayProtocol`` and
-``overlayProtocol`` into a single ``FabricBgp`` class and picks up fields
-from the overlay side only — so ``asnPool`` (present only on the underlay
-variant in the OpenAPI spec) gets silently dropped. Without the patch, the
-emitted Fabric CR ships with an empty ``underlayProtocol.bgp``, EDA's
-Fabric reconciler never generates the derived underlay policies, and
-eBGP underlay sessions come up with no routes exchanged.
-Re-apply this patch after every codegen run until the generator is fixed.
 """
 
 from __future__ import annotations
@@ -69,8 +59,6 @@ class FabricTimers(_EDABase):
 
 
 class FabricBgp(_EDABase):
-    # MANUAL PATCH — see module docstring. Not emitted by the codegen.
-    asn_pool: str | None = Field(None, alias="asnPool", description="Reference to an IndexAllocationPool pool to use for Autonomous System Number allocations.  Used when eBGP is configured as an underlay protocol. If specified under the Leaf/Spine/Superspine/Borderleaf those will take precedence.", title="Autonomous System Pool")
     autonomous_system: int | None = Field(None, alias="autonomousSystem", description="Autonomous System used for iBGP peering session, when protocol is set to IBGP providing an autonomousSystem is required.", title="Autonomous System")
     cluster_id: str | None = Field(None, alias="clusterID", description="Sets the cluster ID used by DefaultRouteReflectors, when protocol is set to IBGP providing a clusterID is required.", title="Cluster ID")
     export_policy: list[str] | None = Field(None, alias="exportPolicy", description="Reference to a Policy, when left empty or not specified the Fabric will automatically generate a policy for the speci...", title="Export Policy")
@@ -80,6 +68,7 @@ class FabricBgp(_EDABase):
     rr_ip_addresses: list[str] | None = Field(None, alias="rrIPAddresses", description="List of route reflector IP addresses not provisioned by this instance of a Fabric resource.  Used with rrClientNodeSe...", title="Route Reflector IP Addresses")
     rr_node_selector: list[str] | None = Field(None, alias="rrNodeSelector", description="Label selector used to select Toponodes to configure as DefaultRouteReflectors, these are typically Spine, Superspine...", title="Route Reflector Node Selector")
     timers: FabricTimers | None = Field(None, description="Timer configurations", title="Timers")
+    asn_pool: str | None = Field(None, alias="asnPool", description="Reference to an IndexAllocationPool pool to use for Autonomous System Number allocations.  Used when eBGP is configur...", title="Autonomous System Pool")
 
 
 class FabricOverlayProtocolBfd(_EDABase):

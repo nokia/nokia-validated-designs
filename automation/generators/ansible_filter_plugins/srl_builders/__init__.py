@@ -5,6 +5,9 @@ Falls back through exact -> minor -> major -> default.
 """
 
 import importlib
+import logging
+
+logger = logging.getLogger(__name__)
 
 _BUILDER_CACHE: dict = {}
 
@@ -17,9 +20,15 @@ def get_builder(version: str):
       2. Minor match   – e.g. ``srl_builders.v24_10``
       3. Major match   – e.g. ``srl_builders.v24``
       4. Default        – ``srl_builders.default``
+
+    The resolved module is logged (at INFO the first time a version is seen,
+    DEBUG on cache hits) so it's clear which builder a device's version mapped
+    to — including the fall-through to ``default`` (the 24.10 base).
     """
     if version in _BUILDER_CACHE:
-        return _BUILDER_CACHE[version]
+        mod = _BUILDER_CACHE[version]
+        logger.debug("SRL builder for %s resolved to %s (cached)", version, mod.__name__)
+        return mod
 
     normalized = version.lstrip("v")
     parts = normalized.replace("-", ".").split(".")
@@ -36,10 +45,14 @@ def get_builder(version: str):
         try:
             mod = importlib.import_module(f".{name}", package=pkg)
             _BUILDER_CACHE[version] = mod
+            logger.info("SRL builder for %s resolved to %s", version, mod.__name__)
             return mod
         except ModuleNotFoundError:
             continue
 
     mod = importlib.import_module(".default", package=pkg)
     _BUILDER_CACHE[version] = mod
+    logger.info(
+        "SRL builder for %s fell through to %s (24.10 base)", version, mod.__name__
+    )
     return mod
