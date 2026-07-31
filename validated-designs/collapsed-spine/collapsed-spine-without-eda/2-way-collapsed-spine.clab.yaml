@@ -8,8 +8,8 @@ topology:
     kind: nokia_srlinux
   kinds:
     nokia_srlinux:
-      image: ghcr.io/nokia/srlinux:25.3.2
-      type: ixrd3l
+      image: ghcr.io/nokia/srlinux:25.10.4-314
+      type: ixr-d3l
       startup-config: configs/__clabNodeName__.cli
     linux:
       image: ghcr.io/srl-labs/network-multitool
@@ -23,11 +23,11 @@ topology:
     tor1:
       mgmt-ipv4: 172.21.21.11
       kind: nokia_srlinux
-      type: ixrd2l
+      type: ixr-d2l
     tor2:
       mgmt-ipv4: 172.21.21.12
       kind: nokia_srlinux
-      type: ixrd2l
+      type: ixr-d2l
     tor3:
       mgmt-ipv4: 172.21.21.13
     s1:
