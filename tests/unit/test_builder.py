@@ -3,7 +3,16 @@
 import pytest
 from pathlib import Path
 
-from automation.core.fabric_builder import build_intent, DESIGN_BUILDERS
+from automation.core.fabric_builder import (
+    build_intent,
+    check_design_dir,
+    find_unmanaged_design_dirs,
+    is_engine_managed,
+    list_supported_designs,
+    supported_design_names,
+    DESIGN_BUILDERS,
+    SUPPORTED_DESIGNS,
+)
 from automation.core.schema_validator import load_inputs
 from automation.core.models import FabricIntent
 
@@ -23,6 +32,58 @@ class TestFabricBuilder:
     def test_missing_design_field_raises(self):
         with pytest.raises(ValueError, match="must contain a 'design' field"):
             build_intent({}, {})
+
+
+class TestSupportedDesigns:
+    def test_builders_view_matches_catalog(self):
+        assert DESIGN_BUILDERS == {
+            name: spec.module for name, spec in SUPPORTED_DESIGNS.items()
+        }
+
+    def test_spec_name_matches_registry_key(self):
+        for name, spec in SUPPORTED_DESIGNS.items():
+            assert spec.name == name
+
+    def test_every_supported_design_dir_is_deployable(self):
+        for spec in list_supported_designs():
+            design_dir = DESIGNS_ROOT.parent / spec.design_dir
+            if not design_dir.exists():
+                pytest.skip(f"{spec.design_dir} not present in checkout")
+            assert is_engine_managed(design_dir)
+            assert check_design_dir(design_dir) is None
+
+    def test_declared_design_name_matches_input_yaml(self):
+        """The catalog key must equal the `design` field the inputs declare."""
+        for spec in list_supported_designs():
+            design_dir = DESIGNS_ROOT.parent / spec.design_dir
+            if not design_dir.exists():
+                pytest.skip(f"{spec.design_dir} not present in checkout")
+            topo, _ = load_inputs(design_dir)
+            assert topo["design"] == spec.name
+
+    def test_supported_names_are_sorted(self):
+        assert supported_design_names() == sorted(SUPPORTED_DESIGNS)
+
+    def test_unmanaged_dirs_excluded_from_catalog(self):
+        """Designs shipped without engine inputs must not claim support."""
+        managed_dirs = {spec.design_dir.split("/")[-1] for spec in list_supported_designs()}
+        assert not managed_dirs & set(find_unmanaged_design_dirs(DESIGNS_ROOT))
+
+    def test_check_rejects_design_dir_without_inputs(self, tmp_path):
+        (tmp_path / "eda-manifests").mkdir()
+        err = check_design_dir(tmp_path)
+        assert err is not None
+        assert "not supported by the NVD deployer" in err
+        assert "--list-designs" in err
+
+    def test_check_reports_missing_dir(self, tmp_path):
+        err = check_design_dir(tmp_path / "absent")
+        assert err is not None
+        assert "not found" in err
+
+    def test_fragment_dir_inputs_count_as_managed(self, tmp_path):
+        (tmp_path / "inputs" / "topology.d").mkdir(parents=True)
+        assert is_engine_managed(tmp_path)
 
 
 class TestThreeStageBuilder:

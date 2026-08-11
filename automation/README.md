@@ -22,13 +22,58 @@ topology.yaml + services.yaml
 +----------------------+
 ```
 
+## Supported Designs
+
+This engine only deploys the designs listed below. `validated-designs/` in this
+repository also holds designs that are **not** driven by the engine — they ship
+hand-written EDA manifests and/or containerlab labs and are deployed by their
+own instructions. Adding such a design to the repo does not make it deployable
+here.
+
+| Design (`design:` field) | `--design <dir>` | Strategy |
+|--------------------------|------------------|----------|
+| `3-stage-evpn-vxlan` | `validated-designs/3-stage-evpn-vxlan` | Constrained — nodes, ISLs, ASNs and system0 IPs auto-generated from spine/leaf counts |
+| `collapsed-spine` | `validated-designs/collapsed-spine` | Constrained — two collapsed-spines carry all overlay services, ToRs onboarded outside the Fabric selectors, ISLs explicit |
+| `unconstrained-3-stage` | `validated-designs/unconstrained-3-stage` | Passthrough — every node, link, ASN and IP is explicit in the input |
+
+The authoritative list is `SUPPORTED_DESIGNS` in `core/fabric_builder.py`. To
+see it (plus the design directories that are *not* supported in your checkout):
+
+```bash
+python -m automation.deploy --list-designs
+```
+
+A design is engine-managed when its directory carries `inputs/topology.yaml`
+(or `inputs/topology.d/`) plus `schemas/`, **and** its `design:` value is
+registered in `SUPPORTED_DESIGNS`. Pointing `--design` at any other directory
+fails immediately with an explicit message rather than a missing-file error:
+
+```
+Design directory 'validated-designs/ai-dc' is not supported by the NVD
+deployer: it has no inputs/topology.yaml or inputs/topology.d/. ...
+```
+
+### Adding a design
+
+1. Add a builder module under `designs/` exposing
+   `build(topology, services) -> FabricIntent`.
+2. Register it in `SUPPORTED_DESIGNS` (`core/fabric_builder.py`) with its
+   design name, module path, strategy, design directory and summary.
+3. Create `validated-designs/<design>/` with `inputs/` and `schemas/`, where
+   `topology.design` equals the registry key.
+4. Add the row to the table above.
+
+The unit tests in `tests/unit/test_builder.py` assert that every registered
+design resolves to a real, loadable design directory whose `design:` field
+matches its registry key — so a half-registered design fails CI.
+
 ## Directory Structure
 
 ```
 automation/
   core/
     models.py            # FabricIntent and all sub-models (Pydantic)
-    fabric_builder.py    # Design dispatcher — routes to the right builder
+    fabric_builder.py    # Supported-design registry + dispatcher
     schema_validator.py  # JSON Schema validation for input files
     extras.py            # Generic merge-by-name utility for extras overlays
     selectors.py         # Label selector matching (K8s-style)
@@ -36,6 +81,7 @@ automation/
   designs/
     _common_builders.py        # Shared passthrough builders (edges, lags, routers, vlans, etc.)
     three_stage_evpn_vxlan.py  # Constrained builder — auto-generates from counts
+    collapsed_spine.py         # Constrained builder — explicit ISLs, ToR nodes
     unconstrained_3_stage.py   # Passthrough builder — explicit node/link input
   generators/
     eda_generator.py     # FabricIntent --> EDA Custom Resources
@@ -139,13 +185,15 @@ mixing across topics (monolithic topology + fragmented services) is fine.
 
 ### Dispatch
 
-`fabric_builder.py` reads `topology["design"]`, looks up the module in
-`DESIGN_BUILDERS`, and calls `module.build(topology, services)`. Currently
-two designs are registered:
+`fabric_builder.py` reads `topology["design"]`, looks up the design in
+`SUPPORTED_DESIGNS`, and calls `module.build(topology, services)`. An
+unregistered `design:` value is rejected with the list of supported names.
+Three designs are registered (see [Supported Designs](#supported-designs)):
 
 | Design | Module | Strategy |
 |--------|--------|----------|
 | `3-stage-evpn-vxlan` | `three_stage_evpn_vxlan.py` | **Constrained** -- auto-generates nodes, links, ASN, IPs from counts |
+| `collapsed-spine` | `collapsed_spine.py` | **Constrained** -- explicit ISLs and ToRs, auto-generated ASNs/IPs |
 | `unconstrained-3-stage` | `unconstrained_3_stage.py` | **Passthrough** -- every node/link/IP is explicit in input |
 
 ### Constrained builder (3-stage-evpn-vxlan)
@@ -175,6 +223,15 @@ From minimal input (`spines: {count: 2}`, `leafs: {count: 8}`), the builder:
    `merge_by_name()` utility in `core/extras.py` does name-keyed merging with
    `model_copy(update=...)` for existing resources or `model_cls(...)` for new
    ones. Resources from extras get `origin="extras"` for provenance tracking.
+
+### Collapsed-spine builder
+
+Also constrained, but ISLs are enumerated explicitly instead of full-meshed.
+Two collapsed-spines (role `leaf`, label `eda.nokia.com/role=collapsed-spine`)
+host all overlay services and act as the EVPN leafs in the Fabric CR, while
+explicit ToR nodes (role `tor`) are onboarded into EDA but kept out of the
+Fabric's leaf/spine selectors. Bridge domains may be `EVPNVXLAN` (default) or
+`SIMPLE` for L2-only ToR attachment, and IRBs are dual-stack.
 
 ### Unconstrained builder
 
@@ -386,6 +443,9 @@ same input drive both paths.
 ## CLI Usage
 
 ```bash
+# List the designs this engine can deploy (and those it cannot)
+python -m automation.deploy --list-designs
+
 # Generate EDA CRs (no deployment)
 python -m automation.deploy \
   --design validated-designs/3-stage-evpn-vxlan \

@@ -55,3 +55,5 @@ validated-designs/3-stage-evpn-vxlan/3-stage-evpn-vxlan-ansible/
 .env.*
 !.env.example
 **/*-ansible/
+# ----- NVD deployer specifics -----
+manifests/

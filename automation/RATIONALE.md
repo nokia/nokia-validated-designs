@@ -1,7 +1,7 @@
 # Design Rationale
 
 This document explains what NVD automation is for, when it earns its place in
-a deployment pipeline, and — just as importantly — when it does not. It is
+a deployment pipeline, and when it does not. It is
 meant to be read alongside the README by anyone evaluating whether to adopt
 the tool, fork it, or bypass it and drive EDA CRs directly.
 
@@ -12,10 +12,10 @@ perfectly well author CRs directly, keep them in Git, and reconcile them with
 ArgoCD, Flux, or a home-grown controller. From that vantage point, adding
 NVD automation on top means:
 
-- another intent model to learn;
-- another translation layer to debug;
-- another piece of code somebody has to own;
-- another surface that can drift from the underlying CR schema as EDA evolves.
+- another intent model to learn
+- another translation layer to debug
+- another piece of code somebody has to own
+- another surface that can drift from the underlying CR schema as EDA evolves
 
 A capable automation team will legitimately ask *"why don't we just template
 CRs ourselves?"* — and for some teams, that is the right answer. This document
@@ -27,7 +27,7 @@ is worth the cost and where it is not.
 ### Intent compression
 
 A three-stage EVPN-VXLAN fabric with four spines and thirty-two leaves is
-roughly fifteen lines of intent in NVD automation — topology, ASN ranges,
+roughly fifteen lines of intent in NVD automation - topology, ASN ranges,
 address pools, overlay parameters — versus hundreds of CRs with
 cross-references that must stay internally consistent. The compression ratio
 is the value. Not because writing CRs is hard, but because keeping them

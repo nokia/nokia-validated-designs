@@ -6,6 +6,12 @@ Two input sources are supported:
 1. ``--design <dir>`` — legacy YAML inputs (default source).
 2. ``--source netbox --site <slug>`` — NetBox as source of truth.
 
+Only the designs registered in
+:data:`automation.core.fabric_builder.SUPPORTED_DESIGNS` can be deployed by
+this engine (``--list-designs`` prints them). The repository also ships
+designs under ``validated-designs/`` that are deployed by their own tooling —
+pointing ``--design`` at one of those fails with an explicit message.
+
 Usage:
   python -m automation.deploy \\
     --design validated-designs/3-stage-evpn-vxlan \\
@@ -18,6 +24,7 @@ Usage:
     --mode eda
 
 Common options:
+    [--list-designs]
     [--generate-only] [--generate-clab] [--diff]
     [--phase {topology,fabric,services}]
     [--destroy] [--dry-run] [--prune] [--yes]
@@ -40,7 +47,14 @@ import time
 from pathlib import Path
 from typing import Any
 
-from automation.core.fabric_builder import build_intent, build_intent_from_netbox
+from automation.core.fabric_builder import (
+    build_intent,
+    build_intent_from_netbox,
+    check_design_dir,
+    find_unmanaged_design_dirs,
+    list_supported_designs,
+    supported_design_names,
+)
 from automation.core.models import FabricIntent
 from automation.core.schema_validator import load_inputs
 from automation.eda_models.registry import check_srl_version, check_srl_floor
@@ -72,7 +86,16 @@ def main() -> int:
     )
     parser.add_argument(
         "--design",
-        help="Path to the design directory (yaml source, e.g. validated-designs/3-stage-evpn-vxlan)",
+        help=(
+            "Path to the design directory (yaml source, e.g. "
+            "validated-designs/3-stage-evpn-vxlan). Only the designs listed by "
+            "--list-designs are supported."
+        ),
+    )
+    parser.add_argument(
+        "--list-designs",
+        action="store_true",
+        help="List the validated designs this engine can deploy, and exit",
     )
     parser.add_argument(
         "--site",
@@ -193,6 +216,10 @@ def main() -> int:
     )
 
     args = parser.parse_args()
+
+    if args.list_designs:
+        _print_designs()
+        return 0
 
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(
@@ -363,6 +390,40 @@ def main() -> int:
 
 
 # ---------------------------------------------------------------------------
+# Supported designs
+# ---------------------------------------------------------------------------
+
+
+def _print_designs() -> None:
+    """Print the designs this engine can deploy, plus the ones it cannot."""
+    import textwrap
+
+    print("Designs supported by the NVD deployer:\n")
+    for spec in list_supported_designs():
+        print(f"  {spec.name}  ({spec.strategy})")
+        print(f"    --design {spec.design_dir}")
+        for line in textwrap.wrap(spec.summary, width=72):
+            print(f"    {line}")
+        print()
+
+    print(
+        "The 'design' field in topology.yaml must be one of: "
+        f"{', '.join(supported_design_names())}.\n"
+    )
+
+    unmanaged = find_unmanaged_design_dirs()
+    if unmanaged:
+        print(
+            "Other directories under validated-designs/ are NOT deployable by\n"
+            "this engine — they have no inputs/ + schemas/ and no registered\n"
+            "builder, and ship their own EDA manifests or containerlab labs:\n"
+        )
+        for name in unmanaged:
+            print(f"  - validated-designs/{name}")
+        print("\nFollow each of those designs' own README to deploy them.")
+
+
+# ---------------------------------------------------------------------------
 # Input loading
 # ---------------------------------------------------------------------------
 
@@ -396,9 +457,10 @@ def _load_intent(args: argparse.Namespace, summary: dict[str, Any]) -> FabricInt
         summary["errors"].append("missing --design")
         return None
     design_dir = Path(args.design)
-    if not design_dir.exists():
-        logging.error("Design directory not found: %s", design_dir)
-        summary["errors"].append(f"design dir not found: {design_dir}")
+    err = check_design_dir(design_dir)
+    if err:
+        logging.error("%s", err)
+        summary["errors"].append(err)
         return None
     logging.info("Loading inputs from %s", design_dir)
     topology, services = load_inputs(design_dir)
