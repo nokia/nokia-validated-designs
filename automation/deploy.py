@@ -1,10 +1,8 @@
 """
 NVD Automation Engine — CLI entry point.
 
-Two input sources are supported:
-
-1. ``--design <dir>`` — legacy YAML inputs (default source).
-2. ``--source netbox --site <slug>`` — NetBox as source of truth.
+The fabric intent is loaded from a design directory's YAML inputs
+(``--design <dir>``).
 
 Only the designs registered in
 :data:`automation.core.fabric_builder.SUPPORTED_DESIGNS` can be deployed by
@@ -17,12 +15,6 @@ Usage:
     --design validated-designs/3-stage-evpn-vxlan \\
     --mode eda
 
-  python -m automation.deploy \\
-    --source netbox --site dc1 \\
-    --netbox-url https://srv9002 \\
-    --netbox-token $NETBOX_TOKEN \\
-    --mode eda
-
 Common options:
     [--list-designs]
     [--generate-only] [--generate-clab] [--diff]
@@ -32,8 +24,8 @@ Common options:
     [--export-yaml OUTDIR]
 
 On completion a machine-readable summary line
-``[NVD-DEPLOY-SUMMARY] {...json...}`` is printed on stdout so the NetBox
-Custom Script (and CI pipelines) can ingest the result without scraping.
+``[NVD-DEPLOY-SUMMARY] {...json...}`` is printed on stdout so CI pipelines can
+ingest the result without scraping.
 """
 
 from __future__ import annotations
@@ -49,7 +41,6 @@ from typing import Any
 
 from automation.core.fabric_builder import (
     build_intent,
-    build_intent_from_netbox,
     check_design_dir,
     find_unmanaged_design_dirs,
     list_supported_designs,
@@ -67,7 +58,7 @@ from automation.eda_models.profiles import (
 from automation.executors.eda import EdaClient
 from automation.generators.eda_generator import generate as eda_generate
 
-# Marker consumed by netbox_custom_scripts/deploy_nvd_fabric.py.
+# Marker for machine-readable consumers (CI pipelines).
 DEPLOY_SUMMARY_MARKER = "[NVD-DEPLOY-SUMMARY]"
 
 
@@ -77,17 +68,10 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    # Input source — either a design directory (legacy) or NetBox.
-    parser.add_argument(
-        "--source",
-        choices=["yaml", "netbox"],
-        default="yaml",
-        help="Where to load the fabric intent from (default: yaml)",
-    )
     parser.add_argument(
         "--design",
         help=(
-            "Path to the design directory (yaml source, e.g. "
+            "Path to the design directory (e.g. "
             "validated-designs/3-stage-evpn-vxlan). Only the designs listed by "
             "--list-designs are supported."
         ),
@@ -96,32 +80,6 @@ def main() -> int:
         "--list-designs",
         action="store_true",
         help="List the validated designs this engine can deploy, and exit",
-    )
-    parser.add_argument(
-        "--site",
-        help="Site slug in NetBox (required when --source netbox)",
-    )
-    parser.add_argument(
-        "--netbox-url",
-        default=os.environ.get("NETBOX_URL"),
-        help="NetBox base URL (default: $NETBOX_URL)",
-    )
-    parser.add_argument(
-        "--netbox-token",
-        default=os.environ.get("NETBOX_TOKEN"),
-        help="NetBox API token (default: $NETBOX_TOKEN)",
-    )
-    parser.add_argument(
-        "--netbox-verify",
-        dest="netbox_verify",
-        action="store_true",
-        default=False,
-        help="Verify NetBox TLS certificate (default: off — accepts self-signed)",
-    )
-    parser.add_argument(
-        "--no-netbox-verify",
-        dest="netbox_verify",
-        action="store_false",
     )
 
     parser.add_argument(
@@ -230,7 +188,6 @@ def main() -> int:
 
     start = time.monotonic()
     summary: dict[str, Any] = {
-        "source": args.source,
         "mode": args.mode,
         "phases": args.phase or [],
         "dry_run": args.dry_run,
@@ -429,31 +386,8 @@ def _print_designs() -> None:
 
 
 def _load_intent(args: argparse.Namespace, summary: dict[str, Any]) -> FabricIntent | None:
-    if args.source == "netbox":
-        if not args.site:
-            logging.error("--source netbox requires --site <slug>")
-            summary["errors"].append("--source netbox requires --site")
-            return None
-        if not args.netbox_url:
-            logging.error("NetBox URL required (--netbox-url or NETBOX_URL env)")
-            summary["errors"].append("missing netbox url")
-            return None
-        if not args.netbox_token:
-            logging.error("NetBox token required (--netbox-token or NETBOX_TOKEN env)")
-            summary["errors"].append("missing netbox token")
-            return None
-        logging.info("Loading intent from NetBox: site=%s url=%s", args.site, args.netbox_url)
-        summary["site"] = args.site
-        return build_intent_from_netbox(
-            site_slug=args.site,
-            netbox_url=args.netbox_url,
-            netbox_token=args.netbox_token,
-            verify_tls=args.netbox_verify,
-        )
-
-    # yaml source
     if not args.design:
-        logging.error("--design <dir> is required with --source yaml")
+        logging.error("--design <dir> is required (see --list-designs)")
         summary["errors"].append("missing --design")
         return None
     design_dir = Path(args.design)

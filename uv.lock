@@ -444,9 +444,6 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-netbox = [
-    { name = "pynetbox" },
-]
 test = [
     { name = "pytest" },
     { name = "pytest-html" },
@@ -459,7 +456,6 @@ requires-dist = [
     { name = "ansible-core", specifier = ">=2.19.8" },
     { name = "jsonschema", specifier = ">=4.0" },
     { name = "pydantic", specifier = ">=2.0,<3.0" },
-    { name = "pynetbox", marker = "extra == 'netbox'", specifier = ">=7.3" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=8.0" },
     { name = "pytest-html", marker = "extra == 'test'", specifier = ">=4.0" },
     { name = "pytest-metadata", marker = "extra == 'test'", specifier = ">=3.0" },
@@ -468,7 +464,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.31" },
     { name = "urllib3", specifier = ">=2.0" },
 ]
-provides-extras = ["test", "netbox"]
+provides-extras = ["test"]
 
 [[package]]
 name = "packaging"
@@ -616,19 +612,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/c3/b2/bc9c9196916376152d655522fdcebac55e66de6603a76a02bca1b6414f6c/pygments-2.20.0.tar.gz", hash = "sha256:6757cd03768053ff99f3039c1a36d6c0aa0b263438fcab17520b30a303a82b5f", size = 4955991, upload-time = "2026-03-29T13:29:33.898Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f4/7e/a72dd26f3b0f4f2bf1dd8923c85f7ceb43172af56d63c7383eb62b332364/pygments-2.20.0-py3-none-any.whl", hash = "sha256:81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176", size = 1231151, upload-time = "2026-03-29T13:29:30.038Z" },
-]
-
-[[package]]
-name = "pynetbox"
-version = "7.6.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "packaging" },
-    { name = "requests" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/11/0a/f0b733d44c4793ee3be0ee142a8ac92cfdd6232f64e4ae2dda256a08fb41/pynetbox-7.6.1.tar.gz", hash = "sha256:8a7ee99b89d08848be134793015afc17c85711a18e8c7e67c353362e1c8d7fc7", size = 92489, upload-time = "2026-01-28T16:50:50.223Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c0/f6/a11612421017fdd8f93e653ea1505d4e64e9a24de0974c53a36b154cd945/pynetbox-7.6.1-py3-none-any.whl", hash = "sha256:daa064b1cc4e7d871124ddca1e0de3a36e7ff9e0814fb046a90e36024fd59e4b", size = 39319, upload-time = "2026-01-28T16:50:49.234Z" },
 ]
 
 [[package]]
