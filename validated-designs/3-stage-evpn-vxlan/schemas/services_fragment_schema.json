@@ -621,7 +621,7 @@
         "name"
       ],
       "additionalProperties": false,
-      "description": "Extended router with full field access for extras overrides.",
+      "description": "Extended router with full field access for extras overrides. Only 'name' is required so a partial override need not restate the whole resource.",
       "properties": {
         "name": {
           "type": "string",
@@ -666,7 +666,7 @@
         "name"
       ],
       "additionalProperties": false,
-      "description": "Extended VLAN with full field access for extras overrides.",
+      "description": "Extended VLAN with full field access for extras overrides. Only 'name' is required so a partial override need not restate the whole resource.",
       "properties": {
         "name": {
           "type": "string",
@@ -859,7 +859,7 @@
                 "properties": {
                   "prefix_set": {
                     "type": "string",
-                    "description": "Reference to a PrefixSet by name."
+                    "description": "Name of a prefix_set defined in the topology inputs."
                   },
                   "protocol": {
                     "type": "string",
@@ -893,11 +893,13 @@
                       "accept",
                       "reject"
                     ],
-                    "default": "accept"
+                    "default": "accept",
+                    "description": "Statement result."
                   },
                   "set_local_preference": {
                     "type": "integer",
-                    "minimum": 0
+                    "minimum": 0,
+                    "description": "BGP local-preference to set on matched routes."
                   }
                 }
               }

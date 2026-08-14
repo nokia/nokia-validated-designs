@@ -1,6 +1,7 @@
 """Unit tests for design builders (topology.yaml → FabricIntent)."""
 
 import pytest
+from collections import Counter
 from pathlib import Path
 
 from automation.core.fabric_builder import (
@@ -87,62 +88,89 @@ class TestSupportedDesigns:
 
 
 class TestThreeStageBuilder:
+    """Builder fidelity for the shipped 3-stage design.
+
+    Expectations are derived from the input files rather than hardcoded, so
+    commenting a service in or out under ``inputs/`` does not require editing
+    assertions here.
+    """
+
     @pytest.fixture()
-    def intent(self) -> FabricIntent:
+    def inputs(self):
         design_dir = DESIGNS_ROOT / "3-stage-evpn-vxlan"
         if not design_dir.exists():
             pytest.skip("3-stage-evpn-vxlan design not found")
-        topo, svc = load_inputs(design_dir)
+        return load_inputs(design_dir)
+
+    @pytest.fixture()
+    def intent(self, inputs) -> FabricIntent:
+        topo, svc = inputs
         return build_intent(topo, svc)
 
-    def test_design_name(self, intent):
-        assert intent.design == "3-stage-evpn-vxlan"
+    def test_identity_carried_from_inputs(self, inputs, intent):
+        topo, _ = inputs
+        assert intent.design == topo["design"]
+        assert intent.fabric_name == topo["fabric_name"]
+        assert intent.eda.namespace == topo["eda"]["namespace"]
 
-    def test_fabric_name(self, intent):
-        assert intent.fabric_name == "dc1"
+    def test_node_counts_match_group_spec(self, inputs, intent):
+        topo, _ = inputs
+        roles = Counter(node.role for node in intent.nodes)
+        assert roles["leaf"] == topo["leafs"]["count"]
+        assert roles["spine"] == topo["spines"]["count"]
+        assert set(roles) == {"leaf", "spine"}
 
-    def test_node_count(self, intent):
-        leafs = [n for n in intent.nodes if n.role == "leaf"]
-        spines = [n for n in intent.nodes if n.role == "spine"]
-        assert len(leafs) == 8
-        assert len(spines) == 2
+    def test_links_form_full_leaf_spine_mesh(self, intent):
+        leafs = {n.name for n in intent.nodes if n.role == "leaf"}
+        spines = {n.name for n in intent.nodes if n.role == "spine"}
+        pairs = [(link.local_node, link.remote_node) for link in intent.links]
+        assert set(pairs) == {(leaf, spine) for leaf in leafs for spine in spines}
+        assert len(pairs) == len(set(pairs))
 
-    def test_links_exist(self, intent):
-        assert len(intent.links) > 0
-        assert len(intent.links) == 8 * 2  # each leaf connects to each spine
+    @pytest.mark.parametrize(
+        "source,key",
+        [
+            ("topology", "edge_interfaces"),
+            ("topology", "lags"),
+            ("services", "bridge_domains"),
+            ("services", "routers"),
+            ("services", "irb_interfaces"),
+            ("services", "vlans"),
+            ("services", "routed_interfaces"),
+            ("services", "static_routes"),
+        ],
+    )
+    def test_declared_resources_reach_the_intent(self, inputs, intent, source, key):
+        """Nothing declared in the inputs may be silently dropped or duplicated.
 
-    def test_bridge_domains(self, intent):
-        names = {bd.name for bd in intent.bridge_domains}
-        assert "macvrf-v10" in names
+        Subset rather than equality, because ``extras`` may legitimately append
+        resources the base inputs never declared.
+        """
+        topo, svc = inputs
+        declared = {item["name"] for item in (topo if source == "topology" else svc).get(key, [])}
+        built = [obj.name for obj in getattr(intent, key)]
+        assert declared <= set(built), f"builder dropped {key}: {sorted(declared - set(built))}"
+        assert len(built) == len(set(built)), f"duplicate {key} in intent: {built}"
 
-    def test_routers(self, intent):
-        assert len(intent.routers) == 2
-        names = {r.name for r in intent.routers}
-        assert "vrf1" in names
-        assert "vrf2" in names
+    def test_vni_and_evi_unique_across_services(self, intent):
+        """Two services sharing a VNI or EVI would collide on the device.
 
-    def test_irb_interfaces(self, intent):
-        assert len(intent.irb_interfaces) == 6
+        The VNI identifies the VXLAN service fabric-wide, and the default
+        route-target is derived as ``target:1:<evi>``.
+        """
+        vnis = [bd.vni for bd in intent.bridge_domains if bd.vni is not None]
+        vnis += [r.vni for r in intent.routers]
+        evis = [bd.evi for bd in intent.bridge_domains if bd.evi is not None]
+        evis += [r.evi for r in intent.routers]
+        assert len(vnis) == len(set(vnis)), f"duplicate VNI: {vnis}"
+        assert len(evis) == len(set(evis)), f"duplicate EVI: {evis}"
 
-    def test_vlans(self, intent):
-        assert len(intent.vlans) == 7
-
-    def test_edge_interfaces(self, intent):
-        assert len(intent.edge_interfaces) > 0
-
-    def test_lags(self, intent):
-        assert len(intent.lags) == 3
-
-    def test_static_routes(self, intent):
-        assert len(intent.static_routes) == 1
-
-    def test_eda_settings(self, intent):
-        assert intent.eda.namespace == "eda"
-
-    def test_configlets(self, intent):
-        assert len(intent.configlets) >= 1
+    def test_configlets_cover_extras_and_design_defaults(self, inputs, intent):
+        topo, _ = inputs
+        declared = {c["name"] for c in (topo.get("extras") or {}).get("configlets", [])}
         names = {c.name for c in intent.configlets}
-        assert "contact-info" in names
+        assert declared <= names, f"extras configlets dropped: {sorted(declared - names)}"
+        assert names - declared, "design generated no configlets of its own"
 
     def test_default_mtus(self, intent):
         assert len(intent.default_mtus) >= 1

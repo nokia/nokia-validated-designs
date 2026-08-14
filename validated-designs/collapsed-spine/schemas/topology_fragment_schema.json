@@ -25,18 +25,7 @@
       "default": "containerlab"
     },
     "credentials": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "username": {
-          "type": "string",
-          "default": "admin"
-        },
-        "password": {
-          "type": "string",
-          "default": "NokiaSrl1!"
-        }
-      }
+      "$ref": "#/$defs/credentials"
     },
     "mgmt_subnet": {
       "type": "string",
@@ -132,32 +121,59 @@
       }
     },
     "eda": {
+      "$ref": "#/$defs/eda"
+    },
+    "extras": {
+      "$ref": "#/$defs/extras"
+    }
+  },
+  "$defs": {
+    "credentials": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Device credentials used for node onboarding and by generated artefacts (clab, Ansible, gnmic).",
+      "properties": {
+        "username": {
+          "type": "string",
+          "default": "admin",
+          "description": "Device username."
+        },
+        "password": {
+          "type": "string",
+          "default": "NokiaSrl1!",
+          "description": "Device password."
+        }
+      }
+    },
+    "eda": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "node_profile": {
-          "type": "string"
+          "type": "string",
+          "description": "EDA NodeProfile name for node onboarding."
         },
         "namespace": {
           "type": "string",
-          "default": "eda"
+          "default": "eda",
+          "description": "EDA namespace for all resources."
         }
       }
     },
     "extras": {
       "type": "object",
       "additionalProperties": false,
+      "description": "Unconstrained topology additions that supplement a locked design. Resources here are labeled nvd-design:extras.",
       "properties": {
         "configlets": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/configlet"
-          }
+          },
+          "description": "Additional or override configlets (raw SR Linux config patches)."
         }
       }
-    }
-  },
-  "$defs": {
+    },
     "labels": {
       "type": "object",
       "patternProperties": {
@@ -550,7 +566,8 @@
       "additionalProperties": false,
       "properties": {
         "name": {
-          "type": "string"
+          "type": "string",
+          "description": "Unique prefix-set name."
         },
         "prefixes": {
           "type": "array",
@@ -563,11 +580,13 @@
             "additionalProperties": false,
             "properties": {
               "ip_prefix": {
-                "type": "string"
+                "type": "string",
+                "description": "IPv4 or IPv6 prefix in CIDR notation."
               },
               "mask_length_range": {
                 "type": "string",
-                "default": "exact"
+                "default": "exact",
+                "description": "Mask-length range (e.g. '32..32', 'exact')."
               }
             }
           }

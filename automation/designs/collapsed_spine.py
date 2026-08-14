@@ -25,34 +25,34 @@ import logging
 from automation.core.extras import merge_by_name
 from automation.core.models import (
     BridgeDomainIntent,
-    Credentials,
-    EdaSettings,
     FabricIntent,
     IrbInterfaceIntent,
     IrbIpAddress,
     LinkIntent,
     NodeIntent,
-    PolicyAction,
-    PolicyMatch,
-    PolicyStatementIntent,
-    PrefixEntry,
     PrefixSetIntent,
     RoutingPolicyIntent,
 )
 from automation.core.platforms import get_platform
 from automation.designs._common_builders import (
     apply_node_overrides as _apply_node_overrides,
+    apply_service_extras as _apply_service_extras,
     build_banners as _build_banners,
+    build_credentials as _build_credentials,
     build_default_mtus as _build_default_mtus,
+    build_eda_settings as _build_eda_settings,
     build_edge_interfaces as _build_edge_interfaces,
     build_lags as _build_lags,
-    build_prefix_sets as _build_prefix_sets,
     build_routed_interfaces as _build_routed_interfaces,
     build_routers as _build_routers,
-    build_routing_policies as _build_routing_policies,
     build_static_routes as _build_static_routes,
     build_vlans as _build_vlans,
+    default_routing_policies as _default_routing_policies,
+    derive_default_ip_mtu as _derive_default_ip_mtu,
     increment_ip as _increment_ip,
+    merge_extras_configlets as _merge_extras_configlets,
+    normalize_policy_update as _normalize_policy_update,
+    normalize_prefix_set_update as _normalize_prefix_set_update,
     validate_mgmt_ips as _validate_mgmt_ips,
     validate_unique_names as _validate_unique_names,
 )
@@ -121,11 +121,7 @@ def build(topology: dict, services: dict) -> FabricIntent:
     # Default MTUs (used to derive default IP MTU for IRBs)
     # -----------------------------------------------------------------------
     default_mtus = _build_default_mtus(topology.get("default_mtu", []))
-    default_ip_mtu = 1500
-    for mtu in default_mtus:
-        if mtu.layer3_mtu is not None:
-            default_ip_mtu = mtu.layer3_mtu
-            break
+    default_ip_mtu = _derive_default_ip_mtu(default_mtus)
 
     # -----------------------------------------------------------------------
     # Services
@@ -144,9 +140,36 @@ def build(topology: dict, services: dict) -> FabricIntent:
     static_routes = _build_static_routes(services.get("static_routes", []))
 
     # -----------------------------------------------------------------------
-    # Configlets — design-specific device config
+    # Configlets — design-specific device config, then extras overrides.
+    # Extras configlets replace by name, so they don't go through the generic
+    # apply_extras table.
     # -----------------------------------------------------------------------
     configlets = _build_configlets(lags)
+    topo_extras = topology.get("extras", {})
+    if topo_extras.get("configlets"):
+        configlets = _merge_extras_configlets(configlets, topo_extras["configlets"])
+
+    # -----------------------------------------------------------------------
+    # Service extras — unconstrained additions/overrides from user input
+    # -----------------------------------------------------------------------
+    merged_extras = _apply_service_extras(
+        {
+            "bridge_domains": bridge_domains,
+            "irb_interfaces": irb_interfaces,
+            "routers": routers,
+            "vlans": vlans,
+            "routed_interfaces": routed_interfaces,
+            "static_routes": static_routes,
+        },
+        services.get("extras", {}),
+        default_ip_mtu=default_ip_mtu,
+    )
+    bridge_domains = merged_extras["bridge_domains"]
+    irb_interfaces = merged_extras["irb_interfaces"]
+    routers = merged_extras["routers"]
+    vlans = merged_extras["vlans"]
+    routed_interfaces = merged_extras["routed_interfaces"]
+    static_routes = merged_extras["static_routes"]
 
     # -----------------------------------------------------------------------
     # Banners + routing-policy defaults
@@ -160,11 +183,13 @@ def build(topology: dict, services: dict) -> FabricIntent:
         [default_ps],
         topology.get("prefix_sets", []),
         PrefixSetIntent,
+        pre_process=_normalize_prefix_set_update,
     )
     routing_policies = merge_by_name(
         [default_export, default_import],
         services.get("routing_policies", []),
         RoutingPolicyIntent,
+        pre_process=_normalize_policy_update,
     )
     fabric_export_policies = topology.get(
         "fabric_export_policies", [default_export.name]
@@ -176,14 +201,8 @@ def build(topology: dict, services: dict) -> FabricIntent:
     # -----------------------------------------------------------------------
     # Credentials + EDA
     # -----------------------------------------------------------------------
-    creds_cfg = topology.get("credentials", {})
-    credentials = Credentials(**creds_cfg) if creds_cfg else Credentials()
-
-    eda_cfg = topology.get("eda", {})
-    eda_settings = EdaSettings(
-        node_profile=eda_cfg.get("node_profile", ""),
-        namespace=eda_cfg.get("namespace", "eda"),
-    )
+    credentials = _build_credentials(topology)
+    eda_settings = _build_eda_settings(topology)
 
     # The collapsed-spine design has no independent spine_asn — reuse the
     # same pool for both slots so FabricIntent bookkeeping (which was
@@ -514,70 +533,5 @@ def _build_configlets(lags):
     return configlets
 
 
-# ---------------------------------------------------------------------------
-# Routing policy defaults (mirror 3-stage behavior)
-# ---------------------------------------------------------------------------
-
-
-def _default_routing_policies(
-    fabric_name: str, system0_prefix: str
-) -> tuple[PrefixSetIntent, RoutingPolicyIntent, RoutingPolicyIntent]:
-    prefix_set_name = f"prefixset-{fabric_name}"
-    export_name = f"ebgp-isl-export-policy-{fabric_name}"
-    import_name = f"ebgp-isl-import-policy-{fabric_name}"
-
-    ps = PrefixSetIntent(
-        name=prefix_set_name,
-        prefixes=[PrefixEntry(ip_prefix=system0_prefix, mask_length_range="32..32")],
-        internal=True,
-    )
-    accept = PolicyAction(result="accept", set_local_preference=100)
-    export_statements = [
-        PolicyStatementIntent(
-            name="10",
-            match=PolicyMatch(prefix_set=prefix_set_name, protocol="local"),
-            action=accept,
-        ),
-        PolicyStatementIntent(
-            name="15", match=PolicyMatch(protocol="bgp"), action=accept
-        ),
-        PolicyStatementIntent(
-            name="20", match=PolicyMatch(protocol="aggregate"), action=accept
-        ),
-    ]
-    for stmt_id, rt in (("25", 1), ("30", 2), ("35", 3), ("40", 4), ("45", 5)):
-        export_statements.append(
-            PolicyStatementIntent(
-                name=stmt_id,
-                match=PolicyMatch(bgp_evpn_route_types=[rt]),
-                action=accept,
-            )
-        )
-    import_statements = [
-        PolicyStatementIntent(
-            name="10", match=PolicyMatch(protocol="bgp"), action=accept
-        ),
-    ]
-    for stmt_id, rt in (("25", 1), ("30", 2), ("35", 3), ("40", 4), ("45", 5)):
-        import_statements.append(
-            PolicyStatementIntent(
-                name=stmt_id,
-                match=PolicyMatch(bgp_evpn_route_types=[rt]),
-                action=accept,
-            )
-        )
-    return (
-        ps,
-        RoutingPolicyIntent(
-            name=export_name,
-            default_action="reject",
-            statements=export_statements,
-            internal=True,
-        ),
-        RoutingPolicyIntent(
-            name=import_name,
-            default_action="reject",
-            statements=import_statements,
-            internal=True,
-        ),
-    )
+# The eBGP ISL prefix-set and import/export policy defaults are identical to
+# the 3-stage design's, so they live in _common_builders.default_routing_policies.

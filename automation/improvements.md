@@ -16,7 +16,7 @@ construction** — there is no way to target more than one EDA release, while SR
 Linux versioning is handled well. Second, **reuse infrastructure exists but is
 only half-wired** — shared schema defs and a `_common_builders` module are in
 place, yet designs still carry large copy-pasted duplicates that have begun to
-drift.
+drift. (The schema half of that second theme is now resolved; see §2.1.)
  
 ---
  
@@ -108,58 +108,90 @@ versions by construction.
  
 ## Part 2 — Code reuse across NVDs
  
-### 2.1 Shared schema defs exist but are wired to nothing
+### 2.1 Shared schema defs — wired up (was: wired to nothing)
+
+**Status: done for every validation-equivalent def.** All three designs now
+alias the common `$defs` instead of duplicating them:
+
+- `common_topology_defs.json` — `labels`, `edgeInterface`, `lag`, `defaultMtu`,
+  `banner`, `configlet`, `eda`, `credentials`, `prefixSet`, `extras`
+- `common_services_defs.json` — `router`, `vlan`, `routingPolicy`
+
+`schema_validator._validate()` resolves the external `$ref`s through a
+`referencing` registry, and `bundle_common_refs()` inlines them when generating
+the on-disk `*_fragment_schema.json`, so editor validation stays self-contained.
+The last round removed ~500 duplicated lines while leaving every design's
+validation contract byte-identical (verified by fully expanding the effective
+schema before and after; the only deltas were two `default` annotations that
+collapsed-spine and unconstrained-3-stage previously lacked).
+
+What deliberately stays local: `bridgeDomain`, `irbInterface`,
+`routedInterface`, `staticRoute`, `nodeGroup`/`nodeOverride`/`link`/`node`, and
+`underlay`. These are not cosmetic copies — collapsed-spine adds a `SIMPLE`
+bridge-domain type with a conditional `required`, unconstrained-3-stage exposes
+protocol/BFD knobs the locked designs don't, and 3-stage carries `extended*`
+variants for extras overrides. Unifying them needs a base-plus-extension split
+(common base def + per-design `allOf` narrowing), which changes what each design
+accepts and so wants its own review rather than a mechanical `$ref` swap.
  
-`automation/schemas/common_services_defs.json` and `common_topology_defs.json`
-are titled "Reusable `$defs` … across all NVD designs" — but **no design schema
-and no Python references them** (verified by grep). Meanwhile each design ships
-full copies of `topology_schema.json`, `services_schema.json`, and both fragment
-schemas. The 3-stage and collapsed-spine services schemas differ by ~700 lines,
-most of it identical structure with cosmetic title/description changes plus a few
-real divergences (collapsed-spine added dual-stack IRBs and a `SIMPLE` BD type).
+### 2.2 Design builders duplicate near-identical helpers — resolved
+
+**Status: done.** `_common_builders.py` now owns everything that was
+copy-pasted between designs:
+
+- node scaffolding — `validate_unique_names`, `validate_mgmt_ips`,
+  `apply_node_overrides`, `increment_ip`
+- `default_routing_policies()` — the eBGP ISL prefix-set plus import/export
+  policy defaults, previously ~70 duplicated lines per design that were verified
+  to produce identical output
+- `build_configlets()` / `merge_extras_configlets()` — raw-dict→`ConfigletIntent`
+  mapping, previously written twice (unconstrained's explicit builder and
+  3-stage's extras merge)
+- `build_policy_statements()` / `build_prefix_entries()` and the
+  `normalize_policy_update()` / `normalize_prefix_set_update()` merge hooks,
+  previously duplicated between `build_routing_policies` and 3-stage's local
+  hooks
+- `derive_default_ip_mtu()`, `build_credentials()`, `build_eda_settings()` —
+  small blocks that were triplicated verbatim
+
+Consolidating the merge hooks fixed two real collapsed-spine defects that the
+duplication had hidden: it called `merge_by_name` without the normalization
+hooks, so overriding a design-default routing policy by name crashed in
+`FabricIntent` cross-reference validation (`'dict' object has no attribute
+'match'`), and an overridden default kept `internal=True` so EDA would skip
+emitting it.
+
+What stays per-design: the *content* of design-generated configlets (3-stage's
+node-isolation event handler vs collapsed-spine's ESI DF timers), bridge-domain
+and IRB enrichment (SIMPLE BD type, dual-stack), and topology generation
+(collapsed-spine's explicit ISLs vs 3-stage's full-mesh allocation).
  
-This is duplication that will drift: a fix to the `bridgeDomain` shape must be
-made in three places today.
- 
-Recommendation: finish the job the shared-defs files started. Have each design
-schema `$ref` the common `$defs` and keep only design-specific overrides locally.
-The fragment-schema generator (`codegen/generate_fragment_schemas.py`) can then
-derive fragments from the composed schema, so there's one source of truth per
-resource shape.
- 
-### 2.2 Design builders duplicate near-identical helpers (drifting copies)
- 
-`three_stage_evpn_vxlan.py` (1083 lines) and `collapsed_spine.py` (633 lines)
-each redefine `_validate_unique_names`, `_validate_mgmt_ips`, `_increment_ip`,
-`_apply_node_overrides`, `_default_routing_policies`, `_build_configlets`, and a
-family of `_merge_extras_*` functions. Spot-checking the "shared" helpers shows
-they are logically identical but textually different (reworded error messages,
-collapsed one-liners) — the signature of copy-paste-then-edit. `_increment_ip` is
-literally `str(IPv4Address(base) + offset)` in both, written two ways.
- 
-`_common_builders.py` already exists for exactly this purpose but currently holds
-only the trivial 1:1 dict→model mappers. The node-generation scaffolding
-(validation, overrides, IP math, extras-merge, default policies) belongs there
-too. As it stands, adding a third constrained design means copying
-`collapsed_spine.py` and inheriting the same drift.
- 
-Recommendation: promote the genuinely shared helpers into `_common_builders.py`
-(or a small `BaseConstrainedDesign`), leaving only design-specific logic
-(collapsed-spine ISL meshing, AI-fabric rail assignment, etc.) in the per-design
-modules.
- 
-### 2.3 The `_merge_extras_*` family is boilerplate over `merge_by_name`
- 
-`core/extras.py` already provides a generic `merge_by_name`. Each design then
-wraps it in ~8 near-identical `_merge_extras_<resource>` functions that differ
-only in the model class and an optional pre-process hook. This is a per-resource
-× per-design multiplier.
- 
-Recommendation: replace with one data-driven table
-(`resource → (model_cls, pre_process)`) iterated generically, shared across
-designs. Adding a resource type then touches one table entry instead of N
-functions in M designs (and shrinks the `DEVELOPMENT.md` "add a resource"
-checklist).
+### 2.3 The `_merge_extras_*` family is boilerplate over `merge_by_name` — resolved
+
+**Status: done.** The per-resource `_merge_extras_<resource>` functions are gone.
+`core/extras.py` provides `apply_extras(current, extras, table)` driven by a
+`resource → ExtrasSpec(model_cls, pre_process)` table, and the table itself now
+lives once in `_common_builders.service_extras_table()` behind
+`apply_service_extras(current, extras, default_ip_mtu=...)`. Both locked designs
+(3-stage and collapsed-spine) call that one function, so adding a service
+resource to the extras contract is a single table entry rather than a function
+per resource per design.
+
+Configlets stay outside the table on purpose: they replace by name rather than
+overlaying field-by-field (a raw config patch is only meaningful as a whole),
+which is what `merge_extras_configlets()` does.
+
+Collapsed-spine extras were wired up as part of this: `topology.extras.configlets`
+was accepted by its schema but silently dropped by the builder, and
+`services.extras` was a free-form `additionalProperties: true` bag that nothing
+read. Its services schema now declares the six extras resource lists against
+`extended*` partial-override defs (only `name` required, cross-field conditionals
+such as the EVPNVXLAN `vni`/`evi` requirement dropped so a partial override need
+not restate the resource). `extendedRouter` and `extendedVlan` are identical to
+3-stage's, so they were promoted to `common_services_defs.json` and both designs
+alias them; the bridge-domain, IRB, routed-interface and static-route variants
+stay local because collapsed-spine's base shapes differ (SIMPLE BD type,
+dual-stack IRB and routed interfaces, non-IPv4-patterned static-route prefixes).
  
 ### 2.4 Two validated NVDs and all reference designs bypass the engine
  

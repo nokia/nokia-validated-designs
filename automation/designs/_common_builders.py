@@ -6,18 +6,26 @@ Pydantic intent models. They are design-agnostic — every design that
 accepts the same input shape can reuse them.
 
 Builders that vary across designs (e.g. bridge-domain default enrichment,
-IRB dual-stack vs legacy field handling, design-specific configlet
-generation) intentionally remain in the per-design modules.
+IRB dual-stack vs legacy field handling, the *content* of design-generated
+configlets) intentionally remain in the per-design modules.
 """
 
 from __future__ import annotations
 
 import ipaddress
 
+from automation.core.extras import ExtrasSpec, apply_extras
 from automation.core.models import (
     BannerIntent,
+    BridgeDomainIntent,
+    ConfigletConfigEntry,
+    ConfigletIntent,
+    Credentials,
     DefaultMtuIntent,
+    EdaSettings,
     EdgeInterfaceIntent,
+    IrbInterfaceIntent,
+    IrbIpAddress,
     LacpConfig,
     LagIntent,
     LagMember,
@@ -237,50 +245,302 @@ def build_banners(raw: list[dict]) -> list[BannerIntent]:
     ]
 
 
+def build_prefix_entries(raw: list) -> list[PrefixEntry]:
+    """Build prefix entries from raw input, passing through built models.
+
+    Accepts already-built ``PrefixEntry`` instances so this can also service
+    the ``merge_by_name`` overlay path, where a list may be partly converted.
+    """
+    entries: list[PrefixEntry] = []
+    for p in raw:
+        if isinstance(p, PrefixEntry):
+            entries.append(p)
+            continue
+        entries.append(
+            PrefixEntry(
+                ip_prefix=p["ip_prefix"],
+                mask_length_range=p.get("mask_length_range", "exact"),
+            )
+        )
+    return entries
+
+
 def build_prefix_sets(raw: list[dict]) -> list[PrefixSetIntent]:
     """Build prefix-set intents from raw input."""
     return [
         PrefixSetIntent(
             name=ps["name"],
-            prefixes=[
-                PrefixEntry(
-                    ip_prefix=p["ip_prefix"],
-                    mask_length_range=p.get("mask_length_range", "exact"),
-                )
-                for p in ps.get("prefixes", [])
-            ],
+            prefixes=build_prefix_entries(ps.get("prefixes", [])),
         )
         for ps in raw
     ]
 
 
-def build_routing_policies(raw: list[dict]) -> list[RoutingPolicyIntent]:
-    """Build routing-policy intents from raw input."""
-    result: list[RoutingPolicyIntent] = []
-    for rp in raw:
-        statements: list[PolicyStatementIntent] = []
-        for stmt in rp.get("statements", []):
-            m = stmt.get("match", {}) or {}
-            a = stmt.get("action", {}) or {}
-            statements.append(
-                PolicyStatementIntent(
-                    name=str(stmt["name"]),
-                    match=PolicyMatch(
-                        prefix_set=m.get("prefix_set"),
-                        protocol=m.get("protocol"),
-                        bgp_evpn_route_types=m.get("bgp_evpn_route_types"),
-                    ),
-                    action=PolicyAction(
-                        result=a.get("result", "accept"),
-                        set_local_preference=a.get("set_local_preference"),
-                    ),
-                )
-            )
-        result.append(
-            RoutingPolicyIntent(
-                name=rp["name"],
-                default_action=rp.get("default_action", "reject"),
-                statements=statements,
+def build_policy_statements(raw: list) -> list[PolicyStatementIntent]:
+    """Build routing-policy statements from raw input.
+
+    Accepts already-built ``PolicyStatementIntent`` instances so this can also
+    service the ``merge_by_name`` overlay path.
+    """
+    statements: list[PolicyStatementIntent] = []
+    for stmt in raw:
+        if isinstance(stmt, PolicyStatementIntent):
+            statements.append(stmt)
+            continue
+        m = stmt.get("match", {}) or {}
+        a = stmt.get("action", {}) or {}
+        statements.append(
+            PolicyStatementIntent(
+                name=str(stmt["name"]),
+                match=PolicyMatch(
+                    prefix_set=m.get("prefix_set"),
+                    protocol=m.get("protocol"),
+                    bgp_evpn_route_types=m.get("bgp_evpn_route_types"),
+                ),
+                action=PolicyAction(
+                    result=a.get("result", "accept"),
+                    set_local_preference=a.get("set_local_preference"),
+                ),
             )
         )
-    return result
+    return statements
+
+
+def build_routing_policies(raw: list[dict]) -> list[RoutingPolicyIntent]:
+    """Build routing-policy intents from raw input."""
+    return [
+        RoutingPolicyIntent(
+            name=rp["name"],
+            default_action=rp.get("default_action", "reject"),
+            statements=build_policy_statements(rp.get("statements", [])),
+        )
+        for rp in raw
+    ]
+
+
+# ---------------------------------------------------------------------------
+# merge_by_name pre-process hooks
+#
+# ``merge_by_name`` overlays extras/user entries with Pydantic's
+# ``model_copy(update=...)``, which does NOT validate or coerce nested values.
+# Raw YAML dicts would therefore survive into the intent and blow up later in
+# FabricIntent cross-reference validation, so nested lists must be converted
+# up front.
+# ---------------------------------------------------------------------------
+
+
+def normalize_policy_update(fields: dict) -> dict:
+    """Pre-process hook for merging user-supplied routing policies.
+
+    Converts raw statement dicts into models, and forces ``internal=False`` so
+    a user override of a design default (``internal=True``) becomes a regular
+    user-declared policy that EDA emits.
+    """
+    fields["internal"] = False
+    if fields.get("statements"):
+        fields["statements"] = build_policy_statements(fields["statements"])
+    return fields
+
+
+def normalize_prefix_set_update(fields: dict) -> dict:
+    """Pre-process hook for merging user-supplied prefix sets.
+
+    Converts raw prefix dicts into models and forces ``internal=False`` for the
+    same reason as :func:`normalize_policy_update`.
+    """
+    fields["internal"] = False
+    if fields.get("prefixes"):
+        fields["prefixes"] = build_prefix_entries(fields["prefixes"])
+    return fields
+
+
+def default_routing_policies(
+    fabric_name: str, system0_prefix: str
+) -> tuple[PrefixSetIntent, RoutingPolicyIntent, RoutingPolicyIntent]:
+    """Return the eBGP ISL routing-policy artifacts a locked design requires.
+
+    - ``prefixset-{fabric}`` matches the system0 loopback supernet on a /32 key.
+    - ``ebgp-isl-export-policy-{fabric}`` accepts local/bgp/aggregate and the
+      five EVPN route-types, setting local-preference to 100.
+    - ``ebgp-isl-import-policy-{fabric}`` accepts bgp and the five EVPN
+      route-types, setting local-preference to 100.
+
+    Both policies default-reject. Users override any entry by name via
+    ``topology.prefix_sets`` / ``services.routing_policies``.
+    """
+    prefix_set_name = f"prefixset-{fabric_name}"
+    export_name = f"ebgp-isl-export-policy-{fabric_name}"
+    import_name = f"ebgp-isl-import-policy-{fabric_name}"
+
+    ps = PrefixSetIntent(
+        name=prefix_set_name,
+        prefixes=[PrefixEntry(ip_prefix=system0_prefix, mask_length_range="32..32")],
+        internal=True,
+    )
+
+    accept = PolicyAction(result="accept", set_local_preference=100)
+    evpn_route_types = (("25", 1), ("30", 2), ("35", 3), ("40", 4), ("45", 5))
+
+    export_statements = [
+        PolicyStatementIntent(
+            name="10",
+            match=PolicyMatch(prefix_set=prefix_set_name, protocol="local"),
+            action=accept,
+        ),
+        PolicyStatementIntent(
+            name="15", match=PolicyMatch(protocol="bgp"), action=accept
+        ),
+        PolicyStatementIntent(
+            name="20", match=PolicyMatch(protocol="aggregate"), action=accept
+        ),
+    ]
+    import_statements = [
+        PolicyStatementIntent(
+            name="10", match=PolicyMatch(protocol="bgp"), action=accept
+        ),
+    ]
+    for statements in (export_statements, import_statements):
+        statements.extend(
+            PolicyStatementIntent(
+                name=stmt_id,
+                match=PolicyMatch(bgp_evpn_route_types=[rt]),
+                action=accept,
+            )
+            for stmt_id, rt in evpn_route_types
+        )
+
+    return (
+        ps,
+        RoutingPolicyIntent(
+            name=export_name,
+            default_action="reject",
+            statements=export_statements,
+            internal=True,
+        ),
+        RoutingPolicyIntent(
+            name=import_name,
+            default_action="reject",
+            statements=import_statements,
+            internal=True,
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Configlets
+# ---------------------------------------------------------------------------
+
+
+def build_configlets(raw: list[dict], *, origin: str = "") -> list[ConfigletIntent]:
+    """Build configlet intents from raw input (explicit or extras-supplied)."""
+    return [
+        ConfigletIntent(
+            name=c["name"],
+            endpoint_selector=c.get("endpoint_selector", []),
+            endpoints=c.get("endpoints", []),
+            operating_system=c.get("operating_system", "srl"),
+            priority=c.get("priority", 100),
+            origin=origin,
+            configs=[
+                ConfigletConfigEntry(
+                    path=cfg["path"],
+                    operation=cfg.get("operation", "Update"),
+                    config=cfg["config"],
+                )
+                for cfg in c.get("configs", [])
+            ],
+        )
+        for c in raw
+    ]
+
+
+def merge_extras_configlets(
+    design: list[ConfigletIntent], extras_raw: list[dict]
+) -> list[ConfigletIntent]:
+    """Merge user-provided extras configlets with design-generated ones.
+
+    Configlets replace by name rather than overlaying field-by-field — a raw
+    config patch is only meaningful as a whole — which is why they don't go
+    through the generic ``apply_extras`` table.
+    """
+    by_name = {c.name: c for c in design}
+    for cfglet in build_configlets(extras_raw, origin="extras"):
+        by_name[cfglet.name] = cfglet
+    return list(by_name.values())
+
+
+# ---------------------------------------------------------------------------
+# Service extras
+# ---------------------------------------------------------------------------
+
+
+def _tag_extras_origin(fields: dict) -> dict:
+    fields["origin"] = "extras"
+    return fields
+
+
+def service_extras_table(default_ip_mtu: int) -> dict[str, ExtrasSpec]:
+    """Return the ``resource -> ExtrasSpec`` table for service extras.
+
+    Adding a service resource to the extras contract means one entry here
+    rather than a merge function per resource per design.
+    """
+
+    def irb_pre_process(fields: dict) -> dict:
+        if "ip_addresses" in fields:
+            fields["ip_addresses"] = [
+                a if isinstance(a, IrbIpAddress) else IrbIpAddress(**a)
+                for a in fields["ip_addresses"]
+            ]
+        fields.setdefault("ip_mtu", default_ip_mtu)
+        fields["origin"] = "extras"
+        return fields
+
+    return {
+        "bridge_domains": ExtrasSpec(BridgeDomainIntent, _tag_extras_origin),
+        "irb_interfaces": ExtrasSpec(IrbInterfaceIntent, irb_pre_process),
+        "routers": ExtrasSpec(RouterIntent),
+        "vlans": ExtrasSpec(VlanIntent),
+        "routed_interfaces": ExtrasSpec(RoutedInterfaceIntent),
+        "static_routes": ExtrasSpec(StaticRouteIntent),
+    }
+
+
+def apply_service_extras(
+    current: dict[str, list], extras: dict, *, default_ip_mtu: int
+) -> dict[str, list]:
+    """Overlay ``services.extras`` onto design-generated service lists.
+
+    Keys of *current* must match the table in :func:`service_extras_table`.
+    """
+    return apply_extras(current, extras, service_extras_table(default_ip_mtu))
+
+
+# ---------------------------------------------------------------------------
+# Small shared derivations
+# ---------------------------------------------------------------------------
+
+
+def derive_default_ip_mtu(
+    default_mtus: list[DefaultMtuIntent], fallback: int = 1500
+) -> int:
+    """Return the first declared layer-3 MTU, used as the default IRB ip_mtu."""
+    for mtu in default_mtus:
+        if mtu.layer3_mtu is not None:
+            return mtu.layer3_mtu
+    return fallback
+
+
+def build_credentials(topology: dict) -> Credentials:
+    """Build device credentials, falling back to the model defaults."""
+    creds_cfg = topology.get("credentials", {})
+    return Credentials(**creds_cfg) if creds_cfg else Credentials()
+
+
+def build_eda_settings(topology: dict) -> EdaSettings:
+    """Build EDA settings from the optional ``eda`` topology block."""
+    eda_cfg = topology.get("eda", {})
+    return EdaSettings(
+        node_profile=eda_cfg.get("node_profile", ""),
+        namespace=eda_cfg.get("namespace", "eda"),
+    )

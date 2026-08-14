@@ -26,21 +26,7 @@
       "description": "Deployment environment."
     },
     "credentials": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Device credentials for node onboarding and Ansible connections. Defaults to admin/NokiaSrl1!.",
-      "properties": {
-        "username": {
-          "type": "string",
-          "default": "admin",
-          "description": "Device username."
-        },
-        "password": {
-          "type": "string",
-          "default": "NokiaSrl1!",
-          "description": "Device password."
-        }
-      }
+      "$ref": "#/$defs/credentials"
     },
     "mgmt_subnet": {
       "type": "string",
@@ -147,6 +133,31 @@
       "description": "Names of routing policies to attach to the fabric's default eBGP group as import policies. Defaults to the design-generated 'ebgp-isl-import-policy-{fabric_name}'."
     },
     "eda": {
+      "$ref": "#/$defs/eda"
+    },
+    "extras": {
+      "$ref": "#/$defs/extras"
+    }
+  },
+  "$defs": {
+    "credentials": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Device credentials used for node onboarding and by generated artefacts (clab, Ansible, gnmic).",
+      "properties": {
+        "username": {
+          "type": "string",
+          "default": "admin",
+          "description": "Device username."
+        },
+        "password": {
+          "type": "string",
+          "default": "NokiaSrl1!",
+          "description": "Device password."
+        }
+      }
+    },
+    "eda": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -164,7 +175,7 @@
     "extras": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Unconstrained additions that supplement the locked design. Resources here are labeled nvd-design:extras.",
+      "description": "Unconstrained topology additions that supplement a locked design. Resources here are labeled nvd-design:extras.",
       "properties": {
         "configlets": {
           "type": "array",
@@ -174,9 +185,7 @@
           "description": "Additional or override configlets (raw SR Linux config patches)."
         }
       }
-    }
-  },
-  "$defs": {
+    },
     "labels": {
       "type": "object",
       "patternProperties": {

@@ -570,9 +570,11 @@
         "statements"
       ],
       "additionalProperties": false,
+      "description": "Routing policy definition. Overrides design-generated policy when name matches.",
       "properties": {
         "name": {
-          "type": "string"
+          "type": "string",
+          "description": "Routing policy name (e.g. 'ebgp-isl-export-policy-dc1')."
         },
         "default_action": {
           "type": "string",
@@ -580,6 +582,7 @@
             "accept",
             "reject"
           ],
+          "default": "reject",
           "description": "Action applied when no statement matches."
         },
         "statements": {
@@ -592,7 +595,8 @@
             "additionalProperties": false,
             "properties": {
               "name": {
-                "type": "string"
+                "type": "string",
+                "description": "Statement identifier (e.g. '10', '25')."
               },
               "match": {
                 "type": "object",
@@ -600,7 +604,7 @@
                 "properties": {
                   "prefix_set": {
                     "type": "string",
-                    "description": "Name of a prefix_set defined in topology.yaml."
+                    "description": "Name of a prefix_set defined in the topology inputs."
                   },
                   "protocol": {
                     "type": "string",
@@ -610,7 +614,8 @@
                       "aggregate",
                       "bgp_evpn",
                       "static"
-                    ]
+                    ],
+                    "description": "Source protocol to match."
                   },
                   "bgp_evpn_route_types": {
                     "type": "array",
@@ -618,7 +623,8 @@
                       "type": "integer",
                       "minimum": 1,
                       "maximum": 5
-                    }
+                    },
+                    "description": "BGP EVPN route types (subset of 1..5)."
                   }
                 }
               },
@@ -631,11 +637,14 @@
                     "enum": [
                       "accept",
                       "reject"
-                    ]
+                    ],
+                    "default": "accept",
+                    "description": "Statement result."
                   },
                   "set_local_preference": {
                     "type": "integer",
-                    "minimum": 0
+                    "minimum": 0,
+                    "description": "BGP local-preference to set on matched routes."
                   }
                 }
               }

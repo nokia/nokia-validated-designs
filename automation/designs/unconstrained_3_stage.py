@@ -16,21 +16,19 @@ from typing import Any
 
 from automation.core.models import (
     BridgeDomainIntent,
-    ConfigletConfigEntry,
-    ConfigletIntent,
-    Credentials,
-    EdaSettings,
     FabricConfigInput,
     FabricIntent,
     IrbIpAddress,
     IrbInterfaceIntent,
     LinkIntent,
     NodeIntent,
-    RouterIntent,
 )
 from automation.designs._common_builders import (
     build_banners as _build_banners,
+    build_configlets as _build_configlets,
+    build_credentials as _build_credentials,
     build_default_mtus as _build_default_mtus,
+    build_eda_settings as _build_eda_settings,
     build_edge_interfaces as _build_edge_interfaces,
     build_lags as _build_lags,
     build_prefix_sets as _build_prefix_sets,
@@ -39,6 +37,7 @@ from automation.designs._common_builders import (
     build_routing_policies as _build_routing_policies,
     build_static_routes as _build_static_routes,
     build_vlans as _build_vlans,
+    derive_default_ip_mtu as _derive_default_ip_mtu,
 )
 
 logger = logging.getLogger(__name__)
@@ -100,13 +99,7 @@ def build(topology: dict, services: dict) -> FabricIntent:
     # Default MTUs (optional)
     # -----------------------------------------------------------------------
     default_mtus = _build_default_mtus(topology.get("default_mtu", []))
-
-    # Derive the default IP MTU from the first DefaultMTU entry (if present)
-    default_ip_mtu = 1500
-    for mtu in default_mtus:
-        if mtu.layer3_mtu is not None:
-            default_ip_mtu = mtu.layer3_mtu
-            break
+    default_ip_mtu = _derive_default_ip_mtu(default_mtus)
 
     # -----------------------------------------------------------------------
     # Banners (optional)
@@ -136,16 +129,10 @@ def build(topology: dict, services: dict) -> FabricIntent:
     fabric_import_policies = topology.get("fabric_import_policies", [])
 
     # -----------------------------------------------------------------------
-    # EDA settings
+    # Credentials + EDA settings
     # -----------------------------------------------------------------------
-    eda_cfg = topology.get("eda", {})
-    creds_cfg = topology.get("credentials", {})
-    credentials = Credentials(**creds_cfg) if creds_cfg else Credentials()
-
-    eda_settings = EdaSettings(
-        node_profile=eda_cfg.get("node_profile", ""),
-        namespace=eda_cfg.get("namespace", "eda"),
-    )
+    credentials = _build_credentials(topology)
+    eda_settings = _build_eda_settings(topology)
 
     # -----------------------------------------------------------------------
     # Fabric override block — direct mirror of the EDA Fabric spec
@@ -223,32 +210,6 @@ def _build_links(raw: list[dict]) -> list[LinkIntent]:
             remote_interface=link["remote_interface"],
         )
         for link in raw
-    ]
-
-
-# ---------------------------------------------------------------------------
-# Configlets (explicit — user-defined in topology.yaml)
-# ---------------------------------------------------------------------------
-
-
-def _build_configlets(raw: list[dict]) -> list[ConfigletIntent]:
-    """Build configlet intents from explicit configlet definitions."""
-    return [
-        ConfigletIntent(
-            name=c["name"],
-            endpoint_selector=c.get("endpoint_selector", []),
-            endpoints=c.get("endpoints", []),
-            priority=c.get("priority", 100),
-            configs=[
-                ConfigletConfigEntry(
-                    path=cfg["path"],
-                    operation=cfg.get("operation", "Update"),
-                    config=cfg["config"],
-                )
-                for cfg in c.get("configs", [])
-            ],
-        )
-        for c in raw
     ]
 
 

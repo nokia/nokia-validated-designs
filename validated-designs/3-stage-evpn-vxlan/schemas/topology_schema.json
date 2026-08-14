@@ -33,21 +33,7 @@
       "description": "Deployment environment."
     },
     "credentials": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Device credentials for node onboarding and Ansible connections. Defaults to admin/NokiaSrl1!.",
-      "properties": {
-        "username": {
-          "type": "string",
-          "default": "admin",
-          "description": "Device username."
-        },
-        "password": {
-          "type": "string",
-          "default": "NokiaSrl1!",
-          "description": "Device password."
-        }
-      }
+      "$ref": "#/$defs/credentials"
     },
     "mgmt_subnet": {
       "type": "string",
@@ -154,36 +140,22 @@
       "description": "Names of routing policies to attach to the fabric's default eBGP group as import policies. Defaults to the design-generated 'ebgp-isl-import-policy-{fabric_name}'."
     },
     "eda": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "node_profile": {
-          "type": "string",
-          "description": "EDA NodeProfile name for node onboarding."
-        },
-        "namespace": {
-          "type": "string",
-          "default": "eda",
-          "description": "EDA namespace for all resources."
-        }
-      }
+      "$ref": "#/$defs/eda"
     },
     "extras": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Unconstrained additions that supplement the locked design. Resources here are labeled nvd-design:extras.",
-      "properties": {
-        "configlets": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/configlet"
-          },
-          "description": "Additional or override configlets (raw SR Linux config patches)."
-        }
-      }
+      "$ref": "#/$defs/extras"
     }
   },
   "$defs": {
+    "credentials": {
+      "$ref": "https://nvd.nokia.com/schemas/common/topology-defs#/$defs/credentials"
+    },
+    "eda": {
+      "$ref": "https://nvd.nokia.com/schemas/common/topology-defs#/$defs/eda"
+    },
+    "extras": {
+      "$ref": "https://nvd.nokia.com/schemas/common/topology-defs#/$defs/extras"
+    },
     "labels": {
       "$ref": "https://nvd.nokia.com/schemas/common/topology-defs#/$defs/labels"
     },
@@ -326,40 +298,7 @@
       "$ref": "https://nvd.nokia.com/schemas/common/topology-defs#/$defs/banner"
     },
     "prefixSet": {
-      "type": "object",
-      "required": [
-        "name",
-        "prefixes"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Unique prefix-set name."
-        },
-        "prefixes": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "object",
-            "required": [
-              "ip_prefix"
-            ],
-            "additionalProperties": false,
-            "properties": {
-              "ip_prefix": {
-                "type": "string",
-                "description": "IPv4 or IPv6 prefix in CIDR notation."
-              },
-              "mask_length_range": {
-                "type": "string",
-                "default": "exact",
-                "description": "Mask-length range (e.g. '32..32', 'exact')."
-              }
-            }
-          }
-        }
-      }
+      "$ref": "https://nvd.nokia.com/schemas/common/topology-defs#/$defs/prefixSet"
     },
     "configlet": {
       "$ref": "https://nvd.nokia.com/schemas/common/topology-defs#/$defs/configlet"

@@ -25,19 +25,7 @@
       "default": "containerlab"
     },
     "credentials": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "SR Linux credentials used by generated artefacts (clab, Ansible, gnmic).",
-      "properties": {
-        "username": {
-          "type": "string",
-          "default": "admin"
-        },
-        "password": {
-          "type": "string",
-          "default": "NokiaSrl1!"
-        }
-      }
+      "$ref": "#/$defs/credentials"
     },
     "mgmt_subnet": {
       "type": "string",
@@ -211,20 +199,42 @@
       "description": "Names of routing_policies to attach as fabric-wide import policies on the Fabric CR."
     },
     "eda": {
+      "$ref": "#/$defs/eda"
+    }
+  },
+  "$defs": {
+    "credentials": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Device credentials used for node onboarding and by generated artefacts (clab, Ansible, gnmic).",
+      "properties": {
+        "username": {
+          "type": "string",
+          "default": "admin",
+          "description": "Device username."
+        },
+        "password": {
+          "type": "string",
+          "default": "NokiaSrl1!",
+          "description": "Device password."
+        }
+      }
+    },
+    "eda": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "node_profile": {
-          "type": "string"
+          "type": "string",
+          "description": "EDA NodeProfile name for node onboarding."
         },
         "namespace": {
           "type": "string",
-          "default": "eda"
+          "default": "eda",
+          "description": "EDA namespace for all resources."
         }
       }
-    }
-  },
-  "$defs": {
+    },
     "labels": {
       "type": "object",
       "patternProperties": {
@@ -910,7 +920,8 @@
       "additionalProperties": false,
       "properties": {
         "name": {
-          "type": "string"
+          "type": "string",
+          "description": "Unique prefix-set name."
         },
         "prefixes": {
           "type": "array",
@@ -924,12 +935,12 @@
             "properties": {
               "ip_prefix": {
                 "type": "string",
-                "description": "IPv4 or IPv6 CIDR prefix."
+                "description": "IPv4 or IPv6 prefix in CIDR notation."
               },
               "mask_length_range": {
                 "type": "string",
                 "default": "exact",
-                "description": "Mask-length range (e.g. 'exact' or '24..32')."
+                "description": "Mask-length range (e.g. '32..32', 'exact')."
               }
             }
           }

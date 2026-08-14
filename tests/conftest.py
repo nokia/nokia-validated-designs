@@ -515,7 +515,9 @@ def fault_manager() -> FaultManager:
 # ---------------------------------------------------------------------------
 
 
+@pytest.hookimpl(optionalhook=True)
 def pytest_html_report_title(report):
+    """Set the HTML report title. Optional: pytest-html may not be installed."""
     report.title = "NVD Network Behavior Test Report"
 
 

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://nvd.nokia.com/schemas/common/services-defs",
   "title": "Shared Services Schema Definitions",
-  "description": "Reusable $defs for services schemas across all NVD designs. Only resources whose shape is identical across every design live here; design-specific resources (bridgeDomain, irbInterface, routedInterface, staticRoute, routingPolicy) stay local to each design schema.",
+  "description": "Reusable $defs for services schemas across all NVD designs. Only resources whose shape is identical across every design live here; resources that carry real per-design constraint differences (bridgeDomain, irbInterface, routedInterface, staticRoute) stay local to each design schema.",
   "$defs": {
     "router": {
       "type": "object",
@@ -72,6 +72,152 @@
           },
           "minItems": 1,
           "description": "Label selectors to match interfaces for this VLAN."
+        }
+      }
+    },
+    "extendedRouter": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "description": "Extended router with full field access for extras overrides. Only 'name' is required so a partial override need not restate the whole resource.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Router name (must match an existing entry to override, or be new)."
+        },
+        "vni": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777215,
+          "description": "VXLAN Network Identifier."
+        },
+        "evi": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "EVPN Instance identifier."
+        },
+        "node_selector": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_./-]+=.+$"
+          },
+          "minItems": 1,
+          "description": "Label selectors to match nodes for this router."
+        },
+        "export_target": {
+          "type": "string",
+          "pattern": "^target:.+$",
+          "description": "Optional BGP-EVPN export route target. Overrides the default 'target:1:<evi>'."
+        },
+        "import_target": {
+          "type": "string",
+          "pattern": "^target:.+$",
+          "description": "Optional BGP-EVPN import route target. Overrides the default 'target:1:<evi>'."
+        }
+      }
+    },
+    "extendedVlan": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "description": "Extended VLAN with full field access for extras overrides. Only 'name' is required so a partial override need not restate the whole resource.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "VLAN name (must match an existing entry to override, or be new)."
+        },
+        "bridge_domain": {
+          "type": "string",
+          "description": "Bridge domain this VLAN belongs to."
+        },
+        "vlan_id": {
+          "type": "string",
+          "pattern": "^(untagged|[0-9]+)$",
+          "description": "VLAN ID ('untagged' or numeric string)."
+        },
+        "interface_selector": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_./-]+=.+$"
+          },
+          "minItems": 1,
+          "description": "Label selectors to match interfaces for this VLAN."
+        }
+      }
+    },
+    "routingPolicy": {
+      "type": "object",
+      "required": ["name", "statements"],
+      "additionalProperties": false,
+      "description": "Routing policy definition. Overrides design-generated policy when name matches.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Routing policy name (e.g. 'ebgp-isl-export-policy-dc1')."
+        },
+        "default_action": {
+          "type": "string",
+          "enum": ["accept", "reject"],
+          "default": "reject",
+          "description": "Action applied when no statement matches."
+        },
+        "statements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Statement identifier (e.g. '10', '25')."
+              },
+              "match": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "prefix_set": {
+                    "type": "string",
+                    "description": "Name of a prefix_set defined in the topology inputs."
+                  },
+                  "protocol": {
+                    "type": "string",
+                    "enum": ["local", "bgp", "aggregate", "bgp_evpn", "static"],
+                    "description": "Source protocol to match."
+                  },
+                  "bgp_evpn_route_types": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 5
+                    },
+                    "description": "BGP EVPN route types (subset of 1..5)."
+                  }
+                }
+              },
+              "action": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "result": {
+                    "type": "string",
+                    "enum": ["accept", "reject"],
+                    "default": "accept",
+                    "description": "Statement result."
+                  },
+                  "set_local_preference": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "BGP local-preference to set on matched routes."
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }

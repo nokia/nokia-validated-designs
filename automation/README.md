@@ -79,7 +79,8 @@ automation/
     selectors.py         # Label selector matching (K8s-style)
     platforms.py         # Platform definitions (port counts, breakout modes)
   designs/
-    _common_builders.py        # Shared passthrough builders (edges, lags, routers, vlans, etc.)
+    _common_builders.py        # Shared builders/helpers: dict→model mappers, node scaffolding,
+                               # default routing policies, configlets, extras table
     three_stage_evpn_vxlan.py  # Constrained builder — auto-generates from counts
     collapsed_spine.py         # Constrained builder — explicit ISLs, ToR nodes
     unconstrained_3_stage.py   # Passthrough builder — explicit node/link input
@@ -154,6 +155,28 @@ but log a warning). They are then deep-merged with these rules:
   warning; later wins.
 - **Identity-key conflicts** on `design` or `fabric_name` are **fatal**.
 
+> **What the `NN-` prefixes do — and don't do.** Fragment order is **merge
+> precedence only**. Every rule above is order-sensitive (later wins), so the
+> load order decides which value survives into the merged dict. It is sorted
+> explicitly because `Path.glob` returns filesystem order — without the sort,
+> the same inputs could merge into different intents on different machines —
+> and the numeric prefix makes that precedence visible to whoever edits the
+> files instead of an accident of `ls`.
+>
+> The prefixes say **nothing about the order resources are created on the
+> fabric**. Merging happens before an intent even exists; sequencing of the
+> resulting CRs is decided downstream by the generator's dependency order and
+> applied atomically by the EDA executor's transaction. Renaming or
+> re-splitting fragments — or collapsing them back into a single
+> `topology.yaml` — cannot change deployment order. (Exported manifest files
+> carry their own, unrelated numbering that *does* encode creation order; see
+> [Manifest export](#manifest-export---export-manifests).)
+>
+> A corollary: if your fragments define disjoint keys, as the shipped designs
+> mostly do, ordering has no effect on the result at all. The prefixes earn
+> their keep when a later fragment deliberately overrides an earlier one — the
+> `90-overrides.yaml` pattern above.
+
 Each fragment is validated against a relaxed copy of the strict schema (top-
 level `required` removed), so a fragment that defines only `nodes:` is fine,
 while one that defines `underlay:` must still supply all its required sub-
@@ -180,6 +203,41 @@ python -m automation.codegen.generate_fragment_schemas
 
 Mixing single-file and `.d/` for the **same** topic raises an error;
 mixing across topics (monolithic topology + fragmented services) is fine.
+
+### Shared schema definitions
+
+Resource shapes that are identical across every design live once in
+`automation/schemas/common_topology_defs.json` and `common_services_defs.json`
+(`labels`, `edgeInterface`, `lag`, `defaultMtu`, `banner`, `configlet`, `eda`,
+`credentials`, `prefixSet`, `extras`, `router`, `vlan`, `routingPolicy`,
+`extendedRouter`, `extendedVlan`). Each
+design schema declares a thin local alias and points its properties at that:
+
+```json
+"$defs": {
+  "prefixSet": {
+    "$ref": "https://nvd.nokia.com/schemas/common/topology-defs#/$defs/prefixSet"
+  }
+}
+```
+
+Design schemas therefore only carry the defs whose *constraints* genuinely
+differ per design — today `bridgeDomain`, `irbInterface`, `routedInterface`,
+`staticRoute`, the node/link shapes, and `underlay` (collapsed-spine adds a
+`SIMPLE` bridge-domain type and dual-stack IRBs; 3-stage adds `extended*`
+variants for extras overrides). Promote a def to the common files only when it
+is validation-equivalent everywhere; keep it local when a design needs tighter
+or looser constraints, since the alias is all-or-nothing.
+
+Two mechanisms make the external `$ref`s work:
+
+- At runtime, `schema_validator._validate()` resolves them through a
+  `referencing` registry built from the common documents, so nothing has to be
+  network-fetched.
+- On disk, `bundle_common_refs()` inlines the referenced defs when generating
+  `*_fragment_schema.json`, so the file an editor loads is self-contained.
+  Regenerate the fragment schemas after touching either the strict schemas or
+  the common defs.
 
 ## Layer 2: Design Builder
 
@@ -223,6 +281,22 @@ From minimal input (`spines: {count: 2}`, `leafs: {count: 8}`), the builder:
    `merge_by_name()` utility in `core/extras.py` does name-keyed merging with
    `model_copy(update=...)` for existing resources or `model_cls(...)` for new
    ones. Resources from extras get `origin="extras"` for provenance tracking.
+
+   Service extras are table-driven: `_common_builders.apply_service_extras()`
+   iterates one `resource → ExtrasSpec(model_cls, pre_process)` table shared by
+   every locked design, so adding a resource to the extras contract is a single
+   table entry plus an `extended*` schema def. Because overrides go through
+   `model_copy(update=...)`, which does not coerce nested values, the specs
+   convert nested lists up front (e.g. IRB `ip_addresses` → `IrbIpAddress`);
+   skipping that leaves raw dicts in the intent that fail later in
+   `FabricIntent` cross-reference validation. `extras.configlets` deliberately
+   bypasses the table — configlets replace wholesale by name via
+   `merge_extras_configlets()` rather than merging field-by-field.
+
+   Schemas gate this: each design's `services.extras` references `extended*`
+   defs that require only `name` and drop cross-field conditionals, so a partial
+   override (`{name: bd-v10, mac_aging: 600}`) validates without restating
+   `vni`/`evi`.
 
 ### Collapsed-spine builder
 
@@ -510,6 +584,12 @@ zero-padded, numbered YAML file (e.g. `0010-Init-init-base.yaml`,
 dependency order, so a directory read by filename (`kubectl apply -f OUTDIR/`,
 Argo CD, Flux) reproduces that order. Add `--sync-wave` to stamp each CR with
 an `argocd.argoproj.io/sync-wave` annotation.
+
+These numbers are the repo's *only* filename-encoded creation order, and they
+exist for tools that apply files one by one without dependency awareness. They
+are unrelated to the `NN-` prefixes on
+[input fragments](#splitting-inputs-across-multiple-files), which control merge
+precedence and are consumed before generation starts.
 
 This is intended for **inspection, review, and GitOps tooling** — *not* as a
 replacement for `--mode eda`. Applying the files with raw `kubectl apply -f`

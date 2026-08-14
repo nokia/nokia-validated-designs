@@ -50,7 +50,52 @@
     },
     "extras": {
       "type": "object",
-      "additionalProperties": true
+      "additionalProperties": false,
+      "description": "Unconstrained additions/overrides that supplement the design. Resources here are labeled nvd-design:extras.",
+      "properties": {
+        "bridge_domains": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/extendedBridgeDomain"
+          },
+          "description": "Override or add bridge domains with full field access."
+        },
+        "irb_interfaces": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/extendedIrbInterface"
+          },
+          "description": "Override or add IRB interfaces with full field access."
+        },
+        "routers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/extendedRouter"
+          },
+          "description": "Override or add routers (ip-vrfs) with full field access."
+        },
+        "vlans": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/extendedVlan"
+          },
+          "description": "Override or add VLAN bindings with full field access."
+        },
+        "routed_interfaces": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/extendedRoutedInterface"
+          },
+          "description": "Override or add routed interfaces with full field access."
+        },
+        "static_routes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/extendedStaticRoute"
+          },
+          "description": "Override or add static routes with full field access."
+        }
+      }
     }
   },
   "$defs": {
@@ -518,16 +563,20 @@
         "statements"
       ],
       "additionalProperties": false,
+      "description": "Routing policy definition. Overrides design-generated policy when name matches.",
       "properties": {
         "name": {
-          "type": "string"
+          "type": "string",
+          "description": "Routing policy name (e.g. 'ebgp-isl-export-policy-dc1')."
         },
         "default_action": {
           "type": "string",
           "enum": [
             "accept",
             "reject"
-          ]
+          ],
+          "default": "reject",
+          "description": "Action applied when no statement matches."
         },
         "statements": {
           "type": "array",
@@ -539,14 +588,16 @@
             "additionalProperties": false,
             "properties": {
               "name": {
-                "type": "string"
+                "type": "string",
+                "description": "Statement identifier (e.g. '10', '25')."
               },
               "match": {
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
                   "prefix_set": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Name of a prefix_set defined in the topology inputs."
                   },
                   "protocol": {
                     "type": "string",
@@ -556,7 +607,8 @@
                       "aggregate",
                       "bgp_evpn",
                       "static"
-                    ]
+                    ],
+                    "description": "Source protocol to match."
                   },
                   "bgp_evpn_route_types": {
                     "type": "array",
@@ -564,7 +616,8 @@
                       "type": "integer",
                       "minimum": 1,
                       "maximum": 5
-                    }
+                    },
+                    "description": "BGP EVPN route types (subset of 1..5)."
                   }
                 }
               },
@@ -577,11 +630,422 @@
                     "enum": [
                       "accept",
                       "reject"
-                    ]
+                    ],
+                    "default": "accept",
+                    "description": "Statement result."
                   },
                   "set_local_preference": {
                     "type": "integer",
-                    "minimum": 0
+                    "minimum": 0,
+                    "description": "BGP local-preference to set on matched routes."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "extendedRouter": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "description": "Extended router with full field access for extras overrides. Only 'name' is required so a partial override need not restate the whole resource.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Router name (must match an existing entry to override, or be new)."
+        },
+        "vni": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777215,
+          "description": "VXLAN Network Identifier."
+        },
+        "evi": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "EVPN Instance identifier."
+        },
+        "node_selector": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_./-]+=.+$"
+          },
+          "minItems": 1,
+          "description": "Label selectors to match nodes for this router."
+        },
+        "export_target": {
+          "type": "string",
+          "pattern": "^target:.+$",
+          "description": "Optional BGP-EVPN export route target. Overrides the default 'target:1:<evi>'."
+        },
+        "import_target": {
+          "type": "string",
+          "pattern": "^target:.+$",
+          "description": "Optional BGP-EVPN import route target. Overrides the default 'target:1:<evi>'."
+        }
+      }
+    },
+    "extendedVlan": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "description": "Extended VLAN with full field access for extras overrides. Only 'name' is required so a partial override need not restate the whole resource.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "VLAN name (must match an existing entry to override, or be new)."
+        },
+        "bridge_domain": {
+          "type": "string",
+          "description": "Bridge domain this VLAN belongs to."
+        },
+        "vlan_id": {
+          "type": "string",
+          "pattern": "^(untagged|[0-9]+)$",
+          "description": "VLAN ID ('untagged' or numeric string)."
+        },
+        "interface_selector": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_./-]+=.+$"
+          },
+          "minItems": 1,
+          "description": "Label selectors to match interfaces for this VLAN."
+        }
+      }
+    },
+    "extendedBridgeDomain": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "description": "Extended bridge domain for extras overrides. Only 'name' is required, and the EVPNVXLAN vni/evi conditional is dropped, so a partial override need not restate the whole resource.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Bridge domain name (must match an existing entry to override, or be new)."
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "EVPNVXLAN",
+            "SIMPLE"
+          ],
+          "description": "Bridge domain type. SIMPLE = local L2 (no VXLAN), EVPNVXLAN = EVPN-extended (needs vni+evi on the merged result)."
+        },
+        "vni": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777215
+        },
+        "evi": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "mac_learning": {
+          "type": "boolean"
+        },
+        "mac_aging": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mac_duplication": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "hold_down_time": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "monitoring_window": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "action": {
+              "type": "string",
+              "enum": [
+                "StopLearning",
+                "Blackhole",
+                "UseNetInstanceAction"
+              ]
+            },
+            "num_moves": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "export_target": {
+          "type": "string",
+          "pattern": "^target:.+$",
+          "description": "Optional BGP-EVPN export route target. Overrides the default 'target:1:<evi>'."
+        },
+        "import_target": {
+          "type": "string",
+          "pattern": "^target:.+$",
+          "description": "Optional BGP-EVPN import route target. Overrides the default 'target:1:<evi>'."
+        }
+      }
+    },
+    "extendedIrbInterface": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "description": "Extended dual-stack IRB for extras overrides. Only 'name' is required so a partial override need not restate bridge_domain/router.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "IRB name (must match an existing entry to override, or be new)."
+        },
+        "bridge_domain": {
+          "type": "string"
+        },
+        "router": {
+          "type": "string"
+        },
+        "ipv4": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$"
+        },
+        "ip_addresses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "anyOf": [
+              {
+                "required": [
+                  "ipv4"
+                ]
+              },
+              {
+                "required": [
+                  "ipv6"
+                ]
+              }
+            ],
+            "properties": {
+              "ipv4": {
+                "type": "object",
+                "required": [
+                  "ip_prefix"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "ip_prefix": {
+                    "type": "string",
+                    "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$"
+                  },
+                  "primary": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "ipv6": {
+                "type": "object",
+                "required": [
+                  "ip_prefix"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "ip_prefix": {
+                    "type": "string"
+                  },
+                  "primary": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          },
+          "description": "Dual-stack gateway addresses (IPv4 and/or IPv6) for this IRB."
+        },
+        "proxy_arp": {
+          "type": "boolean"
+        },
+        "proxy_nd": {
+          "type": "boolean"
+        },
+        "arp_timeout": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "ip_mtu": {
+          "type": "integer",
+          "minimum": 1280,
+          "maximum": 9500
+        },
+        "learn_unsolicited": {
+          "type": "string",
+          "enum": [
+            "NONE",
+            "GLOBAL",
+            "LINK-LOCAL",
+            "BOTH"
+          ]
+        },
+        "evpn_route_advertisement_type": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "host_route_populate": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "additionalProperties": true
+            }
+          ]
+        }
+      }
+    },
+    "extendedRoutedInterface": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "description": "Extended dual-stack routed interface for extras overrides. Only 'name' is required, and the ipv4/ipv6 address requirement is dropped, so a partial override need not restate addresses.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Routed interface name (must match an existing entry to override, or be new)."
+        },
+        "interface": {
+          "type": "string"
+        },
+        "router": {
+          "type": "string"
+        },
+        "vlan_id": {
+          "type": "string"
+        },
+        "ip_mtu": {
+          "type": "integer",
+          "minimum": 1280,
+          "maximum": 9500
+        },
+        "arp_timeout": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ipv4_addresses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "ipPrefix"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "ipPrefix": {
+                "type": "string",
+                "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$"
+              },
+              "primary": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "ipv6_addresses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "ipPrefix"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "ipPrefix": {
+                "type": "string"
+              },
+              "primary": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    "extendedStaticRoute": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "description": "Extended static route for extras overrides. Only 'name' is required so a partial override need not restate router/nodes/prefixes.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Static route name (must match an existing entry to override, or be new)."
+        },
+        "router": {
+          "type": "string"
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "prefixes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "nexthop_group": {
+          "type": "object",
+          "required": [
+            "nexthops"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "blackhole": {
+              "type": "boolean"
+            },
+            "resolve": {
+              "type": "boolean"
+            },
+            "nexthops": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "ipPrefix"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "ipPrefix": {
+                    "type": "string"
+                  },
+                  "resolve": {
+                    "type": "boolean"
                   }
                 }
               }
