@@ -17,7 +17,7 @@ Usage:
 
 Common options:
     [--list-designs]
-    [--generate-only] [--generate-clab] [--diff]
+    [--generate-only] [--generate-clab] [--diff] [--fail-on-diff]
     [--phase {topology,fabric,services}]
     [--destroy] [--dry-run] [--prune] [--yes]
     [--eda-url URL] [--eda-user USER] [--eda-password PASS]
@@ -26,6 +26,8 @@ Common options:
 On completion a machine-readable summary line
 ``[NVD-DEPLOY-SUMMARY] {...json...}`` is printed on stdout so CI pipelines can
 ingest the result without scraping.
+
+Exit codes: 0 success, 1 failure, 2 drift detected (``--diff --fail-on-diff``).
 """
 
 from __future__ import annotations
@@ -149,6 +151,15 @@ def main() -> int:
         help="Preview changes against live EDA state without applying (EDA mode only)",
     )
     parser.add_argument(
+        "--fail-on-diff",
+        action="store_true",
+        help=(
+            "With --diff, exit 2 when the plan is non-empty (creates, updates or "
+            "deletes). The run itself still reports success; the exit code is the "
+            "drift signal, so CI can gate on it"
+        ),
+    )
+    parser.add_argument(
         "--export-yaml",
         metavar="OUTDIR",
         help="Write the built FabricIntent as YAML files to OUTDIR and exit",
@@ -203,6 +214,7 @@ def main() -> int:
         "creates": 0,
         "updates": 0,
         "deletes": 0,
+        "unchanged": 0,
         "nodes_affected": [],
         "duration_s": 0,
         "errors": [],
@@ -627,9 +639,13 @@ def _run_diff(args: argparse.Namespace, intent: FabricIntent, resources, summary
     plan = client.compute_diff(resources, current)
     _print_diff(plan)
     summary["success"] = True
-    summary["creates"] = len(plan.creates)
-    summary["updates"] = len(plan.updates)
-    summary["deletes"] = len(plan.deletes)
+    summary.update(plan.counts())
+    if args.fail_on_diff and plan.total_ops > 0:
+        logging.error(
+            "Drift detected: %d create, %d update, %d delete",
+            len(plan.creates), len(plan.updates), len(plan.deletes),
+        )
+        return 2
     return 0
 
 
@@ -656,6 +672,8 @@ def _run_apply(args: argparse.Namespace, intent: FabricIntent, resources, summar
         auto_confirm=args.yes,
     )
     _absorb_result_into_summary(result, summary)
+    if client.last_plan is not None:
+        summary.update(client.last_plan.counts())
 
     if result.success:
         label = "Dry-run" if args.dry_run else "Deployment"
@@ -676,8 +694,6 @@ def _absorb_result_into_summary(result, summary: dict) -> None:
     summary["transaction_id"] = getattr(result, "transaction_id", None)
     details = getattr(result, "details", {}) or {}
     summary["nodes_affected"] = list(details.get("nodesWithConfigChanges") or [])
-    # Creates / updates / deletes from changedCrs aren't explicit; approximate
-    # from the plan if we computed it elsewhere (see _run_diff) or leave 0.
     msg = getattr(result, "message", "") or ""
     if not result.success:
         summary["errors"].append(msg)
@@ -716,7 +732,8 @@ def _print_diff(plan) -> None:
         f"\nTransaction plan: "
         f"{len(plan.creates)} create, "
         f"{len(plan.updates)} update, "
-        f"{len(plan.deletes)} delete"
+        f"{len(plan.deletes)} delete "
+        f"({len(plan.unchanged)} unchanged)"
     )
     if plan.creates:
         print("\n  CREATE:")

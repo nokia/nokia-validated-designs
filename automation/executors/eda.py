@@ -124,6 +124,71 @@ DESTROY_ORDER_KINDS: list[str] = [
 ]
 
 
+# Spec fields that cannot be compared against live state, per CR kind.
+#
+# EDA stores credentials hashed and never returns the plaintext, so a password
+# always looks different. The NodeProfile schema/LLM fields are overwritten from
+# EDA's reference ``srlinux-ghcr-<version>`` profile by
+# :meth:`EdaClient._enrich_node_profiles` at apply time, so the generated values
+# are never the authoritative ones and comparing them reports a permanent diff.
+UNCOMPARABLE_SPEC_FIELDS: dict[str, frozenset[str]] = {
+    "NodeUser": frozenset({"password"}),
+    "NodeProfile": frozenset(
+        {"onboardingPassword", "yang", "versionMatch", "versionPath", "llmDb"}
+    ),
+}
+
+
+def _values_match(desired: Any, current: Any) -> bool:
+    """Compare a desired value against live state, ignoring EDA's additions.
+
+    Comparison is *declared-intent subset* semantics: only what the generator
+    puts in the CR has to match. Keys EDA populated on its own (defaults,
+    computed fields) are ignored, because the generator never claimed them.
+
+    Lists of scalars are compared order-insensitively — EDA is free to reorder
+    a label or selector list, and that is not a change of intent. Lists of
+    objects are compared positionally, since their order can be meaningful.
+    """
+    if isinstance(desired, dict):
+        if not isinstance(current, dict):
+            return False
+        return all(
+            key in current and _values_match(val, current[key])
+            for key, val in desired.items()
+        )
+
+    if isinstance(desired, list):
+        if not isinstance(current, list) or len(desired) != len(current):
+            return False
+        if all(not isinstance(v, (dict, list)) for v in desired):
+            return sorted(desired, key=repr) == sorted(current, key=repr)
+        return all(_values_match(d, c) for d, c in zip(desired, current))
+
+    return desired == current
+
+
+def cr_matches_live_state(desired: dict, current: dict) -> bool:
+    """Return True when *desired* is already fully reflected in *current*.
+
+    Compares the generator-owned parts of the CR only: the labels it sets and
+    the spec fields it declares, minus the per-kind fields listed in
+    :data:`UNCOMPARABLE_SPEC_FIELDS`. Server-managed metadata (``resourceVersion``,
+    ``generation``, ``creationTimestamp``, …) and ``status`` are never consulted.
+    """
+    desired_labels = (desired.get("metadata") or {}).get("labels") or {}
+    current_labels = (current.get("metadata") or {}).get("labels") or {}
+    if not _values_match(desired_labels, current_labels):
+        return False
+
+    kind = desired.get("kind", "")
+    skip = UNCOMPARABLE_SPEC_FIELDS.get(kind, frozenset())
+    desired_spec = {
+        k: v for k, v in (desired.get("spec") or {}).items() if k not in skip
+    }
+    return _values_match(desired_spec, current.get("spec") or {})
+
+
 @dataclass
 class TransactionPlan:
     """Computed diff of desired vs. current state."""
@@ -131,6 +196,10 @@ class TransactionPlan:
     creates: list[dict] = field(default_factory=list)
     updates: list[dict] = field(default_factory=list)
     deletes: list[dict] = field(default_factory=list)
+    # Desired CRs already reflected in EDA. Still submitted on apply (replace
+    # is idempotent), but excluded from total_ops so a converged fabric plans
+    # zero operations.
+    unchanged: list[dict] = field(default_factory=list)
 
     @property
     def total_ops(self) -> int:
@@ -141,8 +210,18 @@ class TransactionPlan:
             f"Transaction plan: "
             f"{len(self.creates)} create, "
             f"{len(self.updates)} update, "
-            f"{len(self.deletes)} delete"
+            f"{len(self.deletes)} delete, "
+            f"{len(self.unchanged)} unchanged"
         )
+
+    def counts(self) -> dict[str, int]:
+        """Plan sizes, for the machine-readable deploy summary."""
+        return {
+            "creates": len(self.creates),
+            "updates": len(self.updates),
+            "deletes": len(self.deletes),
+            "unchanged": len(self.unchanged),
+        }
 
 
 @dataclass
@@ -184,6 +263,8 @@ class EdaClient:
         self._client_secret: str | None = None
         self._keycloak_base: str | None = None
         self._ref_profile_cache: dict[tuple[str, str], dict | None] = {}
+        # Plan from the most recent apply(), for callers that report counts.
+        self.last_plan: TransactionPlan | None = None
         self._session = requests.Session()
         self._session.verify = self.verify_ssl
 
@@ -683,7 +764,12 @@ class EdaClient:
         """
         Compute the diff between desired and current state.
 
-        Returns a TransactionPlan with creates, updates, and deletes.
+        Resources are matched by ``kind:name``. A desired CR that already
+        exists is compared against live state with :func:`cr_matches_live_state`
+        and lands in ``updates`` only when its declared labels or spec fields
+        actually differ, so a converged fabric plans zero operations.
+
+        Returns a TransactionPlan with creates, updates, deletes, and unchanged.
         """
         desired_keys: dict[str, dict] = {}
         for cr in desired:
@@ -699,12 +785,13 @@ class EdaClient:
 
         plan = TransactionPlan()
 
-        # Creates: in desired but not in current
+        # Creates: in desired but not in current. Otherwise compare content.
         for key, cr in desired_keys.items():
             if key not in current_keys:
                 plan.creates.append(cr)
+            elif cr_matches_live_state(cr, current_keys[key]):
+                plan.unchanged.append(cr)
             else:
-                # Update: exists in both — use replace
                 plan.updates.append(cr)
 
         # Deletes: in current but not in desired
@@ -896,6 +983,9 @@ class EdaClient:
         If `phases` is provided, only the specified phases are executed.
         Between Phase 1 and Phase 2, waits for TopoNodes to sync.
 
+        Live state is queried up front to plan the transaction; the plan is
+        left on :attr:`last_plan`.
+
         Args:
             resources: List of desired-state CRs (k8s-style dicts)
             phases: Which phases to run (default: all)
@@ -910,14 +1000,20 @@ class EdaClient:
         run_phases = phases or ALL_PHASES
         ns = self._extract_namespace(resources)
 
-        # Optional prune diff
+        # Plan against live state. Required for --prune, and recorded on
+        # ``last_plan`` either way so callers can report real counts.
+        current = self.get_managed_resources(namespace=ns, phases=run_phases)
+        plan = self.compute_diff(resources, current)
+        self.last_plan = plan
+        logger.info(plan.summary())
+
+        # Every desired CR is still submitted, including the unchanged ones:
+        # replace is idempotent, and trusting the comparison to skip work would
+        # turn a false "unchanged" verdict into missing device config.
+        all_desired = plan.creates + plan.updates + plan.unchanged
+
         delete_crs: list[dict] = []
         if prune:
-            current = self.get_managed_resources(namespace=ns, phases=run_phases)
-            plan = self.compute_diff(resources, current)
-            logger.info(plan.summary())
-            all_desired = plan.creates + plan.updates
-
             if plan.deletes and not dry_run:
                 print(f"\n⚠️  Prune will DELETE {len(plan.deletes)} resources:")
                 for d in plan.deletes:
@@ -930,8 +1026,6 @@ class EdaClient:
                             message="Prune cancelled by user",
                         )
             delete_crs = plan.deletes
-        else:
-            all_desired = resources
 
         # Enrich NodeProfile CRs with version-specific fields from EDA
         all_desired = self._enrich_node_profiles(all_desired, namespace=ns)

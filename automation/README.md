@@ -554,6 +554,12 @@ python -m automation.deploy \
   --mode eda --diff \
   --eda-url https://eda.example.com
 
+# Fail the build when live EDA state has drifted from the design (exit 2)
+python -m automation.deploy \
+  --design validated-designs/3-stage-evpn-vxlan \
+  --mode eda --diff --fail-on-diff \
+  --eda-url https://eda.example.com
+
 # Deploy to EDA
 python -m automation.deploy \
   --design validated-designs/3-stage-evpn-vxlan \
@@ -598,6 +604,47 @@ python -m automation.deploy \
   --design validated-designs/3-stage-evpn-vxlan \
   --export-manifests build/manifests --sync-wave
 ```
+
+### Diff semantics (`--diff`, `--fail-on-diff`)
+
+`--diff` fetches every resource carrying the managed-by label from EDA, matches
+it to a generated CR by `kind:name`, and reports a plan:
+
+| Bucket | Meaning |
+| --- | --- |
+| create | Desired CR that does not exist in EDA yet |
+| update | Exists, but its declared labels or spec fields differ from live state |
+| delete | Managed resource in EDA with no counterpart in the design (`--prune` removes these) |
+| unchanged | Already reflected in EDA — no operation needed |
+
+Comparison uses *declared-intent subset* semantics: only what the generator puts
+in the CR has to match. Fields EDA populates itself (schema defaults, computed
+values), `status`, and server-managed metadata (`resourceVersion`, `generation`,
+`creationTimestamp`, `uid`) are ignored, because the design never claimed them.
+Lists of scalars compare order-insensitively; lists of objects compare
+positionally.
+
+Two field groups are deliberately not compared, and a change to them will not
+show up as drift:
+
+- Credentials (`NodeUser.password`, `NodeProfile.onboardingPassword`) — EDA
+  stores them hashed and never returns the plaintext.
+- `NodeProfile.yang`, `versionMatch`, `versionPath`, `llmDb` — these are
+  overwritten from EDA's reference `srlinux-ghcr-<version>` profile at apply
+  time, so the generated values are never the authoritative ones.
+
+A converged fabric therefore plans zero operations, which makes the plan usable
+as a CI gate. Add `--fail-on-diff` to exit **2** when any create, update, or
+delete is planned (`unchanged` never counts). Exit 0 still means converged and
+exit 1 still means the run itself failed, so a pipeline can tell drift apart
+from breakage. The `[NVD-DEPLOY-SUMMARY]` JSON line carries the same numbers as
+`creates`, `updates`, `deletes`, and `unchanged`; `--mode eda` deploys populate
+them too, from the plan computed before the transaction is submitted.
+
+Note that apply still submits every desired CR, including the unchanged ones —
+replace is idempotent, and skipping work on the strength of a comparison would
+turn a false "unchanged" verdict into missing device configuration. The plan
+informs reporting and pruning, not what gets sent.
 
 ### Manifest export (`--export-manifests`)
 
