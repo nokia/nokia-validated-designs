@@ -46,7 +46,7 @@ from automation.core.fabric_builder import (
     list_supported_designs,
     supported_design_names,
 )
-from automation.core.models import FabricIntent
+from automation.core.models import Credentials, FabricIntent
 from automation.core.schema_validator import load_inputs
 from automation.eda_models.registry import check_srl_version, check_srl_floor
 from automation.eda_models.profiles import (
@@ -60,6 +60,9 @@ from automation.generators.eda_generator import generate as eda_generate
 
 # Marker for machine-readable consumers (CI pipelines).
 DEPLOY_SUMMARY_MARKER = "[NVD-DEPLOY-SUMMARY]"
+
+# Value of ``environment`` in topology.yaml that targets real hardware.
+PHYSICAL_ENVIRONMENT = "physical"
 
 
 def main() -> int:
@@ -223,6 +226,14 @@ def main() -> int:
     )
     summary["design"] = intent.design
     summary["fabric_name"] = intent.fabric_name
+    summary["environment"] = intent.environment
+
+    env_errors = _preflight_environment(intent, args)
+    if env_errors:
+        for err in env_errors:
+            logging.error("%s", err)
+        summary["errors"].extend(env_errors)
+        return _finish(summary, start, rc=1)
 
     # ---------------------------------------------------------------
     # --export-yaml short-circuit (no deployment, no generation)
@@ -405,6 +416,72 @@ def _load_intent(args: argparse.Namespace, summary: dict[str, Any]) -> FabricInt
         topology.get("environment"),
     )
     return build_intent(topology, services)
+
+
+# ---------------------------------------------------------------------------
+# Environment preflight
+# ---------------------------------------------------------------------------
+
+
+def _preflight_environment(
+    intent: FabricIntent, args: argparse.Namespace
+) -> list[str]:
+    """Check the built intent against the environment its inputs declare.
+
+    Returns fatal errors. Softer mismatches are logged as warnings here so
+    they surface once, up front, rather than as a surprise on the device.
+    ``environment: containerlab`` needs no checks — the lab defaults are the
+    intended ones there.
+    """
+    if intent.environment != PHYSICAL_ENVIRONMENT:
+        return []
+
+    errors: list[str] = []
+
+    missing_mgmt = [node.name for node in intent.nodes if not node.mgmt_ipv4]
+    if missing_mgmt:
+        errors.append(
+            f"environment=physical requires a management address on every node, but "
+            f"{len(missing_mgmt)} have none: {', '.join(missing_mgmt)}. Set "
+            "'mgmt_base_ipv4' on the node group, or 'mgmt_ipv4' per node under "
+            "'nodes:' in topology.yaml."
+        )
+
+    defaults = Credentials()
+    if (intent.credentials.username, intent.credentials.password) == (
+        defaults.username,
+        defaults.password,
+    ):
+        logging.warning(
+            "environment=physical is using the built-in SR Linux factory "
+            "credentials (user '%s'). Set 'credentials' in topology.yaml before "
+            "onboarding production nodes.",
+            defaults.username,
+        )
+
+    if args.mode == "eda":
+        logging.warning(
+            "environment=physical: the generated NodeProfile points at the "
+            "'srlimages/srlinux-<version>-bin' image paths and 'srlinux-ghcr-<version>' "
+            "schema/LLM-DB names. Confirm the hardware images and schema profiles "
+            "exist under those names in the EDA artifact server."
+        )
+
+    if args.mode == "ansible":
+        logging.warning(
+            "environment=physical: the generated Ansible project writes "
+            "'ansible_password' in cleartext to group_vars/all.yml. Move it to a "
+            "vault or lookup before sharing or committing the project."
+        )
+
+    if args.generate_clab:
+        logging.warning(
+            "environment=physical with --generate-clab: the containerlab topology is "
+            "a twin, not the deployment target. Port speeds, breakouts and optics are "
+            "not represented, so it validates config and control plane only."
+        )
+
+    return errors
 
 
 # ---------------------------------------------------------------------------

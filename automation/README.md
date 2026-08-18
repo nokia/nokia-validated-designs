@@ -329,6 +329,29 @@ On construction, the `validate_cross_references` model validator checks that all
 name-based references resolve (e.g., every IRB's `bridge_domain` must exist in
 `bridge_domains`).
 
+### Environment guardrails
+
+`environment` in `topology.yaml` is either `containerlab` (default) or
+`physical`, and the deployer preflights the built intent against it before any
+generation or deployment work starts. It is also reported in the
+`[NVD-DEPLOY-SUMMARY]` line so pipelines can assert which target they are
+pointed at.
+
+For `containerlab` nothing is checked -- the lab defaults are the intended ones
+there. For `physical`:
+
+| Condition | Result |
+|-----------|--------|
+| A node has no `mgmt_ipv4` | Error, deploy aborts |
+| Credentials are still the SR Linux factory defaults | Warning |
+| `--mode eda` | Warning: confirm the `srlimages/...` and `srlinux-ghcr-...` artifacts exist in the EDA artifact server for hardware images |
+| `--mode ansible` | Warning: `ansible_password` is written in cleartext to `group_vars/all.yml` |
+| `--generate-clab` | Warning: the topology is a twin (no port speeds, breakouts or optics), not the deployment target |
+
+Generating a containerlab twin from a `physical` design is supported on
+purpose -- it is how a production change gets rehearsed against the same intent
+before it reaches hardware.
+
 ## Layer 3a: EDA Mode
 
 ### CR Generation (eda_generator.py)

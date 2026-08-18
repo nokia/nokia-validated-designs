@@ -560,7 +560,7 @@ class FabricIntent(BaseModel):
     # Identity
     design: str  # e.g. "3-stage-evpn-vxlan"
     fabric_name: str  # e.g. "dc1"
-    environment: str  # "containerlab" | "physical"
+    environment: Literal["containerlab", "physical"]
 
     # Underlay parameters
     spine_asn: int
