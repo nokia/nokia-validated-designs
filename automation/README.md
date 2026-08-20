@@ -191,9 +191,17 @@ For IDE support, each design ships an on-disk
 # yaml-language-server: $schema=../../schemas/topology_fragment_schema.json
 ```
 
-(Use `services_fragment_schema.json` for `services.d/` fragments.) The loader
-prefers the on-disk fragment schema when present and falls back to an
-in-memory derivation if it's missing — so removing the file doesn't break
+(Use `services_fragment_schema.json` for `services.d/` fragments.) That comment
+is a directive understood only by the **Red Hat YAML extension**
+(`redhat.vscode-yaml`) — VS Code and Cursor do no YAML schema validation on
+their own, so without it the line is inert and invalid input is only caught at
+deploy time. The extension is listed in `.vscode/extensions.json`; on a
+Remote-SSH workspace it must be installed on the remote host. Agent-made edits
+are covered separately by the `postToolUse` hook in `.cursor/hooks.json`, which
+re-runs `load_inputs()` on the touched design.
+
+The loader prefers the on-disk fragment schema when present and falls back to
+an in-memory derivation if it's missing — so removing the file doesn't break
 runtime, only IDE validation. To regenerate the fragment schemas after
 editing the strict ones:
 

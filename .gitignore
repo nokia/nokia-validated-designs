@@ -43,7 +43,10 @@ coverage.xml
 validated-designs/3-stage-evpn-vxlan/3-stage-evpn-vxlan-ansible/
 
 # ---------- IDE / Editor ----------
-.vscode/
+# Exclude .vscode contents (not the directory itself) so extensions.json,
+# which pins the editor tooling this repo's schemas rely on, stays tracked.
+.vscode/*
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
