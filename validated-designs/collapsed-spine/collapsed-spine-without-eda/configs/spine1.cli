@@ -48,47 +48,47 @@ set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine default-a
 set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 10 match protocol local
 set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 10 match prefix prefix-set prefixset-dc1-collapsed-spine
 set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 10 action policy-result accept
-set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 10 action bgp local-preference set 100
+set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 10 action bgp local-preference operation set value 100
 set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 15 match protocol bgp
 set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 15 action policy-result accept
-set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 15 action bgp local-preference set 100
+set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 15 action bgp local-preference operation set value 100
 set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 20 match protocol aggregate
 set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 20 action policy-result accept
-set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 20 action bgp local-preference set 100
+set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 20 action bgp local-preference operation set value 100
 set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 25 match bgp evpn route-type [ 1 ]
 set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 25 action policy-result accept
-set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 25 action bgp local-preference set 100
+set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 25 action bgp local-preference operation set value 100
 set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 30 match bgp evpn route-type [ 2 ]
 set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 30 action policy-result accept
-set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 30 action bgp local-preference set 100
+set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 30 action bgp local-preference operation set value 100
 set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 35 match bgp evpn route-type [ 3 ]
 set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 35 action policy-result accept
-set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 35 action bgp local-preference set 100
+set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 35 action bgp local-preference operation set value 100
 set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 40 match bgp evpn route-type [ 4 ]
 set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 40 action policy-result accept
-set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 40 action bgp local-preference set 100
+set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 40 action bgp local-preference operation set value 100
 set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 45 match bgp evpn route-type [ 5 ]
 set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 45 action policy-result accept
-set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 45 action bgp local-preference set 100
+set / routing-policy policy ebgp-isl-export-policy-dc1-collapsed-spine statement 45 action bgp local-preference operation set value 100
 set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine default-action policy-result reject
 set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 10 match protocol bgp
 set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 10 action policy-result accept
-set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 10 action bgp local-preference set 100
+set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 10 action bgp local-preference operation set value 100
 set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 25 match bgp evpn route-type [ 1 ]
 set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 25 action policy-result accept
-set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 25 action bgp local-preference set 100
+set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 25 action bgp local-preference operation set value 100
 set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 30 match bgp evpn route-type [ 2 ]
 set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 30 action policy-result accept
-set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 30 action bgp local-preference set 100
+set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 30 action bgp local-preference operation set value 100
 set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 35 match bgp evpn route-type [ 3 ]
 set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 35 action policy-result accept
-set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 35 action bgp local-preference set 100
+set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 35 action bgp local-preference operation set value 100
 set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 40 match bgp evpn route-type [ 4 ]
 set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 40 action policy-result accept
-set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 40 action bgp local-preference set 100
+set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 40 action bgp local-preference operation set value 100
 set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 45 match bgp evpn route-type [ 5 ]
 set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 45 action policy-result accept
-set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 45 action bgp local-preference set 100
+set / routing-policy policy ebgp-isl-import-policy-dc1-collapsed-spine statement 45 action bgp local-preference operation set value 100
 set / interface ethernet-1/23 description spine1-spine2-tor4-lag
 set / interface ethernet-1/23 admin-state enable
 set / interface ethernet-1/23 ethernet aggregate-id lag4
@@ -353,7 +353,7 @@ set / network-instance macvrf-v10 vxlan-interface vxlan0.504
 set / network-instance macvrf-v10 protocols bgp-evpn bgp-instance 1 vxlan-interface vxlan0.504
 set / network-instance macvrf-v10 protocols bgp-evpn bgp-instance 1 evi 10
 set / network-instance macvrf-v10 protocols bgp-evpn bgp-instance 1 ecmp 8
-set / network-instance macvrf-v10 protocols bgp-evpn bgp-instance 1 routes bridge-table mac-ip advertise-arp-nd-only-with-mac-table-entry true
+set / network-instance macvrf-v10 protocols bgp-evpn bgp-instance 1 routes bridge-table mac-ip advertise-arp-nd-extended-community true advertise true
 set / network-instance macvrf-v10 protocols bgp-vpn bgp-instance 1 route-target export-rt target:1:10
 set / network-instance macvrf-v10 protocols bgp-vpn bgp-instance 1 route-target import-rt target:1:10
 set / network-instance macvrf-v10 bridge-table mac-learning admin-state enable
@@ -373,7 +373,7 @@ set / network-instance macvrf-v20 vxlan-interface vxlan0.503
 set / network-instance macvrf-v20 protocols bgp-evpn bgp-instance 1 vxlan-interface vxlan0.503
 set / network-instance macvrf-v20 protocols bgp-evpn bgp-instance 1 evi 20
 set / network-instance macvrf-v20 protocols bgp-evpn bgp-instance 1 ecmp 8
-set / network-instance macvrf-v20 protocols bgp-evpn bgp-instance 1 routes bridge-table mac-ip advertise-arp-nd-only-with-mac-table-entry true
+set / network-instance macvrf-v20 protocols bgp-evpn bgp-instance 1 routes bridge-table mac-ip advertise-arp-nd-extended-community true advertise true
 set / network-instance macvrf-v20 protocols bgp-vpn bgp-instance 1 route-target export-rt target:1:20
 set / network-instance macvrf-v20 protocols bgp-vpn bgp-instance 1 route-target import-rt target:1:20
 set / network-instance macvrf-v20 bridge-table mac-learning admin-state enable
@@ -393,7 +393,7 @@ set / network-instance macvrf-v40 vxlan-interface vxlan0.505
 set / network-instance macvrf-v40 protocols bgp-evpn bgp-instance 1 vxlan-interface vxlan0.505
 set / network-instance macvrf-v40 protocols bgp-evpn bgp-instance 1 evi 40
 set / network-instance macvrf-v40 protocols bgp-evpn bgp-instance 1 ecmp 8
-set / network-instance macvrf-v40 protocols bgp-evpn bgp-instance 1 routes bridge-table mac-ip advertise-arp-nd-only-with-mac-table-entry true
+set / network-instance macvrf-v40 protocols bgp-evpn bgp-instance 1 routes bridge-table mac-ip advertise-arp-nd-extended-community true advertise true
 set / network-instance macvrf-v40 protocols bgp-vpn bgp-instance 1 route-target export-rt target:1:40
 set / network-instance macvrf-v40 protocols bgp-vpn bgp-instance 1 route-target import-rt target:1:40
 set / network-instance macvrf-v40 bridge-table mac-learning admin-state enable
@@ -413,7 +413,7 @@ set / network-instance macvrf-v50 vxlan-interface vxlan0.502
 set / network-instance macvrf-v50 protocols bgp-evpn bgp-instance 1 vxlan-interface vxlan0.502
 set / network-instance macvrf-v50 protocols bgp-evpn bgp-instance 1 evi 50
 set / network-instance macvrf-v50 protocols bgp-evpn bgp-instance 1 ecmp 8
-set / network-instance macvrf-v50 protocols bgp-evpn bgp-instance 1 routes bridge-table mac-ip advertise-arp-nd-only-with-mac-table-entry true
+set / network-instance macvrf-v50 protocols bgp-evpn bgp-instance 1 routes bridge-table mac-ip advertise-arp-nd-extended-community true advertise true
 set / network-instance macvrf-v50 protocols bgp-vpn bgp-instance 1 route-target export-rt target:1:50
 set / network-instance macvrf-v50 protocols bgp-vpn bgp-instance 1 route-target import-rt target:1:50
 set / network-instance macvrf-v50 bridge-table mac-learning admin-state enable
@@ -433,7 +433,7 @@ set / network-instance macvrf-v70 vxlan-interface vxlan0.501
 set / network-instance macvrf-v70 protocols bgp-evpn bgp-instance 1 vxlan-interface vxlan0.501
 set / network-instance macvrf-v70 protocols bgp-evpn bgp-instance 1 evi 70
 set / network-instance macvrf-v70 protocols bgp-evpn bgp-instance 1 ecmp 8
-set / network-instance macvrf-v70 protocols bgp-evpn bgp-instance 1 routes bridge-table mac-ip advertise-arp-nd-only-with-mac-table-entry true
+set / network-instance macvrf-v70 protocols bgp-evpn bgp-instance 1 routes bridge-table mac-ip advertise-arp-nd-extended-community true advertise true
 set / network-instance macvrf-v70 protocols bgp-vpn bgp-instance 1 route-target export-rt target:1:70
 set / network-instance macvrf-v70 protocols bgp-vpn bgp-instance 1 route-target import-rt target:1:70
 set / network-instance macvrf-v70 bridge-table mac-learning admin-state enable
