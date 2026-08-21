@@ -1,0 +1,431 @@
+name: dc1
+prefix: ''
+mgmt:
+  network: eda_mgmt
+  ipv4-subnet: 172.21.21.0/24
+topology:
+  defaults:
+    kind: nokia_srlinux
+  kinds:
+    nokia_srlinux:
+      image: ghcr.io/nokia/srlinux:25.10.1
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+      binds:
+      - client-configs:/client-configs
+  nodes:
+    frontend-leaf1:
+      mgmt-ipv4: 172.21.21.33
+      type: ixr-d5
+    frontend-leaf2:
+      mgmt-ipv4: 172.21.21.34
+      type: ixr-d5
+    frontend-spine1:
+      mgmt-ipv4: 172.21.21.31
+      type: ixr-h5-64o
+    frontend-spine2:
+      mgmt-ipv4: 172.21.21.32
+      type: ixr-h5-64o
+    spine1:
+      mgmt-ipv4: 172.21.21.101
+      type: ixr-h4
+    spine2:
+      mgmt-ipv4: 172.21.21.102
+      type: ixr-h4
+    stripe1-leaf1:
+      mgmt-ipv4: 172.21.21.11
+      type: ixr-h4
+    stripe1-leaf2:
+      mgmt-ipv4: 172.21.21.12
+      type: ixr-h4
+    stripe1-leaf3:
+      mgmt-ipv4: 172.21.21.13
+      type: ixr-h4
+    stripe1-leaf4:
+      mgmt-ipv4: 172.21.21.14
+      type: ixr-h4
+    stripe1-leaf5:
+      mgmt-ipv4: 172.21.21.15
+      type: ixr-h4
+    stripe1-leaf6:
+      mgmt-ipv4: 172.21.21.16
+      type: ixr-h4
+    stripe1-leaf7:
+      mgmt-ipv4: 172.21.21.17
+      type: ixr-h4
+    stripe1-leaf8:
+      mgmt-ipv4: 172.21.21.18
+      type: ixr-h4
+    stripe2-leaf1:
+      mgmt-ipv4: 172.21.21.21
+      type: ixr-h5-64d
+    stripe2-leaf2:
+      mgmt-ipv4: 172.21.21.22
+      type: ixr-h5-64d
+    stripe2-leaf3:
+      mgmt-ipv4: 172.21.21.23
+      type: ixr-h5-64d
+    stripe2-leaf4:
+      mgmt-ipv4: 172.21.21.24
+      type: ixr-h5-64d
+    stripe2-leaf5:
+      mgmt-ipv4: 172.21.21.25
+      type: ixr-h5-64d
+    stripe2-leaf6:
+      mgmt-ipv4: 172.21.21.26
+      type: ixr-h5-64d
+    stripe2-leaf7:
+      mgmt-ipv4: 172.21.21.27
+      type: ixr-h5-64d
+    stripe2-leaf8:
+      mgmt-ipv4: 172.21.21.28
+      type: ixr-h5-64d
+    s1:
+      kind: linux
+      exec:
+      - bash /client-configs/s1.sh
+      mgmt-ipv4: 172.21.21.51
+      image: aninchat/ubuntu-server:v1
+    s2:
+      kind: linux
+      exec:
+      - bash /client-configs/s2.sh
+      mgmt-ipv4: 172.21.21.52
+      image: aninchat/ubuntu-server:v1
+    s3:
+      kind: linux
+      exec:
+      - bash /client-configs/s3.sh
+      mgmt-ipv4: 172.21.21.53
+      image: aninchat/ubuntu-server:v1
+    s4:
+      kind: linux
+      exec:
+      - bash /client-configs/s4.sh
+      mgmt-ipv4: 172.21.21.54
+      image: aninchat/ubuntu-server:v1
+    weka1:
+      kind: linux
+      exec:
+      - bash /client-configs/weka1.sh
+      mgmt-ipv4: 172.21.21.60
+      image: aninchat/ubuntu-server:v1
+    weka2:
+      kind: linux
+      exec:
+      - bash /client-configs/weka2.sh
+      mgmt-ipv4: 172.21.21.61
+      image: aninchat/ubuntu-server:v1
+    weka3:
+      kind: linux
+      exec:
+      - bash /client-configs/weka3.sh
+      mgmt-ipv4: 172.21.21.62
+      image: aninchat/ubuntu-server:v1
+    weka4:
+      kind: linux
+      exec:
+      - bash /client-configs/weka4.sh
+      mgmt-ipv4: 172.21.21.63
+      image: aninchat/ubuntu-server:v1
+    weka5:
+      kind: linux
+      exec:
+      - bash /client-configs/weka5.sh
+      mgmt-ipv4: 172.21.21.64
+      image: aninchat/ubuntu-server:v1
+    weka6:
+      kind: linux
+      exec:
+      - bash /client-configs/weka6.sh
+      mgmt-ipv4: 172.21.21.65
+      image: aninchat/ubuntu-server:v1
+    weka7:
+      kind: linux
+      exec:
+      - bash /client-configs/weka7.sh
+      mgmt-ipv4: 172.21.21.66
+      image: aninchat/ubuntu-server:v1
+    weka8:
+      kind: linux
+      exec:
+      - bash /client-configs/weka8.sh
+      mgmt-ipv4: 172.21.21.67
+      image: aninchat/ubuntu-server:v1
+  links:
+  - endpoints:
+    - frontend-spine1:e1-1
+    - frontend-leaf1:e1-1
+  - endpoints:
+    - frontend-spine1:e1-2
+    - frontend-leaf2:e1-1
+  - endpoints:
+    - frontend-spine2:e1-1
+    - frontend-leaf1:e1-2
+  - endpoints:
+    - frontend-spine2:e1-2
+    - frontend-leaf2:e1-2
+  - endpoints:
+    - spine1:e1-1
+    - stripe1-leaf1:e1-1
+  - endpoints:
+    - spine1:e1-2
+    - stripe1-leaf2:e1-1
+  - endpoints:
+    - spine1:e1-3
+    - stripe1-leaf3:e1-1
+  - endpoints:
+    - spine1:e1-4
+    - stripe1-leaf4:e1-1
+  - endpoints:
+    - spine1:e1-5
+    - stripe1-leaf5:e1-1
+  - endpoints:
+    - spine1:e1-6
+    - stripe1-leaf6:e1-1
+  - endpoints:
+    - spine1:e1-7
+    - stripe1-leaf7:e1-1
+  - endpoints:
+    - spine1:e1-8
+    - stripe1-leaf8:e1-1
+  - endpoints:
+    - spine1:e1-9
+    - stripe2-leaf1:e1-1
+  - endpoints:
+    - spine1:e1-10
+    - stripe2-leaf2:e1-1
+  - endpoints:
+    - spine1:e1-11
+    - stripe2-leaf3:e1-1
+  - endpoints:
+    - spine1:e1-12
+    - stripe2-leaf4:e1-1
+  - endpoints:
+    - spine1:e1-13
+    - stripe2-leaf5:e1-1
+  - endpoints:
+    - spine1:e1-14
+    - stripe2-leaf6:e1-1
+  - endpoints:
+    - spine1:e1-15
+    - stripe2-leaf7:e1-1
+  - endpoints:
+    - spine1:e1-16
+    - stripe2-leaf8:e1-1
+  - endpoints:
+    - spine2:e1-1
+    - stripe1-leaf1:e1-2
+  - endpoints:
+    - spine2:e1-2
+    - stripe1-leaf2:e1-2
+  - endpoints:
+    - spine2:e1-3
+    - stripe1-leaf3:e1-2
+  - endpoints:
+    - spine2:e1-4
+    - stripe1-leaf4:e1-2
+  - endpoints:
+    - spine2:e1-5
+    - stripe1-leaf5:e1-2
+  - endpoints:
+    - spine2:e1-6
+    - stripe1-leaf6:e1-2
+  - endpoints:
+    - spine2:e1-7
+    - stripe1-leaf7:e1-2
+  - endpoints:
+    - spine2:e1-8
+    - stripe1-leaf8:e1-2
+  - endpoints:
+    - spine2:e1-9
+    - stripe2-leaf1:e1-2
+  - endpoints:
+    - spine2:e1-10
+    - stripe2-leaf2:e1-2
+  - endpoints:
+    - spine2:e1-11
+    - stripe2-leaf3:e1-2
+  - endpoints:
+    - spine2:e1-12
+    - stripe2-leaf4:e1-2
+  - endpoints:
+    - spine2:e1-13
+    - stripe2-leaf5:e1-2
+  - endpoints:
+    - spine2:e1-14
+    - stripe2-leaf6:e1-2
+  - endpoints:
+    - spine2:e1-15
+    - stripe2-leaf7:e1-2
+  - endpoints:
+    - spine2:e1-16
+    - stripe2-leaf8:e1-2
+  - endpoints:
+    - stripe1-leaf1:e1-3
+    - s1:eth1
+  - endpoints:
+    - stripe1-leaf2:e1-3
+    - s1:eth2
+  - endpoints:
+    - stripe1-leaf3:e1-3
+    - s1:eth3
+  - endpoints:
+    - stripe1-leaf4:e1-3
+    - s1:eth4
+  - endpoints:
+    - stripe1-leaf5:e1-3
+    - s1:eth5
+  - endpoints:
+    - stripe1-leaf6:e1-3
+    - s1:eth6
+  - endpoints:
+    - stripe1-leaf7:e1-3
+    - s1:eth7
+  - endpoints:
+    - stripe1-leaf8:e1-3
+    - s1:eth8
+  - endpoints:
+    - frontend-leaf1:e1-3
+    - s1:eth9
+  - endpoints:
+    - frontend-leaf2:e1-3
+    - s1:eth10
+  - endpoints:
+    - stripe1-leaf1:e1-4
+    - s2:eth1
+  - endpoints:
+    - stripe1-leaf2:e1-4
+    - s2:eth2
+  - endpoints:
+    - stripe1-leaf3:e1-4
+    - s2:eth3
+  - endpoints:
+    - stripe1-leaf4:e1-4
+    - s2:eth4
+  - endpoints:
+    - stripe1-leaf5:e1-4
+    - s2:eth5
+  - endpoints:
+    - stripe1-leaf6:e1-4
+    - s2:eth6
+  - endpoints:
+    - stripe1-leaf7:e1-4
+    - s2:eth7
+  - endpoints:
+    - stripe1-leaf8:e1-4
+    - s2:eth8
+  - endpoints:
+    - frontend-leaf1:e1-4
+    - s2:eth9
+  - endpoints:
+    - frontend-leaf2:e1-4
+    - s2:eth10
+  - endpoints:
+    - stripe2-leaf1:e1-3
+    - s3:eth1
+  - endpoints:
+    - stripe2-leaf2:e1-3
+    - s3:eth2
+  - endpoints:
+    - stripe2-leaf3:e1-3
+    - s3:eth3
+  - endpoints:
+    - stripe2-leaf4:e1-3
+    - s3:eth4
+  - endpoints:
+    - stripe2-leaf5:e1-3
+    - s3:eth5
+  - endpoints:
+    - stripe2-leaf6:e1-3
+    - s3:eth6
+  - endpoints:
+    - stripe2-leaf7:e1-3
+    - s3:eth7
+  - endpoints:
+    - stripe2-leaf8:e1-3
+    - s3:eth8
+  - endpoints:
+    - frontend-leaf1:e1-5
+    - s3:eth9
+  - endpoints:
+    - frontend-leaf2:e1-5
+    - s3:eth10
+  - endpoints:
+    - stripe2-leaf1:e1-4
+    - s4:eth1
+  - endpoints:
+    - stripe2-leaf2:e1-4
+    - s4:eth2
+  - endpoints:
+    - stripe2-leaf3:e1-4
+    - s4:eth3
+  - endpoints:
+    - stripe2-leaf4:e1-4
+    - s4:eth4
+  - endpoints:
+    - stripe2-leaf5:e1-4
+    - s4:eth5
+  - endpoints:
+    - stripe2-leaf6:e1-4
+    - s4:eth6
+  - endpoints:
+    - stripe2-leaf7:e1-4
+    - s4:eth7
+  - endpoints:
+    - stripe2-leaf8:e1-4
+    - s4:eth8
+  - endpoints:
+    - frontend-leaf1:e1-6
+    - s4:eth9
+  - endpoints:
+    - frontend-leaf2:e1-6
+    - s4:eth10
+  - endpoints:
+    - frontend-leaf1:e1-7
+    - weka1:eth1
+  - endpoints:
+    - frontend-leaf2:e1-7
+    - weka1:eth2
+  - endpoints:
+    - frontend-leaf1:e1-8
+    - weka2:eth1
+  - endpoints:
+    - frontend-leaf2:e1-8
+    - weka2:eth2
+  - endpoints:
+    - frontend-leaf1:e1-9
+    - weka3:eth1
+  - endpoints:
+    - frontend-leaf2:e1-9
+    - weka3:eth2
+  - endpoints:
+    - frontend-leaf1:e1-10
+    - weka4:eth1
+  - endpoints:
+    - frontend-leaf2:e1-10
+    - weka4:eth2
+  - endpoints:
+    - frontend-leaf1:e1-11
+    - weka5:eth1
+  - endpoints:
+    - frontend-leaf2:e1-11
+    - weka5:eth2
+  - endpoints:
+    - frontend-leaf1:e1-12
+    - weka6:eth1
+  - endpoints:
+    - frontend-leaf2:e1-12
+    - weka6:eth2
+  - endpoints:
+    - frontend-leaf1:e1-13
+    - weka7:eth1
+  - endpoints:
+    - frontend-leaf2:e1-13
+    - weka7:eth2
+  - endpoints:
+    - frontend-leaf1:e1-14
+    - weka8:eth1
+  - endpoints:
+    - frontend-leaf2:e1-14
+    - weka8:eth2

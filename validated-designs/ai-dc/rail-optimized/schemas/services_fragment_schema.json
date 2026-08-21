@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ai-dc-rail-optimized/services.fragment",
+  "title": "Rail-Optimized AI Datacenter Services Input (fragment)",
+  "description": "Overlay services for the frontend/storage fabric. The backend fabric takes no service input: the Backend CR derives its own per-rail services from the stripes and the GPU VLAN. Fragment variant: top-level required keys removed so individual fragments under inputs/*.d/ validate cleanly. The merged result is still validated against the strict schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "vlan": {
+      "type": "object",
+      "required": [
+        "name",
+        "bridge_domain",
+        "vlan_id",
+        "interface_selector"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "VLAN service resource name."
+        },
+        "bridge_domain": {
+          "type": "string",
+          "description": "Bridge domain this VLAN belongs to (must exist in bridge_domains)."
+        },
+        "vlan_id": {
+          "type": "string",
+          "pattern": "^(untagged|[0-9]+)$",
+          "description": "VLAN ID ('untagged' or numeric string like '10')."
+        },
+        "interface_selector": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_./-]+=.+$"
+          },
+          "minItems": 1,
+          "description": "Label selectors to match interfaces for this VLAN."
+        }
+      }
+    },
+    "bridgeDomain": {
+      "type": "object",
+      "required": [
+        "name",
+        "vni",
+        "evi"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Bridge domain resource name."
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "EVPNVXLAN"
+          ],
+          "description": "Bridge domain type."
+        },
+        "vni": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777215,
+          "description": "VXLAN Network Identifier."
+        },
+        "evi": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "EVPN Instance identifier."
+        },
+        "mac_learning": {
+          "type": "boolean",
+          "description": "Whether the bridge domain learns MACs from the data plane."
+        },
+        "mac_aging": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "MAC aging time in seconds."
+        }
+      }
+    }
+  },
+  "properties": {
+    "bridge_domains": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/bridgeDomain"
+      },
+      "description": "MAC-VRF bridge domains in the frontend namespace."
+    },
+    "vlans": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/vlan"
+      },
+      "description": "VLAN services attaching bridge domains to the server LAGs. Selectors match the tagged-v<vlan> / untagged-v<vlan> labels the builder puts on each LAG."
+    }
+  }
+}

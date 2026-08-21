@@ -1,0 +1,21 @@
+---
+# yaml-language-server: $schema=../../schemas/services_fragment_schema.json
+# VLAN attachments onto the storage bridge domain.
+#
+# The two entries differ only in tagging: GPU hosts trunk VLAN 100 (they also
+# carry rail traffic on other NICs), while dedicated storage nodes are untagged
+# access ports. The builder labels each server LAG accordingly, and these
+# selectors pick them up.
+
+vlans:
+  - name: storage
+    bridge_domain: mac-vrf-storage
+    vlan_id: untagged
+    interface_selector:
+      - eda.nokia.com/untagged-v100=enabled
+
+  - name: gpu
+    bridge_domain: mac-vrf-storage
+    vlan_id: "100"
+    interface_selector:
+      - eda.nokia.com/tagged-v100=enabled

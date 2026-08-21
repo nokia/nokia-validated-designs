@@ -31,6 +31,10 @@ class CRType:
     api_version: str
     kind: str
     plural: str
+    # EDA's REST API rejects the ``/namespaces/{ns}/`` path segment for a few
+    # kinds (``InvalidForNonNamespacedResource``), so their list/get endpoints
+    # are cluster-scoped. See :data:`_CLUSTER_SCOPED_KINDS`.
+    cluster_scoped: bool = False
 
 
 # Fixed API group domains. Only the trailing version varies per EDA release,
@@ -45,6 +49,10 @@ _GROUP_DOMAINS: dict[str, str] = {
     "config": "config.eda.nokia.com",
     "siteinfo": "siteinfo.eda.nokia.com",
     "routingpolicies": "routingpolicies.eda.nokia.com",
+    "aifabrics": "aifabrics.eda.nokia.com",
+    "qos": "qos.eda.nokia.com",
+    "aaa": "aaa.eda.nokia.com",
+    "topologies": "topologies.eda.nokia.com",
 }
 
 # Stable GVK skeleton: (attr_name, group_key, kind, plural). The apiVersion is
@@ -71,7 +79,28 @@ _CR_SKELETON: list[tuple[str, str, str, str]] = [
     ("BANNER", "siteinfo", "Banner", "banners"),
     ("POLICY", "routingpolicies", "Policy", "policys"),
     ("PREFIX_SET", "routingpolicies", "PrefixSet", "prefixsets"),
+    # AI-fabric / multi-namespace kinds. Plurals below were read off a live
+    # 25.12 cluster's ``kubectl api-resources`` — note EDA pluralizes by naive
+    # ``+s``, hence ``forwardingclasss`` (three s's), matching the existing
+    # ``policys``.
+    ("NAMESPACE", "core", "Namespace", "namespaces"),
+    ("NODE_GROUP", "aaa", "NodeGroup", "nodegroups"),
+    ("TOPOLOGY_GROUPING", "topologies", "TopologyGrouping", "topologygroupings"),
+    ("QUEUE", "qos", "Queue", "queues"),
+    ("FORWARDING_CLASS", "qos", "ForwardingClass", "forwardingclasss"),
+    ("AI_BACKEND", "aifabrics", "Backend", "backends"),
 ]
+
+
+# Kinds whose EDA REST endpoints are cluster-scoped. Their CRDs are namespaced
+# and a write still carries ``metadata.namespace`` (an EDA Namespace lives in
+# ``eda-system``), but a *read* through ``/namespaces/{ns}/...`` is rejected
+# with ``InvalidForNonNamespacedResource`` — both are top-level objects as far
+# as the API is concerned. Reading them per namespace instead of once is why a
+# converged fabric would otherwise keep re-reporting them as creates.
+_CLUSTER_SCOPED_KINDS: frozenset[str] = frozenset(
+    {"Namespace", "TopologyGrouping"}
+)
 
 
 # ---------------------------------------------------------------------------
@@ -222,6 +251,12 @@ class Registry:
     BANNER: CRType
     POLICY: CRType
     PREFIX_SET: CRType
+    NAMESPACE: CRType
+    NODE_GROUP: CRType
+    TOPOLOGY_GROUPING: CRType
+    QUEUE: CRType
+    FORWARDING_CLASS: CRType
+    AI_BACKEND: CRType
 
     def __init__(
         self,
@@ -244,7 +279,9 @@ class Registry:
         for attr, group_key, kind, plural in _CR_SKELETON:
             version = group_versions[group_key]
             api_version = f"{_GROUP_DOMAINS[group_key]}/{version}"
-            crt = CRType(api_version, kind, plural)
+            crt = CRType(
+                api_version, kind, plural, kind in _CLUSTER_SCOPED_KINDS
+            )
             setattr(self, attr, crt)
             types.append(crt)
 
@@ -309,6 +346,11 @@ _PROFILE_25_12 = Registry(
         "config": "v1alpha1",
         "siteinfo": "v1alpha1",
         "routingpolicies": "v1alpha1",
+        # Verified against a live 25.12 cluster's /apps discovery.
+        "aifabrics": "v1alpha1",
+        "qos": "v1",
+        "aaa": "v1alpha1",
+        "topologies": "v1alpha1",
     },
     srl_support=_SRL_SUPPORT_CURRENT,
     tested_srl_versions=_TESTED_SRL_VERSIONS,
@@ -336,6 +378,14 @@ _PROFILE_26_4 = Registry(
         "config": "v1",
         "siteinfo": "v1",
         "routingpolicies": "v1",
+        # UNVERIFIED against a live 26.4 cluster — no 26.4 install was available
+        # to read /apps discovery from. Carried over from 25.12 so the registry
+        # is complete; the AI-fabric design refuses to generate against the v2
+        # backend (see eda_generator_v2), so these are not silently used.
+        "aifabrics": "v1alpha1",
+        "qos": "v1",
+        "aaa": "v1alpha1",
+        "topologies": "v1alpha1",
     },
     srl_support=_SRL_SUPPORT_CURRENT,
     tested_srl_versions=_TESTED_SRL_VERSIONS,

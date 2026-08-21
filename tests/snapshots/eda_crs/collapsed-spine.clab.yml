@@ -1,0 +1,107 @@
+name: dc1-collapsed
+prefix: ''
+mgmt:
+  network: eda_mgmt
+  ipv4-subnet: 172.21.21.0/24
+topology:
+  defaults:
+    kind: nokia_srlinux
+  kinds:
+    nokia_srlinux:
+      image: ghcr.io/nokia/srlinux:25.3.2
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+      binds:
+      - client-configs:/client-configs
+  nodes:
+    spine1:
+      mgmt-ipv4: 172.21.21.101
+      type: ixr-d3l
+    spine2:
+      mgmt-ipv4: 172.21.21.102
+      type: ixr-d3l
+    tor1:
+      mgmt-ipv4: 172.21.21.11
+      type: ixr-d2l
+    tor2:
+      mgmt-ipv4: 172.21.21.12
+      type: ixr-d2l
+    tor3:
+      mgmt-ipv4: 172.21.21.13
+      type: ixr-d3l
+    cl-s1:
+      kind: linux
+      mgmt-ipv4: 172.21.21.254
+      exec:
+      - bash /client-configs/cl-s1.sh
+    cl-s1s2:
+      kind: linux
+      mgmt-ipv4: 172.21.21.253
+      exec:
+      - bash /client-configs/cl-s1s2.sh
+    cl-s2:
+      kind: linux
+      mgmt-ipv4: 172.21.21.252
+      exec:
+      - bash /client-configs/cl-s2.sh
+    cl-t1:
+      kind: linux
+      mgmt-ipv4: 172.21.21.251
+      exec:
+      - bash /client-configs/cl-t1.sh
+    cl-t2:
+      kind: linux
+      mgmt-ipv4: 172.21.21.250
+      exec:
+      - bash /client-configs/cl-t2.sh
+    cl-t3:
+      kind: linux
+      mgmt-ipv4: 172.21.21.249
+      exec:
+      - bash /client-configs/cl-t3.sh
+  links:
+  - endpoints:
+    - spine1:e1-31
+    - spine2:e1-31
+  - endpoints:
+    - spine1:e1-32
+    - spine2:e1-32
+  - endpoints:
+    - spine1:e1-25
+    - tor1:e1-51
+  - endpoints:
+    - spine1:e1-26
+    - tor2:e1-51
+  - endpoints:
+    - spine1:e1-29
+    - tor3:e1-29
+  - endpoints:
+    - spine2:e1-25
+    - tor1:e1-52
+  - endpoints:
+    - spine2:e1-26
+    - tor2:e1-52
+  - endpoints:
+    - spine2:e1-30
+    - tor3:e1-30
+  - endpoints:
+    - spine1:e1-27
+    - cl-s1:eth1
+  - endpoints:
+    - spine2:e1-29
+    - cl-s2:eth1
+  - endpoints:
+    - tor1:e1-55
+    - cl-t1:eth1
+  - endpoints:
+    - tor2:e1-56
+    - cl-t2:eth1
+  - endpoints:
+    - tor3:e1-32
+    - cl-t3:eth1
+  - endpoints:
+    - spine1:e1-23
+    - cl-s1s2:eth1
+  - endpoints:
+    - spine2:e1-23
+    - cl-s1s2:eth2

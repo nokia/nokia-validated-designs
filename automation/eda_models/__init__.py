@@ -51,6 +51,8 @@ from .services import (  # noqa: F401
 )
 from .core import (  # noqa: F401
     _EDABase,
+    NamespaceBootstrap,
+    NamespaceSpec,
     IPAllocationPoolReservations,
     IPAllocationPoolAllocations,
     IPAllocationPoolSegments,
@@ -93,6 +95,30 @@ from .fabrics import (  # noqa: F401
     FabricBorderleafs,
     FabricSpec,
 )
+from .aifabrics import (  # noqa: F401
+    _EDABase,
+    BackendStripes,
+    BackendStripeConnector,
+    BackendRocev2QoS,
+    BackendGpuIsolationGroups,
+    BackendSpec,
+)
+from .qos import (  # noqa: F401
+    _EDABase,
+    QueueSpec,
+)
+from .aaa import (  # noqa: F401
+    _EDABase,
+    NodeGroupTacacs,
+    NodeGroupRules,
+    NodeGroupSpec,
+)
+from .topologies import (  # noqa: F401
+    _EDABase,
+    TopologyGroupingTierSelectors,
+    TopologyGroupingGroupSelectors,
+    TopologyGroupingSpec,
+)
 from .interfaces import (  # noqa: F401
     _EDABase,
     InterfaceMembers,
@@ -101,7 +127,8 @@ from .interfaces import (  # noqa: F401
     InterfaceLacp,
     InterfaceLag,
     InterfaceStormControl,
-    InterfaceConfig,
+    InterfaceSignalFailure,
+    InterfaceSignalDegrade,
     InterfaceCrcMonitor,
     InterfaceEthernet,
     InterfaceSpec,

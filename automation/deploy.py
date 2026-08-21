@@ -597,13 +597,16 @@ def _run_destroy(args: argparse.Namespace, intent: FabricIntent, summary: dict) 
         summary["errors"].append(str(e))
         return 1
 
-    ns = intent.eda.namespace
-    logging.info("Destroying managed resources at %s (namespace=%s)...", client.url, ns)
+    namespaces = intent.namespaces_in_use()
+    logging.info(
+        "Destroying managed resources at %s (namespaces=%s)...",
+        client.url, ", ".join(namespaces),
+    )
     result = client.destroy(
         phases=args.phase,
         dry_run=args.dry_run,
         auto_confirm=args.yes,
-        namespace=ns,
+        namespace=namespaces,
     )
     _absorb_result_into_summary(result, summary)
 
@@ -633,9 +636,12 @@ def _run_diff(args: argparse.Namespace, intent: FabricIntent, resources, summary
         summary["errors"].append(str(e))
         return 1
 
-    ns = intent.eda.namespace
-    logging.info("Fetching current managed resources from EDA...")
-    current = client.get_managed_resources(namespace=ns)
+    namespaces = intent.namespaces_in_use()
+    logging.info(
+        "Fetching current managed resources from EDA (namespaces=%s)...",
+        ", ".join(namespaces),
+    )
+    current = client.get_managed_resources(namespace=namespaces)
     plan = client.compute_diff(resources, current)
     _print_diff(plan)
     summary["success"] = True

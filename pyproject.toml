@@ -31,6 +31,7 @@ nvd = "automation.deploy:main"
 testpaths = ["tests"]
 markers = [
     "connectivity: steady-state connectivity tests",
+    "ai_dc: AI DC rail-optimized backend/frontend validation tests",
     "convergence: failure/recovery convergence tests",
     "slow: tests that take more than 30 seconds",
     "unit: fast unit tests that require no live lab",

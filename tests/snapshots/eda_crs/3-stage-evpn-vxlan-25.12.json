@@ -1,0 +1,3288 @@
+[
+  {
+    "apiVersion": "bootstrap.eda.nokia.com/v1alpha1",
+    "kind": "Init",
+    "metadata": {
+      "name": "init-base",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan"
+      }
+    },
+    "spec": {
+      "commitSave": true,
+      "mgmt": {
+        "ipv4DHCP": true,
+        "ipv6DHCP": true
+      }
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "NodeUser",
+    "metadata": {
+      "name": "admin",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan"
+      }
+    },
+    "spec": {
+      "groupBindings": [
+        {
+          "groups": [
+            "sudo"
+          ],
+          "nodeSelector": [
+            ""
+          ]
+        }
+      ],
+      "password": "NokiaSrl1!",
+      "username": "admin"
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "NodeProfile",
+    "metadata": {
+      "name": "clab-srlinux-25.10.2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan"
+      }
+    },
+    "spec": {
+      "annotate": true,
+      "images": [
+        {
+          "image": "srlimages/srlinux-25.10.2-bin/srlinux.bin",
+          "imageMd5": "srlimages/srlinux-25.10.2-md5/srlinux.md5"
+        }
+      ],
+      "llmDb": "https://eda-asvr.eda-system.svc/eda-system/llm-dbs/llm-db-srlinux-ghcr-25.10.2/llm-embeddings-srl-25-10-2.tar.gz",
+      "nodeUser": "admin",
+      "onboardingPassword": "NokiaSrl1!",
+      "onboardingUsername": "admin",
+      "operatingSystem": "srl",
+      "port": 57410,
+      "version": "25.10.2",
+      "versionMatch": "v25\\.10\\.2.*",
+      "versionPath": ".system.information.version",
+      "yang": "https://eda-asvr.eda-system.svc/eda-system/schemaprofiles/srlinux-ghcr-25.10.2/srlinux-25.10.2.zip"
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoNode",
+    "metadata": {
+      "name": "leaf1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/name": "leaf1",
+        "eda.nokia.com/role": "leaf",
+        "eda.nokia.com/security-profile": "managed"
+      }
+    },
+    "spec": {
+      "nodeProfile": "clab-srlinux-25.10.2",
+      "npp": {
+        "mode": "normal"
+      },
+      "onBoarded": true,
+      "operatingSystem": "srl",
+      "platform": "7220 IXR-D3L",
+      "productionAddress": {
+        "ipv4": "172.21.21.11",
+        "ipv6": ""
+      },
+      "version": "25.10.2"
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoNode",
+    "metadata": {
+      "name": "leaf2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/name": "leaf2",
+        "eda.nokia.com/role": "leaf",
+        "eda.nokia.com/security-profile": "managed"
+      }
+    },
+    "spec": {
+      "nodeProfile": "clab-srlinux-25.10.2",
+      "npp": {
+        "mode": "normal"
+      },
+      "onBoarded": true,
+      "operatingSystem": "srl",
+      "platform": "7220 IXR-D3L",
+      "productionAddress": {
+        "ipv4": "172.21.21.12",
+        "ipv6": ""
+      },
+      "version": "25.10.2"
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoNode",
+    "metadata": {
+      "name": "leaf3",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/name": "leaf3",
+        "eda.nokia.com/role": "leaf",
+        "eda.nokia.com/security-profile": "managed"
+      }
+    },
+    "spec": {
+      "nodeProfile": "clab-srlinux-25.10.2",
+      "npp": {
+        "mode": "normal"
+      },
+      "onBoarded": true,
+      "operatingSystem": "srl",
+      "platform": "7220 IXR-D3L",
+      "productionAddress": {
+        "ipv4": "172.21.21.13",
+        "ipv6": ""
+      },
+      "version": "25.10.2"
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoNode",
+    "metadata": {
+      "name": "leaf4",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/name": "leaf4",
+        "eda.nokia.com/role": "leaf",
+        "eda.nokia.com/security-profile": "managed"
+      }
+    },
+    "spec": {
+      "nodeProfile": "clab-srlinux-25.10.2",
+      "npp": {
+        "mode": "normal"
+      },
+      "onBoarded": true,
+      "operatingSystem": "srl",
+      "platform": "7220 IXR-D3L",
+      "productionAddress": {
+        "ipv4": "172.21.21.14",
+        "ipv6": ""
+      },
+      "version": "25.10.2"
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoNode",
+    "metadata": {
+      "name": "leaf5",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/name": "leaf5",
+        "eda.nokia.com/role": "leaf",
+        "eda.nokia.com/security-profile": "managed"
+      }
+    },
+    "spec": {
+      "nodeProfile": "clab-srlinux-25.10.2",
+      "npp": {
+        "mode": "normal"
+      },
+      "onBoarded": true,
+      "operatingSystem": "srl",
+      "platform": "7220 IXR-D3L",
+      "productionAddress": {
+        "ipv4": "172.21.21.15",
+        "ipv6": ""
+      },
+      "version": "25.10.2"
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoNode",
+    "metadata": {
+      "name": "leaf6",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/name": "leaf6",
+        "eda.nokia.com/role": "leaf",
+        "eda.nokia.com/security-profile": "managed"
+      }
+    },
+    "spec": {
+      "nodeProfile": "clab-srlinux-25.10.2",
+      "npp": {
+        "mode": "normal"
+      },
+      "onBoarded": true,
+      "operatingSystem": "srl",
+      "platform": "7220 IXR-D3L",
+      "productionAddress": {
+        "ipv4": "172.21.21.16",
+        "ipv6": ""
+      },
+      "version": "25.10.2"
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoNode",
+    "metadata": {
+      "name": "leaf7",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/name": "leaf7",
+        "eda.nokia.com/role": "leaf",
+        "eda.nokia.com/security-profile": "managed"
+      }
+    },
+    "spec": {
+      "nodeProfile": "clab-srlinux-25.10.2",
+      "npp": {
+        "mode": "normal"
+      },
+      "onBoarded": true,
+      "operatingSystem": "srl",
+      "platform": "7220 IXR-D3L",
+      "productionAddress": {
+        "ipv4": "172.21.21.17",
+        "ipv6": ""
+      },
+      "version": "25.10.2"
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoNode",
+    "metadata": {
+      "name": "leaf8",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/name": "leaf8",
+        "eda.nokia.com/role": "leaf",
+        "eda.nokia.com/security-profile": "managed"
+      }
+    },
+    "spec": {
+      "nodeProfile": "clab-srlinux-25.10.2",
+      "npp": {
+        "mode": "normal"
+      },
+      "onBoarded": true,
+      "operatingSystem": "srl",
+      "platform": "7220 IXR-D3L",
+      "productionAddress": {
+        "ipv4": "172.21.21.18",
+        "ipv6": ""
+      },
+      "version": "25.10.2"
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoNode",
+    "metadata": {
+      "name": "spine1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/name": "spine1",
+        "eda.nokia.com/role": "spine",
+        "eda.nokia.com/security-profile": "managed"
+      }
+    },
+    "spec": {
+      "nodeProfile": "clab-srlinux-25.10.2",
+      "npp": {
+        "mode": "normal"
+      },
+      "onBoarded": true,
+      "operatingSystem": "srl",
+      "platform": "7220 IXR-D3L",
+      "productionAddress": {
+        "ipv4": "172.21.21.101",
+        "ipv6": ""
+      },
+      "version": "25.10.2"
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoNode",
+    "metadata": {
+      "name": "spine2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/name": "spine2",
+        "eda.nokia.com/role": "spine",
+        "eda.nokia.com/security-profile": "managed"
+      }
+    },
+    "spec": {
+      "nodeProfile": "clab-srlinux-25.10.2",
+      "npp": {
+        "mode": "normal"
+      },
+      "onBoarded": true,
+      "operatingSystem": "srl",
+      "platform": "7220 IXR-D3L",
+      "productionAddress": {
+        "ipv4": "172.21.21.102",
+        "ipv6": ""
+      },
+      "version": "25.10.2"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf1-ethernet-1-29",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-29",
+          "lacpPortPriority": 32768,
+          "node": "leaf1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-ethernet-1-1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-1",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf2-ethernet-1-32",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-32",
+          "lacpPortPriority": 32768,
+          "node": "leaf2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-ethernet-1-2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-2",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf3-ethernet-1-32",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-32",
+          "lacpPortPriority": 32768,
+          "node": "leaf3"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-ethernet-1-3",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-3",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf4-ethernet-1-32",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-32",
+          "lacpPortPriority": 32768,
+          "node": "leaf4"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-ethernet-1-4",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-4",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf5-ethernet-1-32",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-32",
+          "lacpPortPriority": 32768,
+          "node": "leaf5"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-ethernet-1-5",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-5",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf6-ethernet-1-32",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-32",
+          "lacpPortPriority": 32768,
+          "node": "leaf6"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-ethernet-1-6",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-6",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf7-ethernet-1-32",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-32",
+          "lacpPortPriority": 32768,
+          "node": "leaf7"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-ethernet-1-7",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-7",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf8-ethernet-1-32",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-32",
+          "lacpPortPriority": 32768,
+          "node": "leaf8"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-ethernet-1-8",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-8",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf1-ethernet-1-31",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-31",
+          "lacpPortPriority": 32768,
+          "node": "leaf1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine2-ethernet-1-1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-1",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf2-ethernet-1-31",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-31",
+          "lacpPortPriority": 32768,
+          "node": "leaf2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine2-ethernet-1-2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-2",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf3-ethernet-1-31",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-31",
+          "lacpPortPriority": 32768,
+          "node": "leaf3"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine2-ethernet-1-3",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-3",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf4-ethernet-1-31",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-31",
+          "lacpPortPriority": 32768,
+          "node": "leaf4"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine2-ethernet-1-4",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-4",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf5-ethernet-1-31",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-31",
+          "lacpPortPriority": 32768,
+          "node": "leaf5"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine2-ethernet-1-5",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-5",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf6-ethernet-1-31",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-31",
+          "lacpPortPriority": 32768,
+          "node": "leaf6"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine2-ethernet-1-6",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-6",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf7-ethernet-1-31",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-31",
+          "lacpPortPriority": 32768,
+          "node": "leaf7"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine2-ethernet-1-7",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-7",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf8-ethernet-1-31",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-31",
+          "lacpPortPriority": 32768,
+          "node": "leaf8"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine2-ethernet-1-8",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-8",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf1-ethernet-1-3",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/tagged-v10": "enabled",
+        "eda.nokia.com/tagged-v99": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-3",
+          "lacpPortPriority": 32768,
+          "node": "leaf1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf1-ethernet-1-4",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-4",
+          "lacpPortPriority": 32768,
+          "node": "leaf1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf1-ethernet-1-5",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/untagged-v40": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-5",
+          "lacpPortPriority": 32768,
+          "node": "leaf1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf2-ethernet-1-3",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/untagged-v10": "enabled",
+        "eda.nokia.com/tagged-v99": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-3",
+          "lacpPortPriority": 32768,
+          "node": "leaf2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf3-ethernet-1-3",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/untagged-v10": "enabled",
+        "eda.nokia.com/tagged-v99": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-3",
+          "lacpPortPriority": 32768,
+          "node": "leaf3"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf4-ethernet-1-3",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/untagged-v20": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-3",
+          "lacpPortPriority": 32768,
+          "node": "leaf4"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf6-ethernet-1-6",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/untagged-v60": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-6",
+          "lacpPortPriority": 32768,
+          "node": "leaf6"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf4-ethernet-1-4",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-4",
+          "lacpPortPriority": 32768,
+          "node": "leaf4"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf5-ethernet-1-4",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-4",
+          "lacpPortPriority": 32768,
+          "node": "leaf5"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf2-ethernet-1-6",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-6",
+          "lacpPortPriority": 32768,
+          "node": "leaf2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf3-ethernet-1-6",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-6",
+          "lacpPortPriority": 32768,
+          "node": "leaf3"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf4-ethernet-1-6",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-6",
+          "lacpPortPriority": 32768,
+          "node": "leaf4"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf5-ethernet-1-6",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-6",
+          "lacpPortPriority": 32768,
+          "node": "leaf5"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf5-ethernet-1-5",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-5",
+          "lacpPortPriority": 32768,
+          "node": "leaf5"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf6-ethernet-1-5",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-5",
+          "lacpPortPriority": 32768,
+          "node": "leaf6"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf4-leaf5-lag1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/untagged-v30": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "ethernet": {
+        "reloadDelayTimer": 100
+      },
+      "lag": {
+        "lacp": {
+          "adminKey": 1,
+          "interval": "fast",
+          "lacpFallback": {
+            "mode": "static",
+            "timeout": 60
+          },
+          "mode": "active",
+          "systemIdMac": "00:00:00:00:44:55",
+          "systemPriority": 32768
+        },
+        "minLinks": 1,
+        "multihoming": {
+          "esi": "auto",
+          "mode": "all-active",
+          "preferredActiveNode": "",
+          "reloadDelayTimer": 100,
+          "revertive": false
+        },
+        "type": "lacp"
+      },
+      "lldp": true,
+      "members": [
+        {
+          "aggregateId": "1",
+          "enabled": true,
+          "interface": "ethernet-1-4",
+          "lacpPortPriority": 32768,
+          "node": "leaf4"
+        },
+        {
+          "aggregateId": "1",
+          "enabled": true,
+          "interface": "ethernet-1-4",
+          "lacpPortPriority": 32768,
+          "node": "leaf5"
+        }
+      ],
+      "type": "lag"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf2-leaf3-leaf4-leaf5-lag2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/untagged-v50": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "ethernet": {
+        "reloadDelayTimer": 100
+      },
+      "lag": {
+        "lacp": {
+          "adminKey": 2,
+          "interval": "fast",
+          "lacpFallback": {
+            "mode": "static",
+            "timeout": 60
+          },
+          "mode": "active",
+          "systemIdMac": "00:00:22:33:44:55",
+          "systemPriority": 32768
+        },
+        "minLinks": 1,
+        "multihoming": {
+          "esi": "auto",
+          "mode": "all-active",
+          "preferredActiveNode": "",
+          "reloadDelayTimer": 100,
+          "revertive": false
+        },
+        "type": "lacp"
+      },
+      "lldp": true,
+      "members": [
+        {
+          "aggregateId": "2",
+          "enabled": true,
+          "interface": "ethernet-1-6",
+          "lacpPortPriority": 32768,
+          "node": "leaf2"
+        },
+        {
+          "aggregateId": "2",
+          "enabled": true,
+          "interface": "ethernet-1-6",
+          "lacpPortPriority": 32768,
+          "node": "leaf3"
+        },
+        {
+          "aggregateId": "2",
+          "enabled": true,
+          "interface": "ethernet-1-6",
+          "lacpPortPriority": 32768,
+          "node": "leaf4"
+        },
+        {
+          "aggregateId": "2",
+          "enabled": true,
+          "interface": "ethernet-1-6",
+          "lacpPortPriority": 32768,
+          "node": "leaf5"
+        }
+      ],
+      "type": "lag"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "leaf5-leaf6-lag3",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/untagged-v30": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "ethernet": {
+        "reloadDelayTimer": 100,
+        "standbySignaling": "lacp"
+      },
+      "lag": {
+        "lacp": {
+          "adminKey": 3,
+          "interval": "fast",
+          "lacpFallback": {
+            "mode": "static",
+            "timeout": 60
+          },
+          "mode": "active",
+          "systemIdMac": "00:00:00:00:55:66",
+          "systemPriority": 32768
+        },
+        "minLinks": 1,
+        "multihoming": {
+          "esi": "auto",
+          "mode": "port-active",
+          "preferredActiveNode": "leaf5",
+          "reloadDelayTimer": 100,
+          "revertive": true
+        },
+        "type": "lacp"
+      },
+      "lldp": true,
+      "members": [
+        {
+          "aggregateId": "3",
+          "enabled": true,
+          "interface": "ethernet-1-5",
+          "lacpPortPriority": 32768,
+          "node": "leaf5"
+        },
+        {
+          "aggregateId": "3",
+          "enabled": true,
+          "interface": "ethernet-1-5",
+          "lacpPortPriority": 32768,
+          "node": "leaf6"
+        }
+      ],
+      "type": "lag"
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "leaf1-spine1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-29",
+            "interfaceResource": "leaf1-ethernet-1-29",
+            "node": "leaf1"
+          },
+          "remote": {
+            "interface": "ethernet-1-1",
+            "interfaceResource": "spine1-ethernet-1-1",
+            "node": "spine1"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "leaf2-spine1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-32",
+            "interfaceResource": "leaf2-ethernet-1-32",
+            "node": "leaf2"
+          },
+          "remote": {
+            "interface": "ethernet-1-2",
+            "interfaceResource": "spine1-ethernet-1-2",
+            "node": "spine1"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "leaf3-spine1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-32",
+            "interfaceResource": "leaf3-ethernet-1-32",
+            "node": "leaf3"
+          },
+          "remote": {
+            "interface": "ethernet-1-3",
+            "interfaceResource": "spine1-ethernet-1-3",
+            "node": "spine1"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "leaf4-spine1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-32",
+            "interfaceResource": "leaf4-ethernet-1-32",
+            "node": "leaf4"
+          },
+          "remote": {
+            "interface": "ethernet-1-4",
+            "interfaceResource": "spine1-ethernet-1-4",
+            "node": "spine1"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "leaf5-spine1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-32",
+            "interfaceResource": "leaf5-ethernet-1-32",
+            "node": "leaf5"
+          },
+          "remote": {
+            "interface": "ethernet-1-5",
+            "interfaceResource": "spine1-ethernet-1-5",
+            "node": "spine1"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "leaf6-spine1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-32",
+            "interfaceResource": "leaf6-ethernet-1-32",
+            "node": "leaf6"
+          },
+          "remote": {
+            "interface": "ethernet-1-6",
+            "interfaceResource": "spine1-ethernet-1-6",
+            "node": "spine1"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "leaf7-spine1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-32",
+            "interfaceResource": "leaf7-ethernet-1-32",
+            "node": "leaf7"
+          },
+          "remote": {
+            "interface": "ethernet-1-7",
+            "interfaceResource": "spine1-ethernet-1-7",
+            "node": "spine1"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "leaf8-spine1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-32",
+            "interfaceResource": "leaf8-ethernet-1-32",
+            "node": "leaf8"
+          },
+          "remote": {
+            "interface": "ethernet-1-8",
+            "interfaceResource": "spine1-ethernet-1-8",
+            "node": "spine1"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "leaf1-spine2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-31",
+            "interfaceResource": "leaf1-ethernet-1-31",
+            "node": "leaf1"
+          },
+          "remote": {
+            "interface": "ethernet-1-1",
+            "interfaceResource": "spine2-ethernet-1-1",
+            "node": "spine2"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "leaf2-spine2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-31",
+            "interfaceResource": "leaf2-ethernet-1-31",
+            "node": "leaf2"
+          },
+          "remote": {
+            "interface": "ethernet-1-2",
+            "interfaceResource": "spine2-ethernet-1-2",
+            "node": "spine2"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "leaf3-spine2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-31",
+            "interfaceResource": "leaf3-ethernet-1-31",
+            "node": "leaf3"
+          },
+          "remote": {
+            "interface": "ethernet-1-3",
+            "interfaceResource": "spine2-ethernet-1-3",
+            "node": "spine2"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "leaf4-spine2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-31",
+            "interfaceResource": "leaf4-ethernet-1-31",
+            "node": "leaf4"
+          },
+          "remote": {
+            "interface": "ethernet-1-4",
+            "interfaceResource": "spine2-ethernet-1-4",
+            "node": "spine2"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "leaf5-spine2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-31",
+            "interfaceResource": "leaf5-ethernet-1-31",
+            "node": "leaf5"
+          },
+          "remote": {
+            "interface": "ethernet-1-5",
+            "interfaceResource": "spine2-ethernet-1-5",
+            "node": "spine2"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "leaf6-spine2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-31",
+            "interfaceResource": "leaf6-ethernet-1-31",
+            "node": "leaf6"
+          },
+          "remote": {
+            "interface": "ethernet-1-6",
+            "interfaceResource": "spine2-ethernet-1-6",
+            "node": "spine2"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "leaf7-spine2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-31",
+            "interfaceResource": "leaf7-ethernet-1-31",
+            "node": "leaf7"
+          },
+          "remote": {
+            "interface": "ethernet-1-7",
+            "interfaceResource": "spine2-ethernet-1-7",
+            "node": "spine2"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "leaf8-spine2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-31",
+            "interfaceResource": "leaf8-ethernet-1-31",
+            "node": "leaf8"
+          },
+          "remote": {
+            "interface": "ethernet-1-8",
+            "interfaceResource": "spine2-ethernet-1-8",
+            "node": "spine2"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "IndexAllocationPool",
+    "metadata": {
+      "name": "leaf-asn",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan"
+      }
+    },
+    "spec": {
+      "segments": [
+        {
+          "size": 20,
+          "start": 65411
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "IndexAllocationPool",
+    "metadata": {
+      "name": "spine-asn",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan"
+      }
+    },
+    "spec": {
+      "segments": [
+        {
+          "size": 10,
+          "start": 65500
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "IPAllocationPool",
+    "metadata": {
+      "name": "system0",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan"
+      }
+    },
+    "spec": {
+      "segments": [
+        {
+          "subnet": "192.168.254.0/24"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "fabrics.eda.nokia.com/v1alpha1",
+    "kind": "Fabric",
+    "metadata": {
+      "name": "dc1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan"
+      }
+    },
+    "spec": {
+      "interSwitchLinks": {
+        "linkSelector": [
+          "eda.nokia.com/role=interSwitch"
+        ],
+        "unnumbered": "IPV6"
+      },
+      "leafs": {
+        "asnPool": "leaf-asn",
+        "leafNodeSelector": [
+          "eda.nokia.com/role=leaf"
+        ]
+      },
+      "overlayProtocol": {
+        "protocol": "EBGP"
+      },
+      "spines": {
+        "asnPool": "spine-asn",
+        "spineNodeSelector": [
+          "eda.nokia.com/role=spine"
+        ]
+      },
+      "systemPoolIPV4": "system0",
+      "underlayProtocol": {
+        "bfd": {
+          "desiredMinTransmitInt": 1000000,
+          "detectionMultiplier": 3,
+          "enabled": true,
+          "minEchoReceiveInterval": 1000000,
+          "requiredMinReceive": 1000000
+        },
+        "bgp": {
+          "asnPool": "asn-pool"
+        },
+        "protocol": [
+          "EBGP"
+        ]
+      }
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "BridgeDomain",
+    "metadata": {
+      "name": "macvrf-v10",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage"
+      }
+    },
+    "spec": {
+      "evi": 10,
+      "eviPool": "evi-pool",
+      "macAging": 300,
+      "macDuplicationDetection": {
+        "action": "StopLearning",
+        "enabled": true,
+        "holdDownTime": 9,
+        "monitoringWindow": 3,
+        "numMoves": 5
+      },
+      "macLearning": true,
+      "tunnelIndexPool": "tunnel-index-pool",
+      "type": "EVPNVXLAN",
+      "vni": 100101,
+      "vniPool": "vni-pool"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "BridgeDomain",
+    "metadata": {
+      "name": "macvrf-v20",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage"
+      }
+    },
+    "spec": {
+      "evi": 20,
+      "eviPool": "evi-pool",
+      "macAging": 300,
+      "macDuplicationDetection": {
+        "action": "StopLearning",
+        "enabled": true,
+        "holdDownTime": 9,
+        "monitoringWindow": 3,
+        "numMoves": 5
+      },
+      "macLearning": true,
+      "tunnelIndexPool": "tunnel-index-pool",
+      "type": "EVPNVXLAN",
+      "vni": 10020,
+      "vniPool": "vni-pool"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "BridgeDomain",
+    "metadata": {
+      "name": "macvrf-v30",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage"
+      }
+    },
+    "spec": {
+      "evi": 30,
+      "eviPool": "evi-pool",
+      "macAging": 300,
+      "macDuplicationDetection": {
+        "action": "StopLearning",
+        "enabled": true,
+        "holdDownTime": 9,
+        "monitoringWindow": 3,
+        "numMoves": 5
+      },
+      "macLearning": true,
+      "tunnelIndexPool": "tunnel-index-pool",
+      "type": "EVPNVXLAN",
+      "vni": 10030,
+      "vniPool": "vni-pool"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "BridgeDomain",
+    "metadata": {
+      "name": "macvrf-v40",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage"
+      }
+    },
+    "spec": {
+      "evi": 40,
+      "eviPool": "evi-pool",
+      "macAging": 300,
+      "macDuplicationDetection": {
+        "action": "StopLearning",
+        "enabled": true,
+        "holdDownTime": 9,
+        "monitoringWindow": 3,
+        "numMoves": 5
+      },
+      "macLearning": true,
+      "tunnelIndexPool": "tunnel-index-pool",
+      "type": "EVPNVXLAN",
+      "vni": 10040,
+      "vniPool": "vni-pool"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "BridgeDomain",
+    "metadata": {
+      "name": "macvrf-v50",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage"
+      }
+    },
+    "spec": {
+      "evi": 50,
+      "eviPool": "evi-pool",
+      "macAging": 300,
+      "macDuplicationDetection": {
+        "action": "StopLearning",
+        "enabled": true,
+        "holdDownTime": 9,
+        "monitoringWindow": 3,
+        "numMoves": 5
+      },
+      "macLearning": true,
+      "tunnelIndexPool": "tunnel-index-pool",
+      "type": "EVPNVXLAN",
+      "vni": 10050,
+      "vniPool": "vni-pool"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "BridgeDomain",
+    "metadata": {
+      "name": "macvrf-v60",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage"
+      }
+    },
+    "spec": {
+      "evi": 60,
+      "eviPool": "evi-pool",
+      "macAging": 300,
+      "macDuplicationDetection": {
+        "action": "StopLearning",
+        "enabled": true,
+        "holdDownTime": 9,
+        "monitoringWindow": 3,
+        "numMoves": 5
+      },
+      "macLearning": true,
+      "tunnelIndexPool": "tunnel-index-pool",
+      "type": "EVPNVXLAN",
+      "vni": 10060,
+      "vniPool": "vni-pool"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "Router",
+    "metadata": {
+      "name": "vrf1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan"
+      }
+    },
+    "spec": {
+      "evi": 500,
+      "eviPool": "evi-pool",
+      "nodeSelector": [
+        "eda.nokia.com/role=leaf"
+      ],
+      "tunnelIndexPool": "tunnel-index-pool",
+      "type": "EVPNVXLAN",
+      "vni": 10500,
+      "vniPool": "vni-pool"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "IRBInterface",
+    "metadata": {
+      "name": "irb-v10",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage"
+      }
+    },
+    "spec": {
+      "arpTimeout": 280,
+      "bridgeDomain": "macvrf-v10",
+      "evpnRouteAdvertisementType": {
+        "arpDynamic": true,
+        "arpStatic": true,
+        "ndDynamic": false,
+        "ndStatic": false,
+        "rfc9135SymmetricMode": false
+      },
+      "hostRoutePopulate": {
+        "dynamic": true,
+        "evpn": false,
+        "static": true
+      },
+      "ipAddresses": [
+        {
+          "ipv4Address": {
+            "ipPrefix": "172.16.10.254/24",
+            "primary": true
+          }
+        }
+      ],
+      "ipMTU": 9394,
+      "l3ProxyARPND": {
+        "proxyARP": true,
+        "proxyND": false
+      },
+      "learnUnsolicited": "NONE",
+      "router": "vrf1"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "IRBInterface",
+    "metadata": {
+      "name": "irb-v20",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage"
+      }
+    },
+    "spec": {
+      "arpTimeout": 280,
+      "bridgeDomain": "macvrf-v20",
+      "evpnRouteAdvertisementType": {
+        "arpDynamic": true,
+        "arpStatic": true,
+        "ndDynamic": false,
+        "ndStatic": false,
+        "rfc9135SymmetricMode": false
+      },
+      "hostRoutePopulate": {
+        "dynamic": true,
+        "evpn": false,
+        "static": true
+      },
+      "ipAddresses": [
+        {
+          "ipv4Address": {
+            "ipPrefix": "172.16.20.254/24",
+            "primary": true
+          }
+        }
+      ],
+      "ipMTU": 9394,
+      "l3ProxyARPND": {
+        "proxyARP": true,
+        "proxyND": false
+      },
+      "learnUnsolicited": "NONE",
+      "router": "vrf1"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "IRBInterface",
+    "metadata": {
+      "name": "irb-v30",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage"
+      }
+    },
+    "spec": {
+      "arpTimeout": 280,
+      "bridgeDomain": "macvrf-v30",
+      "evpnRouteAdvertisementType": {
+        "arpDynamic": true,
+        "arpStatic": true,
+        "ndDynamic": false,
+        "ndStatic": false,
+        "rfc9135SymmetricMode": false
+      },
+      "hostRoutePopulate": {
+        "dynamic": true,
+        "evpn": false,
+        "static": true
+      },
+      "ipAddresses": [
+        {
+          "ipv4Address": {
+            "ipPrefix": "172.16.30.254/24",
+            "primary": true
+          }
+        }
+      ],
+      "ipMTU": 9394,
+      "l3ProxyARPND": {
+        "proxyARP": true,
+        "proxyND": false
+      },
+      "learnUnsolicited": "NONE",
+      "router": "vrf1"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "VLAN",
+    "metadata": {
+      "name": "tagged-v10",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan"
+      }
+    },
+    "spec": {
+      "bridgeDomain": "macvrf-v10",
+      "interfaceSelector": [
+        "eda.nokia.com/tagged-v10=enabled"
+      ],
+      "vlanID": "10"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "VLAN",
+    "metadata": {
+      "name": "untagged-v10",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan"
+      }
+    },
+    "spec": {
+      "bridgeDomain": "macvrf-v10",
+      "interfaceSelector": [
+        "eda.nokia.com/untagged-v10=enabled"
+      ],
+      "vlanID": "untagged"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "VLAN",
+    "metadata": {
+      "name": "untagged-v20",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan"
+      }
+    },
+    "spec": {
+      "bridgeDomain": "macvrf-v20",
+      "interfaceSelector": [
+        "eda.nokia.com/untagged-v20=enabled"
+      ],
+      "vlanID": "untagged"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "VLAN",
+    "metadata": {
+      "name": "untagged-v30",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan"
+      }
+    },
+    "spec": {
+      "bridgeDomain": "macvrf-v30",
+      "interfaceSelector": [
+        "eda.nokia.com/untagged-v30=enabled"
+      ],
+      "vlanID": "untagged"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "VLAN",
+    "metadata": {
+      "name": "untagged-v40",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan"
+      }
+    },
+    "spec": {
+      "bridgeDomain": "macvrf-v40",
+      "interfaceSelector": [
+        "eda.nokia.com/untagged-v40=enabled"
+      ],
+      "vlanID": "untagged"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "VLAN",
+    "metadata": {
+      "name": "untagged-v50",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan"
+      }
+    },
+    "spec": {
+      "bridgeDomain": "macvrf-v50",
+      "interfaceSelector": [
+        "eda.nokia.com/untagged-v50=enabled"
+      ],
+      "vlanID": "untagged"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "VLAN",
+    "metadata": {
+      "name": "untagged-v60",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan"
+      }
+    },
+    "spec": {
+      "bridgeDomain": "macvrf-v60",
+      "interfaceSelector": [
+        "eda.nokia.com/untagged-v60=enabled"
+      ],
+      "vlanID": "untagged"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "RoutedInterface",
+    "metadata": {
+      "name": "leaf-s5",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan"
+      }
+    },
+    "spec": {
+      "arpTimeout": 14400,
+      "interface": "leaf1-ethernet-1-4",
+      "ipMTU": 1500,
+      "ipv4Addresses": [
+        {
+          "ipPrefix": "172.16.100.0/31",
+          "primary": true
+        }
+      ],
+      "learnUnsolicited": "NONE",
+      "router": "vrf1",
+      "vlanID": "null",
+      "vlanPool": "vlan-pool"
+    }
+  },
+  {
+    "apiVersion": "protocols.eda.nokia.com/v1",
+    "kind": "StaticRoute",
+    "metadata": {
+      "name": "static-s5",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan"
+      }
+    },
+    "spec": {
+      "nexthopGroup": {
+        "blackhole": false,
+        "nexthops": [
+          {
+            "ipPrefix": "172.16.100.1",
+            "resolve": false
+          }
+        ],
+        "resolve": false
+      },
+      "nodes": [
+        "leaf1"
+      ],
+      "prefixes": [
+        "172.16.92.0/24",
+        "172.16.93.0/24",
+        "172.16.94.0/24",
+        "172.16.95.0/24"
+      ],
+      "router": "vrf1"
+    }
+  },
+  {
+    "apiVersion": "config.eda.nokia.com/v1alpha1",
+    "kind": "Configlet",
+    "metadata": {
+      "name": "bgp-evpn-rapid",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage"
+      }
+    },
+    "spec": {
+      "configs": [
+        {
+          "config": "{\n  \"rapid-update\": \"true\"\n}",
+          "operation": "Update",
+          "path": ".network-instance{.name==\"default\"}.protocols.bgp.afi-safi{.afi-safi-name==\"evpn\"}.evpn"
+        }
+      ],
+      "endpointSelector": [
+        "eda.nokia.com/role=leaf",
+        "eda.nokia.com/role=spine"
+      ],
+      "operatingSystem": "srl",
+      "priority": 100
+    }
+  },
+  {
+    "apiVersion": "config.eda.nokia.com/v1alpha1",
+    "kind": "Configlet",
+    "metadata": {
+      "name": "bgp-rapid-route-withdraw",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage"
+      }
+    },
+    "spec": {
+      "configs": [
+        {
+          "config": "{\n  \"rapid-withdrawal\": \"true\"\n}",
+          "operation": "Update",
+          "path": ".network-instance{.name==\"default\"}.protocols.bgp.route-advertisement"
+        }
+      ],
+      "endpointSelector": [
+        "eda.nokia.com/role=leaf",
+        "eda.nokia.com/role=spine"
+      ],
+      "operatingSystem": "srl",
+      "priority": 100
+    }
+  },
+  {
+    "apiVersion": "config.eda.nokia.com/v1alpha1",
+    "kind": "Configlet",
+    "metadata": {
+      "name": "node-isolation-leaf4-lag",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage"
+      }
+    },
+    "spec": {
+      "configs": [
+        {
+          "config": "{\n    \"event-handler\": {\n        \"instance\": [\n            {\n                \"name\": \"overlay-bgp\",\n                \"admin-state\": \"enable\",\n                \"upython-script\": \"node-isolation.py\",\n                \"paths\": [\n                    \"network-instance default protocols bgp neighbor * session-state\"\n                ],\n                \"options\": {\n                    \"object\": [\n                        {\n                            \"name\": \"down-links\",\n                            \"values\": [\n                                \"ethernet-1-4\",\n                                \"ethernet-1-6\"\n                            ]\n                        },\n                        {\n                            \"name\": \"hold-down-time\",\n                            \"value\": \"20000\"\n                        },\n                        {\n                            \"name\": \"required-bgp-sessions-established\",\n                            \"value\": \"1\"\n                        }\n                    ]\n                }\n            }\n        ]\n    }\n}",
+          "operation": "Create",
+          "path": ".system"
+        }
+      ],
+      "endpoints": [
+        "leaf4"
+      ],
+      "operatingSystem": "srl",
+      "priority": 50
+    }
+  },
+  {
+    "apiVersion": "config.eda.nokia.com/v1alpha1",
+    "kind": "Configlet",
+    "metadata": {
+      "name": "node-isolation-leaf5-lag",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage"
+      }
+    },
+    "spec": {
+      "configs": [
+        {
+          "config": "{\n    \"event-handler\": {\n        \"instance\": [\n            {\n                \"name\": \"overlay-bgp\",\n                \"admin-state\": \"enable\",\n                \"upython-script\": \"node-isolation.py\",\n                \"paths\": [\n                    \"network-instance default protocols bgp neighbor * session-state\"\n                ],\n                \"options\": {\n                    \"object\": [\n                        {\n                            \"name\": \"down-links\",\n                            \"values\": [\n                                \"ethernet-1-4\",\n                                \"ethernet-1-5\",\n                                \"ethernet-1-6\"\n                            ]\n                        },\n                        {\n                            \"name\": \"hold-down-time\",\n                            \"value\": \"20000\"\n                        },\n                        {\n                            \"name\": \"required-bgp-sessions-established\",\n                            \"value\": \"1\"\n                        }\n                    ]\n                }\n            }\n        ]\n    }\n}",
+          "operation": "Create",
+          "path": ".system"
+        }
+      ],
+      "endpoints": [
+        "leaf5"
+      ],
+      "operatingSystem": "srl",
+      "priority": 50
+    }
+  },
+  {
+    "apiVersion": "config.eda.nokia.com/v1alpha1",
+    "kind": "Configlet",
+    "metadata": {
+      "name": "node-isolation-leaf2-lag",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage"
+      }
+    },
+    "spec": {
+      "configs": [
+        {
+          "config": "{\n    \"event-handler\": {\n        \"instance\": [\n            {\n                \"name\": \"overlay-bgp\",\n                \"admin-state\": \"enable\",\n                \"upython-script\": \"node-isolation.py\",\n                \"paths\": [\n                    \"network-instance default protocols bgp neighbor * session-state\"\n                ],\n                \"options\": {\n                    \"object\": [\n                        {\n                            \"name\": \"down-links\",\n                            \"values\": [\n                                \"ethernet-1-6\"\n                            ]\n                        },\n                        {\n                            \"name\": \"hold-down-time\",\n                            \"value\": \"20000\"\n                        },\n                        {\n                            \"name\": \"required-bgp-sessions-established\",\n                            \"value\": \"1\"\n                        }\n                    ]\n                }\n            }\n        ]\n    }\n}",
+          "operation": "Create",
+          "path": ".system"
+        }
+      ],
+      "endpoints": [
+        "leaf2"
+      ],
+      "operatingSystem": "srl",
+      "priority": 50
+    }
+  },
+  {
+    "apiVersion": "config.eda.nokia.com/v1alpha1",
+    "kind": "Configlet",
+    "metadata": {
+      "name": "node-isolation-leaf3-lag",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage"
+      }
+    },
+    "spec": {
+      "configs": [
+        {
+          "config": "{\n    \"event-handler\": {\n        \"instance\": [\n            {\n                \"name\": \"overlay-bgp\",\n                \"admin-state\": \"enable\",\n                \"upython-script\": \"node-isolation.py\",\n                \"paths\": [\n                    \"network-instance default protocols bgp neighbor * session-state\"\n                ],\n                \"options\": {\n                    \"object\": [\n                        {\n                            \"name\": \"down-links\",\n                            \"values\": [\n                                \"ethernet-1-6\"\n                            ]\n                        },\n                        {\n                            \"name\": \"hold-down-time\",\n                            \"value\": \"20000\"\n                        },\n                        {\n                            \"name\": \"required-bgp-sessions-established\",\n                            \"value\": \"1\"\n                        }\n                    ]\n                }\n            }\n        ]\n    }\n}",
+          "operation": "Create",
+          "path": ".system"
+        }
+      ],
+      "endpoints": [
+        "leaf3"
+      ],
+      "operatingSystem": "srl",
+      "priority": 50
+    }
+  },
+  {
+    "apiVersion": "config.eda.nokia.com/v1alpha1",
+    "kind": "Configlet",
+    "metadata": {
+      "name": "node-isolation-leaf6-lag",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage"
+      }
+    },
+    "spec": {
+      "configs": [
+        {
+          "config": "{\n    \"event-handler\": {\n        \"instance\": [\n            {\n                \"name\": \"overlay-bgp\",\n                \"admin-state\": \"enable\",\n                \"upython-script\": \"node-isolation.py\",\n                \"paths\": [\n                    \"network-instance default protocols bgp neighbor * session-state\"\n                ],\n                \"options\": {\n                    \"object\": [\n                        {\n                            \"name\": \"down-links\",\n                            \"values\": [\n                                \"ethernet-1-5\"\n                            ]\n                        },\n                        {\n                            \"name\": \"hold-down-time\",\n                            \"value\": \"20000\"\n                        },\n                        {\n                            \"name\": \"required-bgp-sessions-established\",\n                            \"value\": \"1\"\n                        }\n                    ]\n                }\n            }\n        ]\n    }\n}",
+          "operation": "Create",
+          "path": ".system"
+        }
+      ],
+      "endpoints": [
+        "leaf6"
+      ],
+      "operatingSystem": "srl",
+      "priority": 50
+    }
+  },
+  {
+    "apiVersion": "config.eda.nokia.com/v1alpha1",
+    "kind": "Configlet",
+    "metadata": {
+      "name": "leaf4-leaf5-lag1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage"
+      }
+    },
+    "spec": {
+      "configs": [
+        {
+          "config": "{\n  \"activation-timer\": 0\n}",
+          "operation": "Update",
+          "path": ".system.network-instance.protocols.evpn.ethernet-segments.bgp-instance{.id==1}.ethernet-segment{.name==\"leaf4-leaf5-lag1\"}.df-election.timers"
+        }
+      ],
+      "endpoints": [
+        "leaf4",
+        "leaf5"
+      ],
+      "operatingSystem": "srl",
+      "priority": 100
+    }
+  },
+  {
+    "apiVersion": "config.eda.nokia.com/v1alpha1",
+    "kind": "Configlet",
+    "metadata": {
+      "name": "leaf2-leaf3-leaf4-leaf5-lag2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage"
+      }
+    },
+    "spec": {
+      "configs": [
+        {
+          "config": "{\n  \"activation-timer\": 0\n}",
+          "operation": "Update",
+          "path": ".system.network-instance.protocols.evpn.ethernet-segments.bgp-instance{.id==1}.ethernet-segment{.name==\"leaf2-leaf3-leaf4-leaf5-lag2\"}.df-election.timers"
+        }
+      ],
+      "endpoints": [
+        "leaf2",
+        "leaf3",
+        "leaf4",
+        "leaf5"
+      ],
+      "operatingSystem": "srl",
+      "priority": 100
+    }
+  },
+  {
+    "apiVersion": "config.eda.nokia.com/v1alpha1",
+    "kind": "Configlet",
+    "metadata": {
+      "name": "leaf5-leaf6-lag3",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage"
+      }
+    },
+    "spec": {
+      "configs": [
+        {
+          "config": "{\n  \"activation-timer\": 0\n}",
+          "operation": "Update",
+          "path": ".system.network-instance.protocols.evpn.ethernet-segments.bgp-instance{.id==1}.ethernet-segment{.name==\"leaf5-leaf6-lag3\"}.df-election.timers"
+        }
+      ],
+      "endpoints": [
+        "leaf5",
+        "leaf6"
+      ],
+      "operatingSystem": "srl",
+      "priority": 100
+    }
+  },
+  {
+    "apiVersion": "config.eda.nokia.com/v1alpha1",
+    "kind": "Configlet",
+    "metadata": {
+      "name": "contact-info",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "extras"
+      }
+    },
+    "spec": {
+      "configs": [
+        {
+          "config": "{ \"contact\": \"support@nokia.com\" }",
+          "operation": "Create",
+          "path": ".system.information"
+        }
+      ],
+      "endpointSelector": [
+        "eda.nokia.com/role=leaf",
+        "eda.nokia.com/role=spine"
+      ],
+      "operatingSystem": "srl",
+      "priority": 100
+    }
+  },
+  {
+    "apiVersion": "siteinfo.eda.nokia.com/v1alpha1",
+    "kind": "DefaultMTU",
+    "metadata": {
+      "name": "default-port-mtu",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan"
+      }
+    },
+    "spec": {
+      "interfaceMTU": 9412,
+      "layer2SubifMTU": 9412,
+      "layer3MTU": 9394,
+      "nodeSelector": [
+        "eda.nokia.com/role=leaf",
+        "eda.nokia.com/role = spine"
+      ]
+    }
+  },
+  {
+    "apiVersion": "siteinfo.eda.nokia.com/v1alpha1",
+    "kind": "Banner",
+    "metadata": {
+      "name": "nvd-banner",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "3-stage-evpn-vxlan"
+      }
+    },
+    "spec": {
+      "loginBanner": "NVD: 3-stage-evpn-vxlan",
+      "nodeSelector": [
+        "eda.nokia.com/role=leaf",
+        "eda.nokia.com/role=spine"
+      ]
+    }
+  }
+]

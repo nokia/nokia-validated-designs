@@ -63,8 +63,10 @@ def main() -> int:
         return 1
 
     written: list[Path] = []
-    for design_dir in sorted(p for p in DESIGNS_DIR.iterdir() if p.is_dir()):
-        schemas_dir = design_dir / "schemas"
+    # rglob rather than a single iterdir level: designs may be grouped under a
+    # family directory (``ai-dc/rail-optimized``) rather than sitting directly
+    # under validated-designs/.
+    for schemas_dir in sorted(set(DESIGNS_DIR.rglob("schemas"))):
         if not schemas_dir.is_dir():
             continue
         for topic in TOPICS:

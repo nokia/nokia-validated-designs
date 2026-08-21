@@ -523,6 +523,7 @@ tests/
     test_selectors.py            # Label selector matching logic
   test_connectivity.py           # Integration: live fabric connectivity checks
   test_mtu_loadbalance.py        # Integration: MTU and load-balancing verification
+  test_ai_dc_connectivity.py     # Integration: AI DC rail-optimized validation
 ```
 
 ### What each test file covers
@@ -655,3 +656,43 @@ topology. They use the `fcli` MCP tools to query device state (BGP
 peers, ARP tables, VXLAN tunnels, etc.) and verify end-to-end fabric
 behavior. These are not part of the unit test suite and require a
 running lab.
+
+#### AI DC rail-optimized validation
+
+`tests/test_ai_dc_connectivity.py` validates a deployed rail-optimized AI
+DC. Both fabrics are covered: RoCEv2 rail reachability, ECMP and
+losslessness in the backend, and GPU-to-storage reachability, MAC learning
+and all-active redundancy in the frontend.
+
+```bash
+scripts/run-ai-dc-validation.sh
+scripts/run-ai-dc-validation.sh <topology> -k backend --html=report.html
+```
+
+The rail matrix is rebuilt from live state rather than from the design
+inputs: rail prefixes, VLAN tags and MTUs come from the leaves' rail VRF
+sub-interfaces, storage BD membership from the mac-vrf, and the mapping
+back to server NICs from the `.clab.yml` cabling. The suite therefore
+follows a resized fabric (more stripes, rails or servers) without edits,
+and it catches an intent-vs-reality mismatch instead of restating the
+intent. Two consequences worth knowing:
+
+- Rails are numbered globally across stripes by EDA, so stripe 2 of an
+  8-rail fabric owns rails 9-16. Rails are compared across stripes by GPU
+  rank (their ordinal within their own stripe), not by rail index.
+- Rail and stripe numbers are written as decimal digits into hex IPv6
+  fields, so `fd00:200:10:1::` is stripe 200 rail 10, and the groups are
+  read as digit strings rather than parsed as hex.
+
+Host-side configuration is inspected directly (`ip -j -d addr show`) so a
+missing VLAN sub-interface or a wrong prefix on a server reports as a
+server misconfiguration instead of an unexplained ping failure. When that
+check fails, the dependent reachability tests skip with a pointer to it.
+
+The three things a GPU rail NIC has to get right, and which the generator
+emits accordingly, are the VLAN tag (the leaf's rail sub-interface is
+tagged with the stripe's GPU VLAN, so the address belongs on `ethN.100`,
+not `ethN`), the global rail number in the address, and an MTU no larger
+than the rail `ip-mtu` (`EDA_DEFAULT_RAIL_IP_MTU`, 4136, unless the
+Backend CR overrides it). Each has a dedicated test, because getting any
+of them wrong fails as silent drops rather than as a link-down.

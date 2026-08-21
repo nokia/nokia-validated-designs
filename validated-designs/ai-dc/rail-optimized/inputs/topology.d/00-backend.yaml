@@ -1,0 +1,80 @@
+---
+# yaml-language-server: $schema=../../schemas/topology_fragment_schema.json
+# Rail-optimized AI DC — backend (RoCEv2) fabric.
+#
+# The backend is organised into stripes. A stripe is `rail_size` rail leaves,
+# and every GPU server in the stripe puts one NIC on each rail, so rail N of
+# every stripe always carries GPU rank N. Stripes are joined by the
+# stripe-connector spine layer.
+#
+# Everything below scales: change `stripes`, `rail_size` or
+# `servers_per_stripe` and the nodes, cabling, ports, pools and the
+# containerlab twin all follow.
+
+design: ai-dc-rail-optimized
+fabric_name: dc1
+environment: containerlab
+mgmt_subnet: 172.21.21.0/24
+
+backend:
+  namespace: dc1-backend
+
+  # Fabric shape ------------------------------------------------------------
+  stripes: 2 # number of stripes (any value >= 1)
+  rail_size: 8 # rails per stripe = GPUs per server
+  servers_per_stripe: 2 # GPU servers attached to each stripe
+  gpu_vlan: 100 # VLAN on the GPU-facing interfaces
+  gpu_tenant: tenant1 # GPU isolation group membership
+
+  # Uplink sizing. `uplinks_per_leaf` is derived as
+  #   ceil(servers_per_stripe * gpu_nic_bandwidth
+  #        / (oversubscription_ratio * leaf.port_bandwidth))
+  # Set `uplinks_per_leaf` explicitly to override the calculation.
+  gpu_nic_bandwidth: 400G
+  oversubscription_ratio: 1.0
+  # uplinks_per_leaf: 2
+
+  # Addressing -------------------------------------------------------------
+  system0_prefix: 192.0.2.0/24
+  asn_start: 100
+  asn_size: 3000
+
+  leaf:
+    platform: "7220 IXR-H4"
+    port_bandwidth: 400G
+    version: "25.10.1"
+    mgmt_base_ipv4: "172.21.21.11"
+    # Management IPs advance by this much per stripe, keeping each stripe in
+    # its own readable block (stripe1 -> .11+, stripe2 -> .21+).
+    mgmt_stripe_stride: 10
+    # name_template: "stripe{stripe}-leaf{i}"
+    # Stripes are often built out in hardware generations; a per-stripe
+    # override lets a later stripe use a newer platform.
+    platform_per_stripe:
+      2: "7220 IXR-H5-64D"
+
+  spine:
+    count: 2
+    platform: "7220 IXR-H4"
+    version: "25.10.1"
+    mgmt_base_ipv4: "172.21.21.101"
+    # name_template: "spine{i}"
+
+  # GPU servers (containerlab twin only — never deployed to EDA) ------------
+  servers:
+    name_template: "s{i}"
+    mgmt_base_ipv4: "172.21.21.51"
+    image: "aninchat/ubuntu-server:v1"
+
+  # RoCEv2 congestion control (DCQCN = ECN + PFC). Omit to accept these
+  # defaults, or override any subset.
+  rocev2_qos:
+    ecn_max_drop_probability_percent: 100
+    ecn_slope_min_threshold_percent: 40
+    ecn_slope_max_threshold_percent: 80
+    pfc_deadlock_detection_timer: 750
+    pfc_deadlock_recovery_timer: 750
+    queue_maximum_burst_size: 52110640
+
+  # Dynamic load balancing keeps large RoCEv2 flows from colliding on one path.
+  dynamic_load_balancing: true

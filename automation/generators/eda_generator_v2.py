@@ -144,6 +144,25 @@ def generate(
     v1._bind_registry(registry)
     reg = registry
 
+    # This backend is single-namespace and single-Fabric by construction. Rather
+    # than silently flatten a multi-fabric intent into one namespace (which
+    # would deploy a wrong-but-plausible fabric), refuse it: the v2 spec shapes
+    # for the AI-fabric kinds have not been verified against a live 26.4
+    # cluster, so there is nothing correct to emit yet.
+    unsupported: list[str] = []
+    if intent.ai_backends:
+        unsupported.append("ai_backends")
+    if intent.fabrics:
+        unsupported.append("fabrics")
+    if len(intent.namespaces_in_use()) > 1:
+        unsupported.append("multiple namespaces")
+    if unsupported:
+        raise ValueError(
+            f"Design '{intent.design}' uses {', '.join(unsupported)}, which the "
+            f"EDA {reg.eda_version} (v2) CR backend does not support. Target a "
+            f"25.12 cluster, or pass --eda-version 25.12 to generate 25.12 CRs."
+        )
+
     ns = intent.eda.namespace
     design = intent.design
     resources: list[dict] = []

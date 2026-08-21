@@ -31,6 +31,7 @@ from automation.core.models import (
     IrbInterfaceIntent,
     LagIntent,
     RoutedInterfaceIntent,
+    ServerIntent,
     VlanIntent,
 )
 from automation.core.selectors import labels_match
@@ -46,14 +47,48 @@ PLATFORM_TYPE_MAP = {
     "7220 IXR-D2L": "ixr-d2l",
     "7220 IXR-D3": "ixr-d3",
     "7220 IXR-D2": "ixr-d2",
+    "7220 IXR-D4": "ixr-d4",
     "7220 IXR-D5": "ixr-d5",
     "7220 IXR-H2": "ixr-h2",
     "7220 IXR-H3": "ixr-h3",
+    "7220 IXR-H4": "ixr-h4",
+    "7220 IXR-H4-32D": "ixr-h4-32d",
+    "7220 IXR-H5-32D": "ixr-h5-32d",
+    "7220 IXR-H5-64D": "ixr-h5-64d",
+    "7220 IXR-H5-64O": "ixr-h5-64o",
     "7250 IXR-6e": "ixr-6e",
     "7250 IXR-10e": "ixr-10e",
     "7250 IXR-6": "ixr-6",
     "7250 IXR-10": "ixr-10",
 }
+
+
+def _clab_platform_type(platform: str) -> str:
+    """Map an EDA platform name to its containerlab ``type``.
+
+    Falls back to the mechanical transform every entry above follows
+    (``"7220 IXR-H5-64D"`` → ``"ixr-h5-64d"``) so a platform added to
+    :data:`automation.core.platforms.PLATFORM_REGISTRY` still lands on the right
+    node type. A wrong-but-plausible default (e.g. always ``ixr-d3l``) would
+    silently build a lab whose port count and speeds do not match the design.
+    """
+    known = PLATFORM_TYPE_MAP.get(platform)
+    if known:
+        return known
+
+    parts = platform.split(None, 1)
+    if len(parts) == 2:
+        derived = parts[1].lower()
+        logger.warning(
+            "Platform %r is not in PLATFORM_TYPE_MAP; using derived "
+            "containerlab type %r", platform, derived,
+        )
+        return derived
+
+    raise ValueError(
+        f"Cannot derive a containerlab node type from platform {platform!r}. "
+        f"Add it to PLATFORM_TYPE_MAP in clab_generator.py."
+    )
 
 CLIENT_IMAGE = "ghcr.io/srl-labs/network-multitool"
 SRL_IMAGE_BASE = "ghcr.io/nokia/srlinux"
@@ -145,9 +180,10 @@ def generate(intent: FabricIntent, output_dir: Path) -> Path:
     clients = _derive_clients(intent)
     _match_vlans_to_clients(clients, intent)
     _allocate_ips(clients, intent)
+    servers = _server_nodes(intent)
 
     needs_node_isolation = _configlets_need_node_isolation(intent.configlets)
-    clab_topo = _build_clab_topology(intent, clients, needs_node_isolation)
+    clab_topo = _build_clab_topology(intent, clients, servers, needs_node_isolation)
 
     # Write clab file
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -164,8 +200,12 @@ def generate(intent: FabricIntent, output_dir: Path) -> Path:
         script_path = config_dir / f"{client.name}.sh"
         with open(script_path, "w") as f:
             f.write(script)
+    for server in servers:
+        (config_dir / f"{server.name}.sh").write_text(
+            _generate_server_script(server)
+        )
     logger.info(
-        "Wrote %d client configs to %s", len(clients), config_dir
+        "Wrote %d client configs to %s", len(clients) + len(servers), config_dir
     )
 
     # Copy node-isolation.py to output dir if configlets require it
@@ -183,12 +223,32 @@ def generate(intent: FabricIntent, output_dir: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
+def _server_nodes(intent: FabricIntent) -> list[ServerIntent]:
+    """Servers the design declared explicitly, in name order."""
+    return sorted(intent.servers, key=lambda s: s.name)
+
+
+def _server_ports(intent: FabricIntent) -> set[tuple[str, str]]:
+    """Fabric ports already claimed by an explicitly declared server.
+
+    A design that declares its servers has said exactly how they are cabled,
+    so the synthetic-client derivation below must leave those ports alone —
+    otherwise the same leaf port would be cabled twice.
+    """
+    return {
+        (link.node, link.interface)
+        for server in intent.servers
+        for link in server.links
+    }
+
+
 def _derive_clients(intent: FabricIntent) -> list[ClientNode]:
     """
     Derive Linux client nodes from edge interfaces, LAGs,
     and routed interfaces.
     """
     clients: list[ClientNode] = []
+    claimed = _server_ports(intent)
 
     # Collect all LAG member (node, interface) pairs → exclude from single-homed
     lag_member_ports: set[tuple[str, str]] = set()
@@ -219,7 +279,7 @@ def _derive_clients(intent: FabricIntent) -> list[ClientNode]:
     leaf_edges: dict[str, list[EdgeInterfaceIntent]] = {}
     for ei in intent.edge_interfaces:
         key = (ei.node, ei.interface)
-        if key in lag_member_ports or key in routed_ports:
+        if key in lag_member_ports or key in routed_ports or key in claimed:
             continue
         leaf_edges.setdefault(ei.node, []).append(ei)
 
@@ -255,7 +315,15 @@ def _derive_clients(intent: FabricIntent) -> list[ClientNode]:
         """
         return all((m.node, m.interface) in isl_ports for m in lag.members)
 
-    server_lags = [lag for lag in intent.lags if not _is_fabric_lag(lag)]
+    def _is_declared_server_lag(lag: LagIntent) -> bool:
+        """Whether an explicitly declared server already owns this LAG."""
+        return any((m.node, m.interface) in claimed for m in lag.members)
+
+    server_lags = [
+        lag
+        for lag in intent.lags
+        if not _is_fabric_lag(lag) and not _is_declared_server_lag(lag)
+    ]
 
     base_to_lag_names: dict[str, list[str]] = {}
     for lag in server_lags:
@@ -495,9 +563,11 @@ def _allocate_ips(clients: list[ClientNode], intent: FabricIntent) -> None:
 def _build_clab_topology(
     intent: FabricIntent,
     clients: list[ClientNode],
+    servers: list[ServerIntent] | None = None,
     needs_node_isolation: bool = False,
 ) -> dict:
     """Build the containerlab topology dict."""
+    servers = servers or []
 
     # Determine SRL version and platform from nodes
     srl_version = intent.nodes[0].version if intent.nodes else "24.10.2"
@@ -511,14 +581,31 @@ def _build_clab_topology(
 
     # SR Linux nodes
     for node in sorted(intent.nodes, key=lambda n: n.name):
-        platform_type = PLATFORM_TYPE_MAP.get(node.platform, "ixr-d3l")
+        platform_type = _clab_platform_type(node.platform)
         node_def: dict[str, Any] = {"mgmt-ipv4": node.mgmt_ipv4}
         # Only specify type if it differs from the default
         node_def["type"] = platform_type
         nodes[node.name] = node_def
 
+    # Explicitly declared servers carry their own management address, so they
+    # are reserved before the derived clients get the leftovers.
+    for server in servers:
+        node_def = {
+            "kind": "linux",
+            "exec": [f"bash /client-configs/{server.name}.sh"],
+        }
+        if server.mgmt_ipv4:
+            node_def["mgmt-ipv4"] = server.mgmt_ipv4
+        if server.image:
+            node_def["image"] = server.image
+        nodes[server.name] = node_def
+
     # Allocate static mgmt IPs for clients to avoid overlap with SR Linux nodes
-    client_ips = _allocate_client_mgmt_ips(intent, len(clients), mgmt_subnet)
+    client_ips = _allocate_client_mgmt_ips(
+        intent, len(clients), mgmt_subnet, reserved=[
+            s.mgmt_ipv4 for s in servers if s.mgmt_ipv4
+        ],
+    )
 
     # Linux client nodes
     for idx, client in enumerate(sorted(clients, key=lambda c: c.name)):
@@ -547,6 +634,18 @@ def _build_clab_topology(
                 f"{client.name}:eth{cl.eth_index}",
             ]
             links.append({"endpoints": endpoints})
+
+    # Declared server links
+    for server in servers:
+        for sl in sorted(server.links, key=lambda link: link.eth_index):
+            links.append(
+                {
+                    "endpoints": [
+                        f"{sl.node}:{_to_clab_intf(sl.interface)}",
+                        f"{server.name}:eth{sl.eth_index}",
+                    ]
+                }
+            )
 
     # --- SR Linux kind definition ---
     srl_kind: dict[str, Any] = {"image": srl_image}
@@ -633,6 +732,84 @@ def _generate_client_script(client: ClientNode) -> str:
         return _generate_bonded_script(client, lines)
     else:
         return _generate_single_homed_script(client, lines)
+
+
+def _is_tagged(vlan_id: str) -> bool:
+    """Whether a VLAN id means 'tagged' rather than untagged."""
+    return bool(vlan_id) and vlan_id not in ("untagged", "null")
+
+
+def _generate_server_script(server: ServerIntent) -> str:
+    """Startup script for an explicitly declared server.
+
+    Two kinds of NIC are configured. Rail NICs carry an address directly on
+    the physical interface — each one lands on a different leaf, so they must
+    not be bonded. Frontend NICs are bonded together with LACP, since they go
+    to different leaves of the *same* multi-homed LAG.
+    """
+    lines = ["#!/bin/bash", f"# Auto-generated startup for {server.name}", ""]
+    bonded = {index for bond in server.bonds for index in bond.eth_indices}
+
+    rail_links = [
+        link
+        for link in sorted(server.links, key=lambda link: link.eth_index)
+        if link.eth_index not in bonded
+    ]
+    if rail_links:
+        lines.append("# Rail NICs: one per leaf, addressed individually")
+        for link in rail_links:
+            iface = f"eth{link.eth_index}"
+            mtu = link.mtu or CLIENT_LINK_MTU
+            lines.append(f"ip link set dev {iface} mtu {mtu}")
+            lines.append(f"ip link set dev {iface} up")
+
+            # A tagged rail sub-interface only matches tagged frames, so the
+            # address goes on a VLAN sub-interface rather than the NIC.
+            target = iface
+            if _is_tagged(link.vlan_id):
+                target = f"{iface}.{link.vlan_id}"
+                lines.append(
+                    f"ip link add link {iface} name {target} "
+                    f"type vlan id {link.vlan_id}"
+                )
+                lines.append(f"ip link set dev {target} mtu {mtu}")
+                lines.append(f"ip link set dev {target} up")
+            if link.ipv4_address:
+                lines.append(f"ip addr add {link.ipv4_address} dev {target}")
+            if link.ipv6_address:
+                lines.append(f"ip -6 addr add {link.ipv6_address} dev {target}")
+        lines.append("")
+
+    for bond in server.bonds:
+        members = [f"eth{index}" for index in sorted(bond.eth_indices)]
+        lines.append(f"# {bond.name}: LACP across {', '.join(members)}")
+        lines.append(f"ip link add {bond.name} type bond mode 802.3ad")
+        for iface in members:
+            lines.append(f"ip link set dev {iface} down")
+            lines.append(f"ip link set dev {iface} mtu {CLIENT_LINK_MTU}")
+            lines.append(f"ip link set dev {iface} master {bond.name}")
+        lines.append(f"ip link set dev {bond.name} mtu {CLIENT_LINK_MTU}")
+
+        # A tagged attachment needs the address on a VLAN sub-interface: the
+        # leaf-side VLAN selects on the tag, so an untagged frame would land
+        # in no bridge domain at all.
+        target = bond.name
+        if _is_tagged(bond.vlan_id):
+            target = f"{bond.name}.{bond.vlan_id}"
+            lines.append(
+                f"ip link add link {bond.name} name {target} "
+                f"type vlan id {bond.vlan_id}"
+            )
+        if bond.ipv4_address:
+            lines.append(f"ip addr add {bond.ipv4_address} dev {target}")
+        for iface in members:
+            lines.append(f"ip link set dev {iface} up")
+        lines.append(f"ip link set dev {bond.name} up")
+        if target != bond.name:
+            lines.append(f"ip link set dev {target} up")
+        lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def _generate_single_homed_script(
@@ -1274,7 +1451,10 @@ def _node_short_name(node_name: str) -> str:
 
 
 def _allocate_client_mgmt_ips(
-    intent: FabricIntent, count: int, mgmt_subnet: str
+    intent: FabricIntent,
+    count: int,
+    mgmt_subnet: str,
+    reserved: list[str] | None = None,
 ) -> list[str]:
     """Allocate static mgmt IPs for Linux clients that don't overlap with SR Linux nodes.
 
@@ -1285,23 +1465,24 @@ def _allocate_client_mgmt_ips(
     SR Linux nodes.
     """
     net = ipaddress.ip_network(mgmt_subnet, strict=False)
-    reserved = {
+    taken = {
         ipaddress.ip_address(n.mgmt_ipv4)
         for n in intent.nodes
         if n.mgmt_ipv4
     }
-    reserved.add(net.network_address)
-    reserved.add(net.broadcast_address)
+    taken.update(ipaddress.ip_address(ip) for ip in (reserved or []))
+    taken.add(net.network_address)
+    taken.add(net.broadcast_address)
     # .1 is typically the Docker bridge gateway
-    reserved.add(net.network_address + 1)
+    taken.add(net.network_address + 1)
 
     allocated: list[str] = []
     candidate = int(net.broadcast_address) - 1  # start at .254
     while len(allocated) < count and candidate > int(net.network_address):
         ip = ipaddress.ip_address(candidate)
-        if ip not in reserved:
+        if ip not in taken:
             allocated.append(str(ip))
-            reserved.add(ip)
+            taken.add(ip)
         candidate -= 1
 
     if len(allocated) < count:

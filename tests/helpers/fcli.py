@@ -157,7 +157,7 @@ class FcliClient:
         self, *, node: str = "", network_instance: str = "",
     ) -> list[dict[str, Any]]:
         inv = f"name={node}" if node else ""
-        filt = f"Network-Instance={network_instance}" if network_instance else ""
+        filt = f"NI={network_instance}" if network_instance else ""
         return self._query("mac", inventory_filter=inv, field_filter=filt)
 
     def vxlan_tunnels(self, *, node: str = "") -> list[dict[str, Any]]:
@@ -172,7 +172,7 @@ class FcliClient:
         self, *, node: str = "", network_instance: str = "",
     ) -> list[dict[str, Any]]:
         inv = f"name={node}" if node else ""
-        filt = f"Network-Instance={network_instance}" if network_instance else ""
+        filt = f"NI={network_instance}" if network_instance else ""
         return self._query("arp", inventory_filter=inv, field_filter=filt)
 
     def network_instances(

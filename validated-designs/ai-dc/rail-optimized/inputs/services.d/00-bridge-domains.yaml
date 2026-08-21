@@ -1,0 +1,15 @@
+---
+# yaml-language-server: $schema=../../schemas/services_fragment_schema.json
+# Frontend/storage overlay services.
+#
+# The backend fabric needs no service definitions: the Backend CR derives its
+# own per-rail L3 services from the stripes and GPU VLAN. Everything here lands
+# in the frontend namespace.
+
+bridge_domains:
+  - name: mac-vrf-storage
+    type: EVPNVXLAN
+    vni: 100
+    evi: 100
+    mac_aging: 300
+    mac_learning: true

@@ -84,6 +84,18 @@ SUPPORTED_DESIGNS: dict[str, DesignSpec] = {
             "declared in the input YAML. No auto-generation."
         ),
     ),
+    "ai-dc-rail-optimized": DesignSpec(
+        name="ai-dc-rail-optimized",
+        module="automation.designs.ai_dc_rail_optimized",
+        strategy="constrained",
+        design_dir="validated-designs/ai-dc/rail-optimized",
+        summary=(
+            "Rail-optimized AI fabric: N stripes of rail leaves joined by a "
+            "stripe-connector spine layer (an aifabrics Backend CR), plus a "
+            "frontend EVPN-VXLAN fabric in a second namespace. Stripes, rail "
+            "size, GPU servers and uplink count all scale from the input."
+        ),
+    ),
 }
 
 # Back-compat view used by the dispatcher and existing callers.
@@ -114,19 +126,42 @@ def is_engine_managed(design_dir: Path) -> bool:
 
 
 def find_unmanaged_design_dirs(designs_root: Path | None = None) -> list[str]:
-    """List directories under ``validated-designs/`` with no engine inputs.
+    """List design directories under ``validated-designs/`` with no engine inputs.
 
     Used to tell the user *why* a design directory was rejected instead of
     letting the input loader fail on a missing ``topology.yaml``.
+
+    Descends one level into *grouping* directories — a directory that holds no
+    inputs of its own but whose children do (``ai-dc/`` holding
+    ``ai-dc/two-stripe-rail-optimized``). Without that, a family of designs
+    would be reported as one unmanaged entry and its managed members would be
+    invisible here.
     """
     root = Path(designs_root) if designs_root is not None else DESIGNS_ROOT
     if not root.is_dir():
         return []
-    return sorted(
-        d.name
-        for d in root.iterdir()
-        if d.is_dir() and not d.name.startswith(".") and not is_engine_managed(d)
-    )
+
+    def _candidates(directory: Path) -> list[Path]:
+        return sorted(
+            child for child in directory.iterdir()
+            if child.is_dir() and not child.name.startswith(".")
+        )
+
+    unmanaged: list[str] = []
+    for entry in _candidates(root):
+        if is_engine_managed(entry):
+            continue
+        children = _candidates(entry)
+        if any(is_engine_managed(child) for child in children):
+            # A grouping directory: report only the children that lack inputs.
+            unmanaged.extend(
+                f"{entry.name}/{child.name}"
+                for child in children
+                if not is_engine_managed(child)
+            )
+        else:
+            unmanaged.append(entry.name)
+    return sorted(unmanaged)
 
 
 def check_design_dir(design_dir: Path) -> str | None:

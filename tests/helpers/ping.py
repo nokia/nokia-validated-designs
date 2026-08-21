@@ -67,6 +67,50 @@ def ping(
         return False
 
 
+def ping_retry(
+    src_container: str,
+    dst_ip: str,
+    *,
+    src_ip: str = "",
+    attempts: int = 3,
+    **kwargs,
+) -> bool:
+    """
+    Ping with retries, tolerating address-resolution loss on the first probes.
+
+    IPv6 neighbor discovery (and ARP on a cold bridge domain) routinely drops
+    the packets that trigger it, so a single short ping is not enough evidence
+    that a path is broken.
+    """
+    for _ in range(max(1, attempts)):
+        if ping(src_container, dst_ip, src_ip=src_ip, **kwargs):
+            return True
+    return False
+
+
+def ping_size(
+    src_container: str,
+    dst_ip: str,
+    payload: int,
+    *,
+    src_ip: str = "",
+    count: int = 2,
+    timeout: int = 2,
+) -> bool:
+    """Ping with the don't-fragment bit set at a fixed ICMP payload size."""
+    cmd = [
+        "ping", f"-c{count}", f"-W{timeout}", "-s", str(payload), "-M", "do",
+    ]
+    if src_ip:
+        cmd.extend(["-I", src_ip])
+    cmd.append(dst_ip)
+    try:
+        result = _docker_exec(src_container, cmd, timeout=count * timeout + 8)
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError):
+        return False
+
+
 def ping_bidir(
     a_container: str,
     a_ip: str,

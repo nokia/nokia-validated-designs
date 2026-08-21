@@ -35,6 +35,7 @@ here.
 | `3-stage-evpn-vxlan` | `validated-designs/3-stage-evpn-vxlan` | Constrained — nodes, ISLs, ASNs and system0 IPs auto-generated from spine/leaf counts |
 | `collapsed-spine` | `validated-designs/collapsed-spine` | Constrained — two collapsed-spines carry all overlay services, ToRs onboarded outside the Fabric selectors, ISLs explicit |
 | `unconstrained-3-stage` | `validated-designs/unconstrained-3-stage` | Passthrough — every node, link, ASN and IP is explicit in the input |
+| `ai-dc-rail-optimized` | `validated-designs/ai-dc/rail-optimized` | Constrained — an N-stripe RoCEv2 backend plus an EVPN-VXLAN storage frontend, each in its own EDA namespace |
 
 The authoritative list is `SUPPORTED_DESIGNS` in `core/fabric_builder.py`. To
 see it (plus the design directories that are *not* supported in your checkout):
@@ -254,13 +255,14 @@ Two mechanisms make the external `$ref`s work:
 `fabric_builder.py` reads `topology["design"]`, looks up the design in
 `SUPPORTED_DESIGNS`, and calls `module.build(topology, services)`. An
 unregistered `design:` value is rejected with the list of supported names.
-Three designs are registered (see [Supported Designs](#supported-designs)):
+Four designs are registered (see [Supported Designs](#supported-designs)):
 
 | Design | Module | Strategy |
 |--------|--------|----------|
 | `3-stage-evpn-vxlan` | `three_stage_evpn_vxlan.py` | **Constrained** -- auto-generates nodes, links, ASN, IPs from counts |
 | `collapsed-spine` | `collapsed_spine.py` | **Constrained** -- explicit ISLs and ToRs, auto-generated ASNs/IPs |
 | `unconstrained-3-stage` | `unconstrained_3_stage.py` | **Passthrough** -- every node/link/IP is explicit in input |
+| `ai-dc-rail-optimized` | `ai_dc_rail_optimized.py` | **Constrained** -- two fabrics in two namespaces, scaled from stripe geometry |
 
 ### Constrained builder (3-stage-evpn-vxlan)
 
@@ -319,6 +321,91 @@ Fabric's leaf/spine selectors. Bridge domains may be `EVPNVXLAN` (default) or
 
 Pure passthrough -- every node, link, IP, and ASN is explicitly defined in the
 input YAML. The builder maps dicts to Pydantic models with no auto-generation.
+
+### Rail-optimized AI-DC builder
+
+Also constrained, and the first design to describe **two fabrics in one
+intent**. A *backend* RoCEv2 fabric (an `aifabrics` `Backend` CR) lives in one
+EDA namespace and an EVPN-VXLAN *frontend*/storage fabric (a `Fabric` CR) in
+another. They are one intent rather than two because the GPU servers straddle
+both, so splitting them would make the servers unrepresentable.
+
+The backend is organised into **stripes**. A stripe is `rail_size` rail leaves,
+and every GPU server in the stripe puts exactly one NIC on each rail, so rail
+*r* of every server terminates on leaf *r* — the property that lets a
+rail-local collective stay inside a single leaf. Stripes are joined by the
+stripe-connector spine layer.
+
+Everything scales from the input. `stripes`, `rail_size` and
+`servers_per_stripe` are free parameters; the leaf count, server count, uplink
+count, spine-port allocation, GPU port numbering and rail IPv6 addressing all
+follow. Uplinks per leaf are derived from the oversubscription target:
+
+```
+uplinks_per_leaf = ceil(servers_per_stripe * gpu_nic_bandwidth
+                        / (oversubscription_ratio * leaf.port_bandwidth))
+```
+
+rounded up to a whole multiple of the spine count, since a leaf can only be
+cabled in complete rounds of the spine layer. Set `uplinks_per_leaf` to
+override the calculation; an explicit value that cannot be cabled evenly is
+rejected rather than silently adjusted.
+
+Before emitting anything, the builder checks the geometry against the platform
+registry — spine ports, per-stripe leaf ports, and the frontend leaf's access
+ports — and fails with the numbers involved and what to change. Without this,
+oversized input produces port numbers a platform does not have
+(`ethernet-1-70` on a 64-port spine), which EDA only rejects once the
+transaction is already being applied.
+
+Servers are declared explicitly on the intent (`intent.servers`) rather than
+derived from edge interfaces: a rail-optimized server fans out across every
+leaf of its stripe and cannot be inferred from a single attachment. They are
+never deployed to EDA — the fabric only knows the ports they attach to — but
+the containerlab generator renders them, their cabling, their per-rail IPv6
+addresses and their bonded frontend attachment.
+
+### Multi-namespace designs
+
+`FabricIntent` sub-models carry an optional `namespace`; an empty value
+resolves to `intent.eda.namespace` via `FabricIntent.ns_of()`. Single-namespace
+designs set nothing and behave exactly as before.
+
+A design that does populate it gets namespace handling from the shared engine
+rather than from the builder:
+
+* **`eda_generator`** resolves each resource's namespace individually, emits
+  the `Namespace` CRs first, and derives the bootstrap resources (`Init`,
+  `NodeUser`, `NodeProfile`) once per namespace that actually holds nodes.
+* **`EdaClient`** discovers every namespace in the transaction body, queries
+  and destroys per namespace, and polls each node for sync in its own
+  namespace. Diff keys are `namespace/kind:name`, because resource names are
+  only unique within a namespace — two fabrics each having an `asn-pool` is
+  normal, and keying on `kind:name` would make one shadow the other. A few
+  kinds (`Namespace`, `TopologyGrouping` — see `_CLUSTER_SCOPED_KINDS`) are
+  namespaced CRDs whose EDA *read* endpoints are nonetheless cluster-scoped, so
+  they are read once from the unprefixed path; reading them per namespace
+  returns HTTP 400 and leaves a converged fabric reporting them as creates
+  forever.
+* **Cross-reference validation** is scoped per namespace for the same reason.
+* **Allocation pools are seeded per namespace.** EDA installs a set of
+  well-known index pools (`tunnel-index-pool`, `vni-pool`, `lag-admin-key-pool`,
+  …) into its own namespace when the cluster is built, and its service intents
+  resolve them by name *inside the namespace of the resource being deployed*. A
+  namespace the design creates starts empty, so `eda_generator` seeds it with
+  those defaults (`_EDA_DEFAULT_INDEX_POOLS`); without them the first
+  `BridgeDomain` or LAG deployed there fails with `pool template
+  Index:tunnel-index-pool does not exist in namespace …`. A pool the design
+  declares itself always wins, which is why `asn-pool` and `leafindex-pool` —
+  the two that carry design-specific ranges and pinned allocations — are not in
+  the default set.
+
+Note that a design pinning an SR Linux version whose schema profile has not been
+onboarded fails at node validation with an opaque `curl: (22) … 404` on every
+node. The `yang` URL the generator derives is correct; what is missing is the
+`Artifact` that populates EDA's schema store. See
+`validated-designs/ai-dc/two-stripe-rail-optimized/eda-manifests/nodeprofile.yaml`
+for the two `Artifact` CRs (schema profile + LLM DB) that onboard one.
 
 ### The output: FabricIntent
 

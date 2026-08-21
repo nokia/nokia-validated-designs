@@ -34,12 +34,31 @@ RESOURCE_MAP: dict[str, tuple[str, list[str]]] = {
         "core",
         [
             "TopoNode", "TopoLink", "NodeProfile", "NodeUser",
-            "IndexAllocationPool", "IPAllocationPool",
+            "IndexAllocationPool", "IPAllocationPool", "Namespace",
         ],
     ),
     "fabrics_eda_nokia_com_v1alpha1.json": (
         "fabrics",
         ["Fabric"],
+    ),
+    "aifabrics_eda_nokia_com_v1alpha1.json": (
+        "aifabrics",
+        ["Backend"],
+    ),
+    # ForwardingClass is intentionally absent: its spec is an empty object, so
+    # there is no model to generate (the generator skips specless kinds). That
+    # CR is emitted from a bare ``{}`` spec instead.
+    "qos_eda_nokia_com_v1.json": (
+        "qos",
+        ["Queue"],
+    ),
+    "aaa_eda_nokia_com_v1alpha1.json": (
+        "aaa",
+        ["NodeGroup"],
+    ),
+    "topologies_eda_nokia_com_v1alpha1.json": (
+        "topologies",
+        ["TopologyGrouping"],
     ),
     "interfaces_eda_nokia_com_v1alpha1.json": (
         "interfaces",
@@ -134,7 +153,32 @@ def _to_snake(name: str) -> str:
     return s.lower()
 
 
-def _python_type(prop: dict, class_prefix: str, nested: list[tuple[str, dict]]) -> str:
+def _sub_class_suffix(prop: dict, prop_name: str, fallback: str) -> str:
+    """Name the class for an inline sub-schema.
+
+    Prefers the schema ``title`` (what the mature EDA app specs carry), and
+    falls back to the property name when there is none. Some apps — the
+    ``aifabrics`` group among them — ship no titles at all, and without the
+    property-name fallback every inline object under one kind would land on the
+    same generated name. :func:`_collect_class` unions same-named schemas, so
+    that silently fused structurally unrelated siblings (``rocev2QoS`` with
+    ``stripeConnector``, ``stripes`` with ``gpuIsolationGroups``) into one class
+    requiring the union of both field sets — which no valid CR can satisfy.
+    """
+    title = prop.get("title", "")
+    if title:
+        return _to_class_name(title)
+    if prop_name:
+        return prop_name[0].upper() + prop_name[1:]
+    return fallback
+
+
+def _python_type(
+    prop: dict,
+    class_prefix: str,
+    nested: list[tuple[str, dict]],
+    prop_name: str = "",
+) -> str:
     """Map an OpenAPI property schema to a Python type string."""
     if "enum" in prop:
         vals = prop["enum"]
@@ -155,7 +199,7 @@ def _python_type(prop: dict, class_prefix: str, nested: list[tuple[str, dict]]) 
         items = prop.get("items", {})
         if items.get("type") == "object" and items.get("properties"):
             # Nested object array — create a sub-class
-            sub_name = class_prefix + _to_class_name(prop.get("title", "Item"))
+            sub_name = class_prefix + _sub_class_suffix(prop, prop_name, "Item")
             nested.append((sub_name, items))
             return f"list[{sub_name}]"
         elif items.get("type") == "string":
@@ -171,7 +215,7 @@ def _python_type(prop: dict, class_prefix: str, nested: list[tuple[str, dict]]) 
             return "list[Any]"
     elif t == "object":
         if prop.get("properties"):
-            sub_name = class_prefix + _to_class_name(prop.get("title", "Config"))
+            sub_name = class_prefix + _sub_class_suffix(prop, prop_name, "Config")
             nested.append((sub_name, prop))
             return sub_name
         else:
@@ -230,7 +274,9 @@ def _field_kwargs(name: str, prop: dict) -> str:
     return ", ".join(args)
 
 
-def _nested_for(prop: dict, class_prefix: str) -> tuple[str, dict] | None:
+def _nested_for(
+    prop: dict, class_prefix: str, prop_name: str = ""
+) -> tuple[str, dict] | None:
     """Return ``(class_name, schema)`` for an inline object sub-schema, else None.
 
     Mirrors the nested-class naming used by :func:`_python_type` so the
@@ -242,10 +288,10 @@ def _nested_for(prop: dict, class_prefix: str) -> tuple[str, dict] | None:
     if t == "array":
         items = prop.get("items", {})
         if items.get("type") == "object" and items.get("properties"):
-            return class_prefix + _to_class_name(prop.get("title", "Item")), items
+            return class_prefix + _sub_class_suffix(prop, prop_name, "Item"), items
         return None
     if t == "object" and prop.get("properties"):
-        return class_prefix + _to_class_name(prop.get("title", "Config")), prop
+        return class_prefix + _sub_class_suffix(prop, prop_name, "Config"), prop
     return None
 
 
@@ -277,7 +323,7 @@ def _collect_class(
         # unique to a later schema are appended.
         if prop_name not in entry["properties"]:
             entry["properties"][prop_name] = prop
-        nested = _nested_for(prop, parent_prefix)
+        nested = _nested_for(prop, parent_prefix, prop_name)
         if nested is not None:
             sub_name, sub_schema = nested
             _collect_class(sub_name, sub_schema, parent_prefix, collected, order)
@@ -298,7 +344,7 @@ def _emit_class(class_name: str, entry: dict) -> str:
     throwaway: list[tuple[str, dict]] = []
     for prop_name, prop in props.items():
         snake = _to_snake(prop_name)
-        py_type = _python_type(prop, prefix, throwaway)
+        py_type = _python_type(prop, prefix, throwaway, prop_name)
         field_kwargs = _field_kwargs(prop_name, prop)
         is_required = prop_name in required
         default = prop.get("default")

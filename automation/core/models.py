@@ -14,11 +14,31 @@ from pydantic import BaseModel, Field, model_validator
 
 
 # ---------------------------------------------------------------------------
+# Namespacing
+# ---------------------------------------------------------------------------
+
+
+class NamespacedIntent(BaseModel):
+    """Mixin for resources that can be pinned to a specific EDA namespace.
+
+    An empty value means "use the intent-level default", i.e.
+    :attr:`FabricIntent.eda.namespace`. Single-fabric designs never set it, so
+    every one of their CRs keeps landing in that one namespace exactly as
+    before. Multi-fabric designs (``ai-dc-rail-optimized``) set it per resource
+    to split one intent across several namespaces — a backend AI fabric and a
+    frontend EVPN fabric live in different namespaces but are described,
+    validated and deployed as a single intent.
+    """
+
+    namespace: str = ""
+
+
+# ---------------------------------------------------------------------------
 # Underlay models
 # ---------------------------------------------------------------------------
 
 
-class NodeIntent(BaseModel):
+class NodeIntent(NamespacedIntent):
     """A single fabric node (leaf or spine)."""
 
     name: str
@@ -32,7 +52,7 @@ class NodeIntent(BaseModel):
     uplink_interfaces: list[str] = Field(default_factory=list)  # ISL ports on this node
 
 
-class LinkIntent(BaseModel):
+class LinkIntent(NamespacedIntent):
     """An inter-switch link between two nodes."""
 
     name: str  # e.g. "leaf1-spine1"
@@ -42,7 +62,7 @@ class LinkIntent(BaseModel):
     remote_interface: str  # e.g. "ethernet-1-32" or "ethernet-1-32-1" (breakout)
 
 
-class BreakoutIntent(BaseModel):
+class BreakoutIntent(NamespacedIntent):
     """A breakout configuration on a specific node/interface."""
 
     node: str
@@ -56,7 +76,7 @@ class BreakoutIntent(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class EdgeInterfaceIntent(BaseModel):
+class EdgeInterfaceIntent(NamespacedIntent):
     """A server-facing (edge) interface on a leaf."""
 
     name: str  # EDA resource name, e.g. "leaf1-ethernet-1-3"
@@ -85,7 +105,7 @@ class LagMember(BaseModel):
     lacp_port_priority: int = 32768
 
 
-class LagIntent(BaseModel):
+class LagIntent(NamespacedIntent):
     """A LAG interface (potentially multi-homed across multiple leaves)."""
 
     name: str  # e.g. "leaf2-leaf3-leaf4-leaf5-lag2"
@@ -113,7 +133,7 @@ class LagIntent(BaseModel):
 RT_PATTERN = r"^target:.+$"
 
 
-class BridgeDomainIntent(BaseModel):
+class BridgeDomainIntent(NamespacedIntent):
     """A bridge domain (mac-vrf) service.
 
     ``type`` defaults to ``EVPNVXLAN``; in that case ``vni`` and ``evi``
@@ -153,7 +173,7 @@ class BridgeDomainIntent(BaseModel):
         return self
 
 
-class RouterIntent(BaseModel):
+class RouterIntent(NamespacedIntent):
     """A router (ip-vrf) service."""
 
     name: str  # e.g. "vrf1"
@@ -174,7 +194,7 @@ class IrbIpAddress(BaseModel):
     ipv6: dict | None = None  # {"ip_prefix": "...", "primary": True}
 
 
-class IrbInterfaceIntent(BaseModel):
+class IrbInterfaceIntent(NamespacedIntent):
     """An IRB interface binding a bridge domain to a router."""
 
     name: str  # e.g. "irb-v10"
@@ -211,7 +231,7 @@ class IrbInterfaceIntent(BaseModel):
     origin: str = ""  # "3-stage" | "extras" — set by builder for provenance tracking
 
 
-class VlanIntent(BaseModel):
+class VlanIntent(NamespacedIntent):
     """A VLAN service attaching a bridge domain to interfaces via selectors."""
 
     name: str  # e.g. "tagged-v10"
@@ -222,7 +242,7 @@ class VlanIntent(BaseModel):
     )  # e.g. ["eda.nokia.com/tagged-v10=enabled"]
 
 
-class RoutedInterfaceIntent(BaseModel):
+class RoutedInterfaceIntent(NamespacedIntent):
     """A routed (L3) interface on a specific node port."""
 
     name: str
@@ -235,7 +255,7 @@ class RoutedInterfaceIntent(BaseModel):
     arp_timeout: int = 14400
 
 
-class StaticRouteIntent(BaseModel):
+class StaticRouteIntent(NamespacedIntent):
     """A static route in a router."""
 
     name: str
@@ -253,7 +273,7 @@ class ConfigletConfigEntry(BaseModel):
     config: str  # JSON-formatted string
 
 
-class ConfigletIntent(BaseModel):
+class ConfigletIntent(NamespacedIntent):
     """A configlet applying raw device configuration to one or more nodes."""
 
     name: str  # EDA resource name, e.g. "bgp-evpn-rapid"
@@ -272,7 +292,7 @@ class ConfigletIntent(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class DefaultMtuIntent(BaseModel):
+class DefaultMtuIntent(NamespacedIntent):
     """Default MTU settings applied to fabric nodes via EDA DefaultMTU resource."""
 
     name: str  # EDA resource name, e.g. "default-port-mtu"
@@ -283,7 +303,7 @@ class DefaultMtuIntent(BaseModel):
     nodes: list[str] = Field(default_factory=list)  # explicit node names
 
 
-class BannerIntent(BaseModel):
+class BannerIntent(NamespacedIntent):
     """Login and MOTD banner settings applied to fabric nodes via EDA Banner resource."""
 
     name: str  # EDA resource name, e.g. "nvd-banner"
@@ -305,7 +325,7 @@ class PrefixEntry(BaseModel):
     mask_length_range: str = "exact"  # e.g. "32..32", "exact"
 
 
-class PrefixSetIntent(BaseModel):
+class PrefixSetIntent(NamespacedIntent):
     """A named set of prefixes that routing policies can match on."""
 
     name: str  # e.g. "prefixset-dc1"
@@ -339,7 +359,7 @@ class PolicyStatementIntent(BaseModel):
     action: PolicyAction = Field(default_factory=PolicyAction)
 
 
-class RoutingPolicyIntent(BaseModel):
+class RoutingPolicyIntent(NamespacedIntent):
     """A named routing policy made up of ordered statements."""
 
     name: str  # e.g. "ebgp-isl-export-policy-dc1"
@@ -544,6 +564,241 @@ class FabricConfigInput(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Multi-namespace scaffolding
+#
+# Designs that describe more than one fabric need resources the single-fabric
+# path never had to model: the EDA Namespaces themselves, the per-namespace AAA
+# NodeGroup that NodeUser.groupBindings points at, and explicit allocation pools
+# (a single fabric can have its pools derived from the intent's ASN/prefix
+# scalars, but N fabrics each need their own, named).
+# ---------------------------------------------------------------------------
+
+
+class NamespaceIntent(BaseModel):
+    """An EDA Namespace to create (itself living in ``eda-system``)."""
+
+    name: str
+    description: str = ""
+    # The namespace the Namespace CR is created *in*, not the one it defines.
+    parent_namespace: str = "eda-system"
+
+
+class NodeGroupIntent(NamespacedIntent):
+    """An AAA NodeGroup — the group ``NodeUser.groupBindings`` references."""
+
+    name: str = "sudo"
+    services: list[str] = Field(
+        default_factory=lambda: ["GNMI", "CLI", "NETCONF", "GNOI", "GNSI"]
+    )
+    superuser: bool = True
+
+
+class TopologyGroupSelector(BaseModel):
+    """Assigns nodes matching a selector to a named topology group."""
+
+    group: str
+    node_selector: list[str] = Field(default_factory=list)
+
+
+class TopologyTierSelector(BaseModel):
+    """Assigns nodes matching a selector to a topology tier.
+
+    A selector-less entry is the catch-all and must be listed last.
+    """
+
+    tier: int
+    node_selector: list[str] = Field(default_factory=list)
+
+
+class TopologyGroupingIntent(BaseModel):
+    """A TopologyGrouping — drives the fabric's topology view in the EDA UI."""
+
+    name: str
+    namespace: str = "eda-system"
+    group_selectors: list[TopologyGroupSelector] = Field(default_factory=list)
+    tier_selectors: list[TopologyTierSelector] = Field(default_factory=list)
+    ui_name: str = ""
+    ui_description: str = ""
+
+
+class QueueIntent(NamespacedIntent):
+    """A QoS Queue backing the RoCEv2 lossless/lossy forwarding classes."""
+
+    name: str
+    queue_id: int
+    queue_type: Literal["Normal", "Pfc"] = "Normal"
+    traffic_type: Literal["Unicast", "Multicast"] = "Unicast"
+
+
+class ForwardingClassIntent(NamespacedIntent):
+    """A QoS ForwardingClass. The EDA spec is an empty object — name only."""
+
+    name: str
+
+
+class PoolAllocation(BaseModel):
+    """A named, pinned allocation inside an index pool."""
+
+    name: str
+    value: int
+
+
+class IndexPoolIntent(NamespacedIntent):
+    """An explicit IndexAllocationPool (ASN, VNI, tunnel index, leaf index...)."""
+
+    name: str
+    start: int
+    size: int
+    allocations: list[PoolAllocation] = Field(default_factory=list)
+
+
+class IpPoolIntent(NamespacedIntent):
+    """An explicit IPAllocationPool (system0 / ISL addressing)."""
+
+    name: str
+    subnet: str
+
+
+class FabricDefinitionIntent(NamespacedIntent):
+    """An explicit Fabric CR.
+
+    Single-fabric designs leave ``FabricIntent.fabrics`` empty and the generator
+    synthesizes one Fabric from the intent's node roles and ASN/prefix scalars.
+    A design that declares fabrics here gets exactly these instead, each with
+    its own namespace, pools and selectors.
+    """
+
+    name: str
+    system_pool_ipv4: str = ""
+    leaf_asn_pool: str = ""
+    spine_asn_pool: str = ""
+    leaf_node_selector: list[str] = Field(default_factory=list)
+    spine_node_selector: list[str] = Field(default_factory=list)
+    inter_switch_link_selector: list[str] = Field(default_factory=list)
+    fabric_config: FabricConfigInput | None = None
+
+
+# ---------------------------------------------------------------------------
+# AI backend fabric (aifabrics.eda.nokia.com Backend)
+# ---------------------------------------------------------------------------
+
+
+class AiStripeIntent(BaseModel):
+    """One stripe (a set of rail leaves) of a rail-optimized AI fabric."""
+
+    name: str
+    stripe_id: int
+    gpu_vlan: int
+    node_selector: list[str] = Field(default_factory=list)
+    asn_pool: str = ""
+    system_pool_ipv4: str = ""
+
+
+class AiGpuIsolationGroupIntent(BaseModel):
+    """A set of GPU-facing interfaces that may exchange traffic."""
+
+    name: str
+    interface_selector: list[str] = Field(default_factory=list)
+
+
+class AiStripeConnectorIntent(BaseModel):
+    """The spine layer interconnecting stripes."""
+
+    name: str
+    node_selector: list[str] = Field(default_factory=list)
+    link_selector: list[str] = Field(default_factory=list)
+    asn_pool: str = ""
+    system_pool_ipv4: str = ""
+
+
+class Rocev2QosIntent(BaseModel):
+    """RoCEv2 congestion-control knobs (DCQCN = ECN + PFC).
+
+    Defaults are the values the two-stripe-rail-optimized reference design
+    deploys, not the EDA schema defaults — the reference raises the ECN slope
+    minimum from 5% to 40% and the queue burst size well above the 1MB default.
+    """
+
+    ecn_max_drop_probability_percent: int = Field(default=100, ge=0, le=100)
+    ecn_slope_max_threshold_percent: int = Field(default=80, ge=0, le=100)
+    ecn_slope_min_threshold_percent: int = Field(default=40, ge=0, le=100)
+    pfc_deadlock_detection_timer: int = Field(default=750, ge=0)
+    pfc_deadlock_recovery_timer: int = Field(default=750, ge=0)
+    queue_maximum_burst_size: int = Field(default=52110640, ge=0, le=4294967295)
+
+    @model_validator(mode="after")
+    def _validate(self) -> Rocev2QosIntent:
+        if self.ecn_slope_min_threshold_percent > self.ecn_slope_max_threshold_percent:
+            raise ValueError(
+                "rocev2_qos: ecn_slope_min_threshold_percent "
+                f"({self.ecn_slope_min_threshold_percent}) must not exceed "
+                f"ecn_slope_max_threshold_percent "
+                f"({self.ecn_slope_max_threshold_percent})"
+            )
+        return self
+
+
+class AiBackendIntent(NamespacedIntent):
+    """A rail-optimized AI backend fabric (an ``aifabrics`` Backend CR)."""
+
+    name: str
+    system_pool_ipv4: str = ""
+    asn_pool: str = ""
+    ip_mtu: int | None = Field(default=None, ge=1500, le=9000)
+    stripes: list[AiStripeIntent] = Field(default_factory=list)
+    gpu_isolation_groups: list[AiGpuIsolationGroupIntent] = Field(default_factory=list)
+    stripe_connector: AiStripeConnectorIntent | None = None
+    rocev2_qos: Rocev2QosIntent = Field(default_factory=Rocev2QosIntent)
+
+
+# ---------------------------------------------------------------------------
+# Servers (containerlab twin only — never deployed to EDA)
+# ---------------------------------------------------------------------------
+
+
+class ServerLink(BaseModel):
+    """One NIC of a server, cabled to a fabric node port."""
+
+    node: str
+    interface: str  # fabric-side port, e.g. "ethernet-1-3"
+    eth_index: int  # server-side NIC index: eth1, eth2, ...
+    ipv6_address: str = ""  # e.g. "fd00:100:1:1:0:3:0:2/96"
+    ipv4_address: str = ""
+    # Set when the fabric-side sub-interface is VLAN-tagged: the address then
+    # belongs on a VLAN sub-interface, since an untagged frame would not match
+    # the tagged sub-interface at all.
+    vlan_id: str = ""
+    mtu: int = 0  # 0 keeps the generator default
+
+
+class ServerBond(BaseModel):
+    """A bonded pair of server NICs (frontend/storage attachment)."""
+
+    name: str = "bond0"
+    eth_indices: list[int] = Field(default_factory=list)
+    ipv4_address: str = ""
+    vlan_id: str = ""
+
+
+class ServerIntent(BaseModel):
+    """A GPU/storage server in the containerlab twin.
+
+    Servers are not EDA resources — the fabric only knows their attachment
+    ports (edge interfaces and LAGs). This model exists so the clab generator
+    can emit the node, its cabling and its address configuration for topologies
+    like rail-optimized AI fabrics, where one server fans out across every leaf
+    of a stripe and cannot be derived from a single edge interface.
+    """
+
+    name: str
+    image: str = ""
+    role: str = "gpu"
+    mgmt_ipv4: str = ""
+    links: list[ServerLink] = Field(default_factory=list)
+    bonds: list[ServerBond] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
 # Top-level intent
 # ---------------------------------------------------------------------------
 
@@ -562,7 +817,8 @@ class FabricIntent(BaseModel):
     fabric_name: str  # e.g. "dc1"
     environment: Literal["containerlab", "physical"]
 
-    # Underlay parameters
+    # Underlay parameters. For multi-fabric designs these describe the
+    # *primary* fabric only; per-fabric pools live on `fabrics`/`ai_backends`.
     spine_asn: int
     leaf_asn_start: int
     system0_prefix: str  # e.g. "192.0.2.0/24"
@@ -608,37 +864,111 @@ class FabricIntent(BaseModel):
     # unnumbered defaults that 3-stage-evpn-vxlan and collapsed-spine rely on.
     fabric_config: FabricConfigInput | None = None
 
+    # ---------------------------------------------------------------
+    # Multi-namespace / multi-fabric additions. All default to empty, so a
+    # single-fabric design produces exactly the intent it always did.
+    # ---------------------------------------------------------------
+    namespaces: list[NamespaceIntent] = Field(default_factory=list)
+    node_groups: list[NodeGroupIntent] = Field(default_factory=list)
+    topology_groupings: list[TopologyGroupingIntent] = Field(default_factory=list)
+    index_pools: list[IndexPoolIntent] = Field(default_factory=list)
+    ip_pools: list[IpPoolIntent] = Field(default_factory=list)
+    # When non-empty, these replace the single synthesized Fabric CR.
+    fabrics: list[FabricDefinitionIntent] = Field(default_factory=list)
+
+    # AI backend fabrics + their QoS scaffolding
+    ai_backends: list[AiBackendIntent] = Field(default_factory=list)
+    queues: list[QueueIntent] = Field(default_factory=list)
+    forwarding_classes: list[ForwardingClassIntent] = Field(default_factory=list)
+
+    # Containerlab-only servers (never deployed to EDA)
+    servers: list[ServerIntent] = Field(default_factory=list)
+
+    # ---------------------------------------------------------------
+    # Namespace resolution
+    # ---------------------------------------------------------------
+
+    def ns_of(self, resource: object) -> str:
+        """Resolve the effective namespace of *resource*.
+
+        An empty ``namespace`` on a resource means "the intent default", which
+        keeps single-fabric designs on one namespace without them having to
+        stamp it onto every resource they build.
+        """
+        return getattr(resource, "namespace", "") or self.eda.namespace
+
+    def namespaces_in_use(self) -> list[str]:
+        """Every namespace this intent puts resources in, deployment-ordered.
+
+        The intent default comes first (it holds the shared bootstrap
+        resources), then any additional namespaces in first-appearance order.
+        Callers that query or destroy live EDA state must iterate this rather
+        than assuming one namespace.
+        """
+        ordered: list[str] = [self.eda.namespace]
+        groups: list[list[NamespacedIntent]] = [
+            self.nodes, self.links, self.breakouts, self.edge_interfaces,
+            self.lags, self.bridge_domains, self.routers, self.irb_interfaces,
+            self.vlans, self.routed_interfaces, self.static_routes,
+            self.configlets, self.default_mtus, self.banners, self.prefix_sets,
+            self.routing_policies, self.node_groups, self.index_pools,
+            self.ip_pools, self.fabrics, self.ai_backends, self.queues,
+            self.forwarding_classes,
+        ]
+        for group in groups:
+            for item in group:
+                ns = item.namespace
+                if ns and ns not in ordered:
+                    ordered.append(ns)
+        for grouping in self.topology_groupings:
+            if grouping.namespace and grouping.namespace not in ordered:
+                ordered.append(grouping.namespace)
+        for nsi in self.namespaces:
+            if nsi.parent_namespace and nsi.parent_namespace not in ordered:
+                ordered.append(nsi.parent_namespace)
+        return ordered
+
     @model_validator(mode="after")
     def validate_cross_references(self) -> FabricIntent:
-        """Check that all name-based references resolve to existing objects."""
-        bd_names = {bd.name for bd in self.bridge_domains}
-        router_names = {r.name for r in self.routers}
-        edge_names = {e.name for e in self.edge_interfaces}
+        """Check that all name-based references resolve to existing objects.
+
+        Name lookups are scoped per namespace: EDA resource names are unique
+        within a namespace, not across a cluster, so a backend and a frontend
+        fabric may each legitimately own a ``mac-vrf-storage``. Comparing
+        globally would let a reference in one namespace be satisfied by a
+        same-named resource in another.
+        """
+        def _key(resource: object, name: str) -> tuple[str, str]:
+            return (self.ns_of(resource), name)
+
+        bd_names = {_key(bd, bd.name) for bd in self.bridge_domains}
+        router_names = {_key(r, r.name) for r in self.routers}
+        edge_names = {_key(e, e.name) for e in self.edge_interfaces}
         errors: list[str] = []
 
         for irb in self.irb_interfaces:
-            if irb.bridge_domain not in bd_names:
+            if _key(irb, irb.bridge_domain) not in bd_names:
                 errors.append(
                     f"IRB '{irb.name}' references unknown bridge_domain '{irb.bridge_domain}'"
                 )
-            if irb.router not in router_names:
+            if _key(irb, irb.router) not in router_names:
                 errors.append(
                     f"IRB '{irb.name}' references unknown router '{irb.router}'"
                 )
 
         for vlan in self.vlans:
-            if vlan.bridge_domain not in bd_names:
+            if _key(vlan, vlan.bridge_domain) not in bd_names:
                 errors.append(
                     f"VLAN '{vlan.name}' references unknown bridge_domain '{vlan.bridge_domain}'"
                 )
 
-        edge_by_name = {e.name: e for e in self.edge_interfaces}
+        edge_by_name = {(self.ns_of(e), e.name): e for e in self.edge_interfaces}
         for ri in self.routed_interfaces:
-            if ri.interface not in edge_names:
+            if _key(ri, ri.interface) not in edge_names:
                 errors.append(
                     f"RoutedInterface '{ri.name}' references unknown interface '{ri.interface}'"
                 )
-            if ri.router not in router_names:
+            if _key(ri, ri.router) not in router_names:
                 errors.append(
                     f"RoutedInterface '{ri.name}' references unknown router '{ri.router}'"
                 )
@@ -647,7 +977,7 @@ class FabricIntent(BaseModel):
             # an untagged (vlan-tagging=false) parent cannot carry a
             # dot1q-tagged routed sub-interface. .vlan.encap.untagged is
             # supported only for bridged sub-interfaces on SR Linux.
-            parent = edge_by_name.get(ri.interface)
+            parent = edge_by_name.get(_key(ri, ri.interface))
             if parent is not None:
                 ri_untagged = ri.vlan_id in (None, "null", "untagged")
                 parent_untagged = parent.encap == "null"
@@ -668,30 +998,35 @@ class FabricIntent(BaseModel):
                     )
 
         for sr in self.static_routes:
-            if sr.router not in router_names:
+            if _key(sr, sr.router) not in router_names:
                 errors.append(
                     f"StaticRoute '{sr.name}' references unknown router '{sr.router}'"
                 )
 
-        prefix_set_names = {ps.name for ps in self.prefix_sets}
-        policy_names = {rp.name for rp in self.routing_policies}
+        prefix_set_names = {_key(ps, ps.name) for ps in self.prefix_sets}
+        policy_names = {_key(rp, rp.name) for rp in self.routing_policies}
+        # fabric_*_policies are attached to the synthesized Fabric, which lives
+        # in the intent default namespace.
+        default_ns_policies = {
+            name for ns, name in policy_names if ns == self.eda.namespace
+        }
 
         for rp in self.routing_policies:
             for stmt in rp.statements:
                 ps = stmt.match.prefix_set
-                if ps and ps not in prefix_set_names:
+                if ps and _key(rp, ps) not in prefix_set_names:
                     errors.append(
                         f"RoutingPolicy '{rp.name}' statement '{stmt.name}' "
                         f"references unknown prefix_set '{ps}'"
                     )
 
         for name in self.fabric_export_policies:
-            if name not in policy_names:
+            if name not in default_ns_policies:
                 errors.append(
                     f"fabric_export_policies references unknown routing_policy '{name}'"
                 )
         for name in self.fabric_import_policies:
-            if name not in policy_names:
+            if name not in default_ns_policies:
                 errors.append(
                     f"fabric_import_policies references unknown routing_policy '{name}'"
                 )

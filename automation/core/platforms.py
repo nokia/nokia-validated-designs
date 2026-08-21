@@ -150,7 +150,11 @@ _register(
     )
 )
 
-# 7220 IXR-H4-32D: 32x400G (spine only)
+# The IXR-H series are the AI/HPC platforms. They serve as both rail leaves
+# (GPU-facing) and stripe-connector spines in rail-optimized AI fabrics, so
+# "leaf" is an allowed role alongside "spine".
+
+# 7220 IXR-H4-32D: 32x400G
 _register(
     PlatformSpec(
         name="7220 IXR-H4-32D",
@@ -160,14 +164,17 @@ _register(
                 speed="400G",
                 start_index=1,
                 end_index=32,
-                breakout_modes=[BreakoutMode(channels=4, speed="100G")],
+                breakout_modes=[
+                    BreakoutMode(channels=2, speed="200G"),
+                    BreakoutMode(channels=4, speed="100G"),
+                ],
             ),
         ],
-        allowed_roles=["spine"],
+        allowed_roles=["leaf", "spine"],
     )
 )
 
-# 7220 IXR-H4: 64x400G (spine only)
+# 7220 IXR-H4: 64x400G
 _register(
     PlatformSpec(
         name="7220 IXR-H4",
@@ -177,14 +184,17 @@ _register(
                 speed="400G",
                 start_index=1,
                 end_index=64,
-                breakout_modes=[BreakoutMode(channels=4, speed="100G")],
+                breakout_modes=[
+                    BreakoutMode(channels=2, speed="200G"),
+                    BreakoutMode(channels=4, speed="100G"),
+                ],
             ),
         ],
-        allowed_roles=["spine"],
+        allowed_roles=["leaf", "spine"],
     )
 )
 
-# 7220 IXR-H5-64D: 64x800G (spine only)
+# 7220 IXR-H5-64D: 64x800G QSFP-DD
 _register(
     PlatformSpec(
         name="7220 IXR-H5-64D",
@@ -195,16 +205,19 @@ _register(
                 start_index=1,
                 end_index=64,
                 breakout_modes=[
-                    BreakoutMode(channels=8, speed="100G"),
+                    # 2x400G is the mode that matters for AI fabrics: it splits
+                    # one 800G cage into two 400G GPU NIC attachments.
+                    BreakoutMode(channels=2, speed="400G"),
                     BreakoutMode(channels=4, speed="200G"),
+                    BreakoutMode(channels=8, speed="100G"),
                 ],
             ),
         ],
-        allowed_roles=["spine"],
+        allowed_roles=["leaf", "spine"],
     )
 )
 
-# 7220 IXR-H5-64O: 64x800G OSFP (spine only)
+# 7220 IXR-H5-64O: 64x800G OSFP
 _register(
     PlatformSpec(
         name="7220 IXR-H5-64O",
@@ -215,12 +228,34 @@ _register(
                 start_index=1,
                 end_index=64,
                 breakout_modes=[
-                    BreakoutMode(channels=8, speed="100G"),
+                    BreakoutMode(channels=2, speed="400G"),
                     BreakoutMode(channels=4, speed="200G"),
+                    BreakoutMode(channels=8, speed="100G"),
                 ],
             ),
         ],
-        allowed_roles=["spine"],
+        allowed_roles=["leaf", "spine"],
+    )
+)
+
+# 7220 IXR-H5-32D: 32x800G QSFP-DD
+_register(
+    PlatformSpec(
+        name="7220 IXR-H5-32D",
+        port_groups=[
+            PortGroup(
+                count=32,
+                speed="800G",
+                start_index=1,
+                end_index=32,
+                breakout_modes=[
+                    BreakoutMode(channels=2, speed="400G"),
+                    BreakoutMode(channels=4, speed="200G"),
+                    BreakoutMode(channels=8, speed="100G"),
+                ],
+            ),
+        ],
+        allowed_roles=["leaf", "spine"],
     )
 )
 

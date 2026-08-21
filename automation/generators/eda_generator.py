@@ -43,9 +43,16 @@ from automation.eda_models.registry import (
     BANNER as CR_BANNER,
     POLICY as CR_POLICY,
     PREFIX_SET as CR_PREFIX_SET,
+    NAMESPACE as CR_NAMESPACE,
+    NODE_GROUP as CR_NODE_GROUP,
+    TOPOLOGY_GROUPING as CR_TOPOLOGY_GROUPING,
+    QUEUE as CR_QUEUE,
+    FORWARDING_CLASS as CR_FORWARDING_CLASS,
+    AI_BACKEND as CR_AI_BACKEND,
 )
 from automation.eda_models.profiles import Registry, get_default_registry
 from automation.core.models import (
+    AiBackendIntent,
     BannerIntent,
     BridgeDomainIntent,
     BreakoutIntent,
@@ -55,20 +62,28 @@ from automation.core.models import (
     FabricBfdConfig,
     FabricBgpTimersConfig,
     FabricConfigInput,
+    FabricDefinitionIntent,
     FabricInterSwitchLinksConfig,
     FabricIntent,
     FabricOverlayProtocolConfig,
     FabricUnderlayProtocolConfig,
+    ForwardingClassIntent,
+    IndexPoolIntent,
+    IpPoolIntent,
     IrbInterfaceIntent,
     LagIntent,
     LinkIntent,
+    NamespaceIntent,
+    NodeGroupIntent,
     NodeIntent,
     PolicyStatementIntent,
     PrefixSetIntent,
+    QueueIntent,
     RoutedInterfaceIntent,
     RouterIntent,
     RoutingPolicyIntent,
     StaticRouteIntent,
+    TopologyGroupingIntent,
     VlanIntent,
 )
 
@@ -116,8 +131,24 @@ from automation.eda_models.core import (
     NodeUserGroupBindings,
     IndexAllocationPoolSpec,
     IndexAllocationPoolSegments,
+    IndexAllocationPoolAllocations,
     IPAllocationPoolSpec,
     IPAllocationPoolSegments,
+    NamespaceSpec,
+)
+from automation.eda_models.aifabrics import (
+    BackendSpec,
+    BackendStripes,
+    BackendStripeConnector,
+    BackendRocev2QoS,
+    BackendGpuIsolationGroups,
+)
+from automation.eda_models.qos import QueueSpec
+from automation.eda_models.aaa import NodeGroupSpec
+from automation.eda_models.topologies import (
+    TopologyGroupingSpec,
+    TopologyGroupingGroupSelectors,
+    TopologyGroupingTierSelectors,
 )
 from automation.eda_models.interfaces import (
     InterfaceSpec,
@@ -176,6 +207,12 @@ _CR_GLOBALS: dict[str, str] = {
     "CR_BANNER": "BANNER",
     "CR_POLICY": "POLICY",
     "CR_PREFIX_SET": "PREFIX_SET",
+    "CR_NAMESPACE": "NAMESPACE",
+    "CR_NODE_GROUP": "NODE_GROUP",
+    "CR_TOPOLOGY_GROUPING": "TOPOLOGY_GROUPING",
+    "CR_QUEUE": "QUEUE",
+    "CR_FORWARDING_CLASS": "FORWARDING_CLASS",
+    "CR_AI_BACKEND": "AI_BACKEND",
 }
 
 
@@ -214,88 +251,153 @@ def generate(
 
     _bind_registry(registry)
 
-    ns = intent.eda.namespace
     design = intent.design
     resources: list[dict] = []
 
-    # 1. Init (commitSave)
-    resources.append(_cr_init(ns, design))
+    # Namespace resolution. ``intent.ns_of()`` falls back to the intent default
+    # for any resource that does not pin a namespace, so single-fabric designs
+    # behave exactly as they did when this generator read one ``ns`` up front.
+    ns = intent.eda.namespace
+    _ns = intent.ns_of
+    # Every namespace that needs the shared bootstrap resources (Init, NodeUser,
+    # NodeGroup, NodeProfile). Derived from where the *nodes* live rather than
+    # from namespaces_in_use(): a namespace holding only eda-system-scoped
+    # resources has nothing to onboard.
+    node_namespaces: list[str] = []
+    for node in intent.nodes:
+        node_ns = _ns(node)
+        if node_ns not in node_namespaces:
+            node_namespaces.append(node_ns)
+    if not node_namespaces:
+        node_namespaces = [ns]
 
-    # 2. NodeUser
+    # 0. Namespaces themselves (created in eda-system, before anything in them)
+    for nsi in intent.namespaces:
+        resources.append(_cr_namespace(nsi, design))
+
+    # 0b. TopologyGrouping (topology view; independent of fabric resources)
+    for grouping in intent.topology_groupings:
+        resources.append(_cr_topology_grouping(grouping, design))
+
+    # 1. Init (commitSave) — one per namespace that owns nodes
+    for node_ns in node_namespaces:
+        resources.append(_cr_init(node_ns, design))
+
+    # 1b. NodeGroups — must precede NodeUser, whose groupBindings reference them
+    for group in intent.node_groups:
+        resources.append(_cr_node_group(group, _ns(group), design))
+
+    # 2. NodeUser — one per namespace that owns nodes
     creds = intent.credentials
-    resources.append(_cr_node_user(ns, design, creds.username, creds.password))
+    for node_ns in node_namespaces:
+        resources.append(_cr_node_user(node_ns, design, creds.username, creds.password))
 
-    # 3. NodeProfile — derived from node version
+    # 3. NodeProfile — derived from node version, one per namespace
     node_version = intent.nodes[0].version if intent.nodes else ""
     profile_name = intent.eda.node_profile or f"clab-srlinux-{node_version}"
     if node_version:
-        resources.append(_cr_node_profile(ns, profile_name, node_version, design, creds.username, creds.password))
+        for node_ns in node_namespaces:
+            resources.append(
+                _cr_node_profile(
+                    node_ns, profile_name, node_version, design,
+                    creds.username, creds.password,
+                )
+            )
 
     # 4. TopoNodes (individual per-node CRs)
     for node in intent.nodes:
-        resources.append(_cr_topo_node(node, profile_name, ns, design))
+        resources.append(_cr_topo_node(node, profile_name, _ns(node), design))
 
-    # 5. Interfaces — ISL interfaces (one per unique node/interface endpoint)
-    seen_isl: set[tuple[str, str]] = set()
+    # 5. Interfaces — ISL interfaces (one per unique node/interface endpoint).
+    # Keyed by namespace too: the same node name in two namespaces is two nodes.
+    seen_isl: set[tuple[str, str, str]] = set()
     for link in intent.links:
+        link_ns = _ns(link)
         for node, iface in (
             (link.local_node, link.local_interface),
             (link.remote_node, link.remote_interface),
         ):
-            key = (node, iface)
+            key = (link_ns, node, iface)
             if key in seen_isl:
                 continue
             seen_isl.add(key)
-            resources.append(_cr_interface_isl(node, iface, ns, design))
+            resources.append(_cr_interface_isl(node, iface, link_ns, design))
 
     # 6. Interfaces — Edge interfaces
     for ei in intent.edge_interfaces:
-        resources.append(_cr_interface_edge(ei, ns, design))
+        resources.append(_cr_interface_edge(ei, _ns(ei), design))
 
     # 7. Interfaces — LAG member interfaces
     for lag in intent.lags:
         for member in lag.members:
             resources.append(
-                _cr_interface_lag_member(member.node, member.interface, ns, design)
+                _cr_interface_lag_member(member.node, member.interface, _ns(lag), design)
             )
 
     # 8. LAG Interfaces
     for lag in intent.lags:
-        resources.append(_cr_interface_lag(lag, ns, design))
+        resources.append(_cr_interface_lag(lag, _ns(lag), design))
 
     # 9. Links
     for link in intent.links:
-        resources.append(_cr_topo_link(link, ns, design))
+        resources.append(_cr_topo_link(link, _ns(link), design))
 
-    # 10. ASN allocation pools
-    # Collapsed-spine uses a single pool because there is no distinct
-    # spine tier. 3-stage uses separate leaf-asn + spine-asn pools.
-    if _is_collapsed_spine(intent):
-        resources.append(
-            _cr_index_allocation_pool(
-                "collapsed-spine-asn",
-                intent.leaf_asn_start,
-                20,
-                ns,
-                design,
-            )
-        )
+    # 10-11. Allocation pools. A design that declares its own pools (any
+    # multi-fabric design must, since each fabric needs its own) owns them
+    # outright; otherwise they are synthesized from the intent's ASN/prefix
+    # scalars for the single fabric.
+    if intent.index_pools or intent.ip_pools:
+        for ipool in intent.index_pools:
+            resources.append(_cr_index_pool(ipool, _ns(ipool), design))
+        for ippool in intent.ip_pools:
+            resources.append(_cr_ip_pool(ippool, _ns(ippool), design))
     else:
-        resources.append(
-            _cr_index_allocation_pool(
-                "leaf-asn", intent.leaf_asn_start, 20, ns, design
+        # Collapsed-spine uses a single pool because there is no distinct
+        # spine tier. 3-stage uses separate leaf-asn + spine-asn pools.
+        if _is_collapsed_spine(intent):
+            resources.append(
+                _cr_index_allocation_pool(
+                    "collapsed-spine-asn",
+                    intent.leaf_asn_start,
+                    20,
+                    ns,
+                    design,
+                )
             )
-        )
-        resources.append(
-            _cr_index_allocation_pool(
-                "spine-asn", intent.spine_asn, 10, ns, design
+        else:
+            resources.append(
+                _cr_index_allocation_pool(
+                    "leaf-asn", intent.leaf_asn_start, 20, ns, design
+                )
             )
+            resources.append(
+                _cr_index_allocation_pool(
+                    "spine-asn", intent.spine_asn, 10, ns, design
+                )
+            )
+        resources.append(
+            _cr_ip_allocation_pool("system0", intent.system0_prefix, ns, design)
         )
 
-    # 11. IP allocation pool (system0)
-    resources.append(
-        _cr_ip_allocation_pool("system0", intent.system0_prefix, ns, design)
-    )
+    # 11a. Seed the pools EDA would have installed into any namespace the design
+    # creates itself. A design's own declaration always wins.
+    declared_pools = {(_ns(p), p.name) for p in intent.index_pools}
+    for nsi in intent.namespaces:
+        for pool_name, (start, size) in _EDA_DEFAULT_INDEX_POOLS.items():
+            if (nsi.name, pool_name) in declared_pools:
+                continue
+            resources.append(
+                _cr_index_allocation_pool(
+                    pool_name, start, size, nsi.name, design
+                )
+            )
+
+    # 11b. QoS scaffolding — Queues and ForwardingClasses that the AI Backend's
+    # RoCEv2 policies bind to, so they must exist before it.
+    for fc in intent.forwarding_classes:
+        resources.append(_cr_forwarding_class(fc, _ns(fc), design))
+    for queue in intent.queues:
+        resources.append(_cr_queue(queue, _ns(queue), design))
 
     # 12. Routing policy — PrefixSets + Policies before Fabric (Fabric refs them).
     # Skip ``internal`` entries: they are fabric control-plane defaults handled
@@ -304,50 +406,59 @@ def generate(
     for ps in intent.prefix_sets:
         if ps.internal:
             continue
-        resources.append(_cr_prefix_set(ps, ns, design))
+        resources.append(_cr_prefix_set(ps, _ns(ps), design))
     for rp in intent.routing_policies:
         if rp.internal:
             continue
-        resources.append(_cr_policy(rp, ns, design))
+        resources.append(_cr_policy(rp, _ns(rp), design))
 
-    # 13. Fabric
-    resources.append(_cr_fabric(intent, ns, design))
+    # 13. Fabrics. Explicit definitions win; otherwise one Fabric is
+    # synthesized from the intent's node roles (the single-fabric path).
+    if intent.fabrics:
+        for fabric in intent.fabrics:
+            resources.append(_cr_fabric_definition(fabric, _ns(fabric), design))
+    else:
+        resources.append(_cr_fabric(intent, ns, design))
+
+    # 13b. AI backend fabrics
+    for backend in intent.ai_backends:
+        resources.append(_cr_ai_backend(backend, _ns(backend), design))
 
     # 13. Bridge domains
     for bd in intent.bridge_domains:
-        resources.append(_cr_bridge_domain(bd, ns, design))
+        resources.append(_cr_bridge_domain(bd, _ns(bd), design))
 
     # 14. Routers
     for router in intent.routers:
-        resources.append(_cr_router(router, ns, design))
+        resources.append(_cr_router(router, _ns(router), design))
 
     # 15. IRB interfaces
     for irb in intent.irb_interfaces:
-        resources.append(_cr_irb_interface(irb, ns, design))
+        resources.append(_cr_irb_interface(irb, _ns(irb), design))
 
     # 16. VLANs
     for vlan in intent.vlans:
-        resources.append(_cr_vlan(vlan, ns, design))
+        resources.append(_cr_vlan(vlan, _ns(vlan), design))
 
     # 17. Routed interfaces
     for ri in intent.routed_interfaces:
-        resources.append(_cr_routed_interface(ri, ns, design))
+        resources.append(_cr_routed_interface(ri, _ns(ri), design))
 
     # 18. Static routes
     for sr in intent.static_routes:
-        resources.append(_cr_static_route(sr, ns, design))
+        resources.append(_cr_static_route(sr, _ns(sr), design))
 
     # 19. Configlets
     for cfglet in intent.configlets:
-        resources.append(_cr_configlet(cfglet, ns, design))
+        resources.append(_cr_configlet(cfglet, _ns(cfglet), design))
 
     # 20. Default MTUs
     for mtu in intent.default_mtus:
-        resources.append(_cr_default_mtu(mtu, ns, design))
+        resources.append(_cr_default_mtu(mtu, _ns(mtu), design))
 
     # 21. Banners
     for banner in intent.banners:
-        resources.append(_cr_banner(banner, ns, design))
+        resources.append(_cr_banner(banner, _ns(banner), design))
 
     if output_dir:
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -683,6 +794,29 @@ def _cr_topo_link(link: LinkIntent, ns: str, design: str) -> dict:
     )
 
 
+# EDA seeds these index pools into its own namespace when it is installed, and
+# its service intents resolve them by well-known name *inside the namespace of
+# the resource being deployed*. A design that brings up its own namespaces gets
+# none of them, so the first BridgeDomain or LAG deployed there dies on
+# "pool template Index:tunnel-index-pool does not exist in namespace ...".
+# Ranges mirror the EDA install defaults. asn-pool and leafindex-pool are
+# deliberately absent: those carry design-specific ranges and pinned
+# allocations, so a design that needs them declares them itself.
+_EDA_DEFAULT_INDEX_POOLS: dict[str, tuple[int, int]] = {
+    "es-index-pool": (1, 16777216),
+    "evi-pool": (100, 4000),
+    "irb-subif-pool": (0, 4000),
+    "lag-admin-key-pool": (1, 65535),
+    "lagid-pool": (1, 128),
+    "loopback-id-pool": (0, 255),
+    "mirror-sdp-pool": (7000, 1000),
+    "subif-pool": (0, 4000),
+    "tunnel-index-pool": (500, 4000),
+    "vlan-pool": (1, 4000),
+    "vni-pool": (200, 4000),
+}
+
+
 def _cr_index_allocation_pool(
     name: str, start: int, size: int, ns: str, design: str
 ) -> dict:
@@ -697,6 +831,215 @@ def _cr_ip_allocation_pool(name: str, subnet: str, ns: str, design: str) -> dict
         segments=[IPAllocationPoolSegments(subnet=subnet)]
     )
     return _wrap_cr(CR_IP_ALLOCATION_POOL.api_version, CR_IP_ALLOCATION_POOL.kind, name, ns, spec, origin=design)
+
+
+def _cr_index_pool(pool: IndexPoolIntent, ns: str, design: str) -> dict:
+    """Generate an IndexAllocationPool CR from an explicit pool intent.
+
+    Unlike :func:`_cr_index_allocation_pool` (which synthesizes a pool from the
+    intent's ASN scalars) this carries optional pinned ``allocations`` — the AI
+    backend needs a stable leaf index per rail leaf, since the index selects
+    which spine port a leaf's uplinks land on.
+    """
+    spec = IndexAllocationPoolSpec(
+        segments=[
+            IndexAllocationPoolSegments(
+                start=pool.start,
+                size=pool.size,
+                allocations=[
+                    IndexAllocationPoolAllocations(name=a.name, value=a.value)
+                    for a in pool.allocations
+                ] or None,
+            )
+        ]
+    )
+    return _wrap_cr(
+        CR_INDEX_ALLOCATION_POOL.api_version, CR_INDEX_ALLOCATION_POOL.kind,
+        pool.name, ns, spec, origin=design,
+    )
+
+
+def _cr_ip_pool(pool: IpPoolIntent, ns: str, design: str) -> dict:
+    """Generate an IPAllocationPool CR from an explicit pool intent."""
+    spec = IPAllocationPoolSpec(
+        segments=[IPAllocationPoolSegments(subnet=pool.subnet)]
+    )
+    return _wrap_cr(
+        CR_IP_ALLOCATION_POOL.api_version, CR_IP_ALLOCATION_POOL.kind,
+        pool.name, ns, spec, origin=design,
+    )
+
+
+def _cr_namespace(nsi: NamespaceIntent, design: str) -> dict:
+    """Generate a Namespace CR.
+
+    The CR itself lives in ``eda-system`` (or whatever ``parent_namespace``
+    says); ``metadata.name`` is the namespace being created.
+    """
+    spec = NamespaceSpec(description=nsi.description or None)
+    return _wrap_cr(
+        CR_NAMESPACE.api_version, CR_NAMESPACE.kind, nsi.name,
+        nsi.parent_namespace, spec, origin=design,
+    )
+
+
+def _cr_node_group(group: NodeGroupIntent, ns: str, design: str) -> dict:
+    """Generate an AAA NodeGroup CR."""
+    spec = NodeGroupSpec(
+        services=list(group.services),
+        superuser=group.superuser,
+    )
+    return _wrap_cr(
+        CR_NODE_GROUP.api_version, CR_NODE_GROUP.kind, group.name, ns, spec,
+        origin=design,
+    )
+
+
+def _cr_topology_grouping(grouping: TopologyGroupingIntent, design: str) -> dict:
+    """Generate a TopologyGrouping CR (the fabric's topology view)."""
+    spec = TopologyGroupingSpec(
+        group_selectors=[
+            TopologyGroupingGroupSelectors(
+                group=gs.group,
+                node_selector=list(gs.node_selector) or None,
+            )
+            for gs in grouping.group_selectors
+        ] or None,
+        tier_selectors=[
+            TopologyGroupingTierSelectors(
+                tier=ts.tier,
+                node_selector=list(ts.node_selector) or None,
+            )
+            for ts in grouping.tier_selectors
+        ] or None,
+        ui_name=grouping.ui_name or grouping.name,
+        ui_description=grouping.ui_description or None,
+    )
+    return _wrap_cr(
+        CR_TOPOLOGY_GROUPING.api_version, CR_TOPOLOGY_GROUPING.kind,
+        grouping.name, grouping.namespace, spec, origin=design,
+    )
+
+
+def _cr_queue(queue: QueueIntent, ns: str, design: str) -> dict:
+    """Generate a QoS Queue CR."""
+    spec = QueueSpec(
+        queue_id=queue.queue_id,
+        queue_type=queue.queue_type,
+        traffic_type=queue.traffic_type,
+    )
+    return _wrap_cr(
+        CR_QUEUE.api_version, CR_QUEUE.kind, queue.name, ns, spec, origin=design
+    )
+
+
+def _cr_forwarding_class(fc: ForwardingClassIntent, ns: str, design: str) -> dict:
+    """Generate a QoS ForwardingClass CR.
+
+    The EDA spec is an empty object — the resource is purely its name — so this
+    is the one CR built from a raw ``{}`` rather than a typed model.
+    """
+    return _wrap_cr_raw(
+        CR_FORWARDING_CLASS.api_version, CR_FORWARDING_CLASS.kind, fc.name, ns,
+        {}, origin=design,
+    )
+
+
+def _cr_ai_backend(backend: AiBackendIntent, ns: str, design: str) -> dict:
+    """Generate an aifabrics Backend CR (a rail-optimized AI fabric)."""
+    qos = backend.rocev2_qos
+    connector = backend.stripe_connector
+    spec = BackendSpec(
+        system_pool_ipv4=backend.system_pool_ipv4 or None,
+        asn_pool=backend.asn_pool or None,
+        ip_mtu=backend.ip_mtu,
+        stripes=[
+            BackendStripes(
+                name=s.name,
+                stripe_id=s.stripe_id,
+                gpu_vlan=s.gpu_vlan,
+                node_selector=list(s.node_selector),
+                asn_pool=s.asn_pool or None,
+                system_pool_ipv4=s.system_pool_ipv4 or None,
+            )
+            for s in backend.stripes
+        ],
+        gpu_isolation_groups=[
+            BackendGpuIsolationGroups(
+                name=g.name,
+                interface_selector=list(g.interface_selector),
+            )
+            for g in backend.gpu_isolation_groups
+        ],
+        stripe_connector=(
+            BackendStripeConnector(
+                name=connector.name,
+                node_selector=list(connector.node_selector),
+                link_selector=list(connector.link_selector),
+                asn_pool=connector.asn_pool or None,
+                system_pool_ipv4=connector.system_pool_ipv4 or None,
+            )
+            if connector is not None
+            else None
+        ),
+        rocev2_qo_s=BackendRocev2QoS(
+            ecn_max_drop_probability_percent=qos.ecn_max_drop_probability_percent,
+            ecn_slope_max_threshold_percent=qos.ecn_slope_max_threshold_percent,
+            ecn_slope_min_threshold_percent=qos.ecn_slope_min_threshold_percent,
+            pfc_deadlock_detection_timer=qos.pfc_deadlock_detection_timer,
+            pfc_deadlock_recovery_timer=qos.pfc_deadlock_recovery_timer,
+            queue_maximum_burst_size=qos.queue_maximum_burst_size,
+        ),
+    )
+    return _wrap_cr(
+        CR_AI_BACKEND.api_version, CR_AI_BACKEND.kind, backend.name, ns, spec,
+        origin=design,
+    )
+
+
+def _cr_fabric_definition(
+    fabric: FabricDefinitionIntent, ns: str, design: str
+) -> dict:
+    """Generate a Fabric CR from an explicit fabric definition.
+
+    The counterpart to :func:`_cr_fabric`, which infers a single Fabric from the
+    intent's node roles. Here the selectors and pools are stated outright,
+    because a multi-fabric intent cannot infer which nodes belong to which
+    fabric from roles alone — several fabrics each have leaves and spines.
+    """
+    cfg = fabric.fabric_config
+    underlay = _build_underlay_protocol(cfg, [], [])
+    overlay = _build_overlay_protocol(
+        cfg, fabric.leaf_node_selector, fabric.spine_node_selector
+    )
+    isl = _build_inter_switch_links(cfg)
+    if fabric.inter_switch_link_selector:
+        isl.link_selector = list(fabric.inter_switch_link_selector)
+
+    if underlay.bgp is not None and fabric.leaf_asn_pool:
+        underlay.bgp.asn_pool = fabric.leaf_asn_pool
+
+    spec = FabricSpec(
+        system_pool_ipv4=fabric.system_pool_ipv4 or None,
+        leafs=FabricLeafs(
+            leaf_node_selector=list(fabric.leaf_node_selector) or None,
+            asn_pool=fabric.leaf_asn_pool or None,
+        ),
+        spines=(
+            FabricSpines(
+                spine_node_selector=list(fabric.spine_node_selector),
+                asn_pool=fabric.spine_asn_pool or None,
+            )
+            if fabric.spine_node_selector
+            else None
+        ),
+        inter_switch_links=isl,
+        underlay_protocol=underlay,
+        overlay_protocol=overlay,
+    )
+    return _wrap_cr(
+        CR_FABRIC.api_version, CR_FABRIC.kind, fabric.name, ns, spec, origin=design
+    )
 
 
 def _is_collapsed_spine(intent: FabricIntent) -> bool:

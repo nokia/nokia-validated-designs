@@ -1,0 +1,49 @@
+---
+# yaml-language-server: $schema=../../schemas/topology_fragment_schema.json
+# Rail-optimized AI DC — frontend/storage EVPN-VXLAN fabric.
+#
+# A regular leaf/spine EVPN fabric in its own EDA namespace, carrying storage
+# and in-band access traffic. The same GPU servers reach it over a multi-homed
+# LAG, alongside the dedicated storage nodes.
+#
+# Omit this whole block to deploy the backend fabric on its own.
+
+frontend:
+  namespace: dc1-frontend
+
+  system0_prefix: 192.0.2.0/24
+  leaf_asn_start: 100
+  spine_asn: 100
+  asn_size: 3000
+
+  # VLAN the GPU hosts trunk into the storage bridge domain. Storage nodes are
+  # untagged on the same domain.
+  gpu_vlan: 100
+
+  # Each attached server bonds one NIC per frontend leaf, so the LAG width
+  # follows leaf.count and needs no separate knob. Server-facing ports start
+  # after the uplinks: GPU servers first, then the storage nodes.
+  gpu_bond_base_ipv4: "172.16.10.1/24"
+
+  leaf:
+    count: 2
+    platform: "7220 IXR-D5"
+    version: "25.10.1"
+    mgmt_base_ipv4: "172.21.21.33"
+    uplinks_per_leaf: 2
+    # name_template: "frontend-leaf{i}"
+
+  spine:
+    count: 2
+    platform: "7220 IXR-H5-64O"
+    version: "25.10.1"
+    mgmt_base_ipv4: "172.21.21.31"
+    # name_template: "frontend-spine{i}"
+
+  # Dedicated storage nodes, attached only to the frontend fabric.
+  storage_servers:
+    count: 8
+    name_template: "weka{i}"
+    mgmt_base_ipv4: "172.21.21.60"
+    bond_base_ipv4: "172.16.10.11/24"
+    image: "aninchat/ubuntu-server:v1"

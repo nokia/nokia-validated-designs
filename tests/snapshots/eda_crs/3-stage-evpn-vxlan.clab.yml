@@ -1,0 +1,187 @@
+name: dc1
+prefix: ''
+mgmt:
+  network: eda_mgmt
+  ipv4-subnet: 172.21.21.0/24
+topology:
+  defaults:
+    kind: nokia_srlinux
+  kinds:
+    nokia_srlinux:
+      image: ghcr.io/nokia/srlinux:25.10.2
+      binds:
+      - node-isolation.py:/etc/opt/srlinux/eventmgr/node-isolation.py
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+      binds:
+      - client-configs:/client-configs
+  nodes:
+    leaf1:
+      mgmt-ipv4: 172.21.21.11
+      type: ixr-d3l
+    leaf2:
+      mgmt-ipv4: 172.21.21.12
+      type: ixr-d3l
+    leaf3:
+      mgmt-ipv4: 172.21.21.13
+      type: ixr-d3l
+    leaf4:
+      mgmt-ipv4: 172.21.21.14
+      type: ixr-d3l
+    leaf5:
+      mgmt-ipv4: 172.21.21.15
+      type: ixr-d3l
+    leaf6:
+      mgmt-ipv4: 172.21.21.16
+      type: ixr-d3l
+    leaf7:
+      mgmt-ipv4: 172.21.21.17
+      type: ixr-d3l
+    leaf8:
+      mgmt-ipv4: 172.21.21.18
+      type: ixr-d3l
+    spine1:
+      mgmt-ipv4: 172.21.21.101
+      type: ixr-d3l
+    spine2:
+      mgmt-ipv4: 172.21.21.102
+      type: ixr-d3l
+    cl-l1:
+      kind: linux
+      mgmt-ipv4: 172.21.21.254
+      exec:
+      - bash /client-configs/cl-l1.sh
+    cl-l2:
+      kind: linux
+      mgmt-ipv4: 172.21.21.253
+      exec:
+      - bash /client-configs/cl-l2.sh
+    cl-l2l3l4l5:
+      kind: linux
+      mgmt-ipv4: 172.21.21.252
+      exec:
+      - bash /client-configs/cl-l2l3l4l5.sh
+    cl-l3:
+      kind: linux
+      mgmt-ipv4: 172.21.21.251
+      exec:
+      - bash /client-configs/cl-l3.sh
+    cl-l4:
+      kind: linux
+      mgmt-ipv4: 172.21.21.250
+      exec:
+      - bash /client-configs/cl-l4.sh
+    cl-l4l5:
+      kind: linux
+      mgmt-ipv4: 172.21.21.249
+      exec:
+      - bash /client-configs/cl-l4l5.sh
+    cl-l5l6:
+      kind: linux
+      mgmt-ipv4: 172.21.21.248
+      exec:
+      - bash /client-configs/cl-l5l6.sh
+    cl-l6:
+      kind: linux
+      mgmt-ipv4: 172.21.21.247
+      exec:
+      - bash /client-configs/cl-l6.sh
+    cl-leaf-s5:
+      kind: linux
+      mgmt-ipv4: 172.21.21.246
+      exec:
+      - bash /client-configs/cl-leaf-s5.sh
+  links:
+  - endpoints:
+    - leaf1:e1-29
+    - spine1:e1-1
+  - endpoints:
+    - leaf1:e1-31
+    - spine2:e1-1
+  - endpoints:
+    - leaf2:e1-32
+    - spine1:e1-2
+  - endpoints:
+    - leaf2:e1-31
+    - spine2:e1-2
+  - endpoints:
+    - leaf3:e1-32
+    - spine1:e1-3
+  - endpoints:
+    - leaf3:e1-31
+    - spine2:e1-3
+  - endpoints:
+    - leaf4:e1-32
+    - spine1:e1-4
+  - endpoints:
+    - leaf4:e1-31
+    - spine2:e1-4
+  - endpoints:
+    - leaf5:e1-32
+    - spine1:e1-5
+  - endpoints:
+    - leaf5:e1-31
+    - spine2:e1-5
+  - endpoints:
+    - leaf6:e1-32
+    - spine1:e1-6
+  - endpoints:
+    - leaf6:e1-31
+    - spine2:e1-6
+  - endpoints:
+    - leaf7:e1-32
+    - spine1:e1-7
+  - endpoints:
+    - leaf7:e1-31
+    - spine2:e1-7
+  - endpoints:
+    - leaf8:e1-32
+    - spine1:e1-8
+  - endpoints:
+    - leaf8:e1-31
+    - spine2:e1-8
+  - endpoints:
+    - leaf1:e1-3
+    - cl-l1:eth1
+  - endpoints:
+    - leaf1:e1-5
+    - cl-l1:eth2
+  - endpoints:
+    - leaf2:e1-3
+    - cl-l2:eth1
+  - endpoints:
+    - leaf3:e1-3
+    - cl-l3:eth1
+  - endpoints:
+    - leaf4:e1-3
+    - cl-l4:eth1
+  - endpoints:
+    - leaf6:e1-6
+    - cl-l6:eth1
+  - endpoints:
+    - leaf4:e1-4
+    - cl-l4l5:eth1
+  - endpoints:
+    - leaf5:e1-4
+    - cl-l4l5:eth2
+  - endpoints:
+    - leaf2:e1-6
+    - cl-l2l3l4l5:eth1
+  - endpoints:
+    - leaf3:e1-6
+    - cl-l2l3l4l5:eth2
+  - endpoints:
+    - leaf4:e1-6
+    - cl-l2l3l4l5:eth3
+  - endpoints:
+    - leaf5:e1-6
+    - cl-l2l3l4l5:eth4
+  - endpoints:
+    - leaf5:e1-5
+    - cl-l5l6:eth1
+  - endpoints:
+    - leaf6:e1-5
+    - cl-l5l6:eth2
+  - endpoints:
+    - leaf1:e1-4
+    - cl-leaf-s5:eth1

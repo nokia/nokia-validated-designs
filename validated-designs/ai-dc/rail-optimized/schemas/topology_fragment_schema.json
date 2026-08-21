@@ -1,0 +1,457 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ai-dc-rail-optimized/topology.fragment",
+  "title": "Rail-Optimized AI Datacenter Topology Input (fragment)",
+  "description": "Defines a rail-optimized AI datacenter: an N-stripe RoCEv2 backend fabric plus an optional EVPN-VXLAN frontend/storage fabric, each in its own EDA namespace. Fragment variant: top-level required keys removed so individual fragments under inputs/*.d/ validate cleanly. The merged result is still validated against the strict schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "credentials": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Device credentials used for node onboarding and by generated artefacts (clab, Ansible, gnmic).",
+      "properties": {
+        "username": {
+          "type": "string",
+          "default": "admin",
+          "description": "Device username."
+        },
+        "password": {
+          "type": "string",
+          "default": "NokiaSrl1!",
+          "description": "Device password."
+        }
+      }
+    },
+    "eda": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "node_profile": {
+          "type": "string",
+          "description": "EDA NodeProfile name for node onboarding."
+        },
+        "namespace": {
+          "type": "string",
+          "default": "eda",
+          "description": "EDA namespace for all resources."
+        }
+      }
+    },
+    "extras": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Unconstrained topology additions that supplement a locked design. Resources here are labeled nvd-design:extras.",
+      "properties": {
+        "configlets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/configlet"
+          },
+          "description": "Additional or override configlets (raw SR Linux config patches)."
+        }
+      }
+    },
+    "bandwidth": {
+      "type": "string",
+      "enum": [
+        "10G",
+        "25G",
+        "40G",
+        "50G",
+        "100G",
+        "200G",
+        "400G",
+        "800G"
+      ],
+      "description": "Port speed as a bandwidth string."
+    },
+    "platform": {
+      "type": "string",
+      "description": "Nokia SR Linux platform model, e.g. '7220 IXR-H4'. Must allow the role it is used for."
+    },
+    "switchGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A group of identical switches in one tier of a fabric.",
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64,
+          "description": "Number of switches in this tier."
+        },
+        "platform": {
+          "$ref": "#/$defs/platform"
+        },
+        "port_bandwidth": {
+          "$ref": "#/$defs/bandwidth",
+          "description": "Speed of the ports used for fabric uplinks. Drives the oversubscription calculation."
+        },
+        "version": {
+          "type": "string",
+          "description": "SR Linux release, e.g. '25.10.1'."
+        },
+        "mgmt_base_ipv4": {
+          "type": "string",
+          "format": "ipv4",
+          "description": "Management address of the first switch; the rest follow in order."
+        },
+        "mgmt_stripe_stride": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Management addresses advance by this much per stripe, keeping each stripe in its own readable block."
+        },
+        "name_template": {
+          "type": "string",
+          "description": "Name pattern. '{i}' is the index within the tier (or the rail, for backend leaves); '{stripe}' is the stripe number."
+        },
+        "uplinks_per_leaf": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Uplinks each leaf takes to the spine tier. Must be a multiple of the spine count so every spine carries the same number of leaf ports."
+        },
+        "platform_per_stripe": {
+          "type": "object",
+          "description": "Per-stripe platform override, keyed by stripe number. Lets a later stripe be built on a newer platform generation.",
+          "additionalProperties": {
+            "$ref": "#/$defs/platform"
+          }
+        }
+      }
+    },
+    "gpuServerGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The GPU servers, rendered into the containerlab twin. Servers are never deployed to EDA \u2014 the fabric only knows the ports they attach to. There is no count here: it follows from stripes x servers_per_stripe.",
+      "properties": {
+        "name_template": {
+          "type": "string",
+          "description": "Name pattern; '{i}' is the 1-based server number across all stripes."
+        },
+        "mgmt_base_ipv4": {
+          "type": "string",
+          "format": "ipv4",
+          "description": "Management address of the first server; the rest follow in order."
+        },
+        "image": {
+          "type": "string",
+          "description": "Container image for the server node."
+        }
+      }
+    },
+    "storageServerGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Dedicated storage nodes, attached only to the frontend fabric.",
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of storage nodes."
+        },
+        "name_template": {
+          "type": "string",
+          "description": "Name pattern; '{i}' is the 1-based node number."
+        },
+        "mgmt_base_ipv4": {
+          "type": "string",
+          "format": "ipv4",
+          "description": "Management address of the first node; the rest follow in order."
+        },
+        "bond_base_ipv4": {
+          "type": "string",
+          "description": "Frontend bond address of the first node, as address/prefixlen. Subsequent nodes advance by one host."
+        },
+        "image": {
+          "type": "string",
+          "description": "Container image for the storage node."
+        }
+      }
+    },
+    "configlet": {
+      "type": "object",
+      "required": [
+        "name",
+        "configs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Configlet resource name."
+        },
+        "endpoint_selector": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Label selectors to match target nodes."
+        },
+        "endpoints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Explicit list of target node names."
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000,
+          "default": 100,
+          "description": "Configlet priority (higher = applied later)."
+        },
+        "configs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "path",
+              "operation",
+              "config"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "JSON path in the SR Linux YANG model."
+              },
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "Create",
+                  "Update",
+                  "Delete"
+                ],
+                "description": "Config operation type."
+              },
+              "config": {
+                "type": "string",
+                "description": "JSON config payload as a string."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "properties": {
+    "design": {
+      "type": "string",
+      "const": "ai-dc-rail-optimized",
+      "description": "Design identifier \u2014 must be 'ai-dc-rail-optimized'."
+    },
+    "fabric_name": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Fabric name used as a prefix for generated resources."
+    },
+    "environment": {
+      "type": "string",
+      "enum": [
+        "containerlab",
+        "physical"
+      ],
+      "description": "Deployment target. 'containerlab' also generates the lab twin."
+    },
+    "mgmt_subnet": {
+      "type": "string",
+      "description": "Management subnet in CIDR notation, e.g. '172.21.21.0/24'."
+    },
+    "credentials": {
+      "$ref": "#/$defs/credentials"
+    },
+    "eda": {
+      "$ref": "#/$defs/eda"
+    },
+    "extras": {
+      "$ref": "#/$defs/extras"
+    },
+    "backend": {
+      "type": "object",
+      "required": [
+        "namespace"
+      ],
+      "additionalProperties": false,
+      "description": "The rail-optimized RoCEv2 backend fabric, deployed as an aifabrics Backend CR.",
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "description": "EDA namespace holding the backend fabric. Must differ from the frontend namespace."
+        },
+        "stripes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of stripes. Each stripe is an independent set of rail leaves joined to the others by the stripe-connector spine layer."
+        },
+        "rail_size": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Rail leaves per stripe, which equals the number of GPU NICs per server: every server puts one NIC on each rail."
+        },
+        "servers_per_stripe": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "GPU servers attached to each stripe."
+        },
+        "gpu_vlan": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4094,
+          "description": "VLAN carried on the GPU-facing interfaces."
+        },
+        "gpu_tenant": {
+          "type": "string",
+          "description": "GPU isolation group membership label value."
+        },
+        "stripe_id_step": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Stripe N gets stripe ID N * this value. The stripe ID appears in the rail IPv6 addressing."
+        },
+        "gpu_nic_bandwidth": {
+          "$ref": "#/$defs/bandwidth",
+          "description": "Bandwidth of one GPU NIC, used to size the leaf uplinks."
+        },
+        "oversubscription_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Ratio of attached GPU bandwidth to leaf uplink bandwidth. 1.0 means non-blocking."
+        },
+        "uplinks_per_leaf": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Explicit uplink count per rail leaf, overriding the oversubscription calculation."
+        },
+        "system0_prefix": {
+          "type": "string",
+          "description": "Prefix the system0 loopbacks are allocated from."
+        },
+        "asn_start": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "First value in the backend's ASN pool."
+        },
+        "asn_size": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Size of the backend's ASN pool."
+        },
+        "ip_mtu": {
+          "type": "integer",
+          "description": "IP MTU applied by the Backend CR."
+        },
+        "leaf": {
+          "$ref": "#/$defs/switchGroup"
+        },
+        "spine": {
+          "$ref": "#/$defs/switchGroup"
+        },
+        "servers": {
+          "$ref": "#/$defs/gpuServerGroup"
+        },
+        "dynamic_load_balancing": {
+          "type": "boolean",
+          "description": "Balance on measured link quality instead of a static hash. RoCEv2 elephant flows collide badly on static ECMP."
+        },
+        "rocev2_qos": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "DCQCN congestion control (ECN marking plus PFC) applied by the Backend CR.",
+          "properties": {
+            "ecn_max_drop_probability_percent": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "ecn_slope_min_threshold_percent": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "ecn_slope_max_threshold_percent": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "pfc_deadlock_detection_timer": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "pfc_deadlock_recovery_timer": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "queue_maximum_burst_size": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "frontend": {
+      "type": "object",
+      "required": [
+        "namespace"
+      ],
+      "additionalProperties": false,
+      "description": "The EVPN-VXLAN frontend/storage fabric. Omit to deploy the backend on its own.",
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "description": "EDA namespace holding the frontend fabric. Must differ from the backend namespace."
+        },
+        "name_prefix": {
+          "type": "string",
+          "description": "Prefix for frontend node and LAG names."
+        },
+        "system0_prefix": {
+          "type": "string",
+          "description": "Prefix the frontend system0 loopbacks are allocated from."
+        },
+        "asn_start": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "asn_size": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "spine_asn": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "leaf_asn_start": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "gpu_vlan": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4094,
+          "description": "VLAN the GPU hosts trunk into the storage bridge domain. Storage nodes are untagged on the same domain."
+        },
+        "gpu_bond_base_ipv4": {
+          "type": "string",
+          "description": "Frontend bond address of the first GPU server, as address/prefixlen."
+        },
+        "isl_ip_mtu": {
+          "type": "integer",
+          "description": "IP MTU on the frontend inter-switch links."
+        },
+        "leaf": {
+          "$ref": "#/$defs/switchGroup"
+        },
+        "spine": {
+          "$ref": "#/$defs/switchGroup"
+        },
+        "storage_servers": {
+          "$ref": "#/$defs/storageServerGroup"
+        }
+      }
+    }
+  }
+}

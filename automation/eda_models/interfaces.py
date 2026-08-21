@@ -61,15 +61,20 @@ class InterfaceStormControl(_EDABase):
     unknown_unicast_rate: int | None = Field(None, alias="unknownUnicastRate", description="Sets the maximum rate allowed for ingress unknown unicast frames on the interface.", title="Unknown Unicast Rate", ge=0, le=100000000)
 
 
-class InterfaceConfig(_EDABase):
+class InterfaceSignalFailure(_EDABase):
+    exponent: int = Field(..., description="Threshold exponent for the signal failure condition.", title="Threshold Exponent", ge=1, le=9)
+    multiplier: int = Field(..., description="Threshold multiplier for the signal failure condition.", title="Threshold Multiplier", ge=1, le=9)
+
+
+class InterfaceSignalDegrade(_EDABase):
     exponent: int = Field(..., description="Threshold exponent for the signal degrade condition.", title="Threshold Exponent", ge=1, le=9)
     multiplier: int = Field(..., description="Threshold multiplier for the signal degrade condition.", title="Threshold Multiplier", ge=1, le=9)
 
 
 class InterfaceCrcMonitor(_EDABase):
     enabled: bool | None = Field(None, description="Enables CRC monitoring on the interface.", title="Enabled")
-    signal_degrade: InterfaceConfig | None = Field(None, alias="signalDegrade", description="Signal degrade threshold configuration. eda:ui:title=\"Signal Degrade\"")
-    signal_failure: InterfaceConfig | None = Field(None, alias="signalFailure", description="Signal failure threshold configuration. eda:ui:title=\"Signal Failure\"")
+    signal_degrade: InterfaceSignalDegrade | None = Field(None, alias="signalDegrade", description="Signal degrade threshold configuration. eda:ui:title=\"Signal Degrade\"")
+    signal_failure: InterfaceSignalFailure | None = Field(None, alias="signalFailure", description="Signal failure threshold configuration. eda:ui:title=\"Signal Failure\"")
     window_size_sec: int | None = Field(None, alias="windowSizeSec", description="Sliding window size over which CRC errors are measured, in number of seconds.", title="Window Size", ge=1)
 
 

@@ -23,6 +23,7 @@ import logging
 import os
 import re
 import time
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
@@ -62,8 +63,15 @@ PHASE_KINDS: dict[str, set[str]] = {
         "Init", "NodeUser", "NodeProfile",
         "IndexAllocationPool", "IPAllocationPool",
         "TopoNode", "TopoLink", "DefaultMTU", "Banner",
+        # Multi-namespace scaffolding. Namespace must land before anything
+        # inside it; NodeGroup before NodeUser (groupBindings reference it).
+        "Namespace", "NodeGroup", "TopologyGrouping",
+        # QoS primitives the AI Backend's RoCEv2 policies bind to.
+        "Queue", "ForwardingClass",
     },
-    PHASE_FABRIC: {"Fabric"},
+    # ``Backend`` is the AI-fabric analogue of ``Fabric``: it owns the underlay,
+    # so it belongs to the same phase gate (applied only after nodes are Synced).
+    PHASE_FABRIC: {"Fabric", "Backend"},
     # Policy/PrefixSet ship with services: they are user-declared policies
     # consumed by service CRs (e.g. Router import/export). Fabric's
     # underlay/overlay policies are handled natively by EDA's Fabric
@@ -97,11 +105,12 @@ DESTROY_PHASE_KINDS: dict[str, set[str]] = {
         "VLAN", "RoutedInterface", "StaticRoute", "Configlet",
         "Policy", "PrefixSet",
     },
-    PHASE_FABRIC: {"Fabric"},
+    PHASE_FABRIC: {"Fabric", "Backend"},
     PHASE_TOPOLOGY: {
         "Interface",  # must be deleted with/after TopoLinks
         "TopoLink", "TopoNode", "DefaultMTU", "Banner",
         "IPAllocationPool", "IndexAllocationPool",
+        "Queue", "ForwardingClass", "TopologyGrouping", "NodeGroup", "Namespace",
     },
 }
 
@@ -116,11 +125,15 @@ DESTROY_ORDER_KINDS: list[str] = [
     # (e.g. Router.importPolicy) and before Fabric.
     "Policy", "PrefixSet",
     # --- fabric ---
-    "Fabric",
+    "Fabric", "Backend",
     # --- topology (Interface after TopoLink!) ---
     "TopoLink", "Interface", "DefaultMTU", "Banner",
     "TopoNode", "IPAllocationPool", "IndexAllocationPool",
-    "NodeProfile", "NodeUser", "Init",
+    # QoS primitives outlive the Backend that binds them, so they go after it.
+    "Queue", "ForwardingClass", "TopologyGrouping",
+    "NodeProfile", "NodeUser", "NodeGroup", "Init",
+    # The Namespace last: deleting it would take everything above with it.
+    "Namespace",
 ]
 
 
@@ -283,12 +296,33 @@ class EdaClient:
 
     @staticmethod
     def _extract_namespace(resources: list[dict], default: str = "eda") -> str:
-        """Extract the namespace from the first resource in the list."""
+        """Extract the namespace from the first resource in the list.
+
+        Only meaningful for single-namespace intents; multi-namespace callers
+        want :meth:`_extract_namespaces`.
+        """
         for cr in resources:
             ns = cr.get("metadata", {}).get("namespace", "")
             if ns:
                 return ns
         return default
+
+    @staticmethod
+    def _extract_namespaces(
+        resources: list[dict], default: str = "eda"
+    ) -> list[str]:
+        """Every distinct namespace in *resources*, in first-appearance order.
+
+        A transaction body may span namespaces (each CR carries its own
+        ``metadata.namespace``), but the REST *read* endpoints are per-namespace,
+        so anything that queries live state has to iterate this.
+        """
+        found: list[str] = []
+        for cr in resources:
+            ns = cr.get("metadata", {}).get("namespace", "")
+            if ns and ns not in found:
+                found.append(ns)
+        return found or [default]
 
     # ------------------------------------------------------------------
     # Authentication
@@ -541,19 +575,25 @@ class EdaClient:
     # ------------------------------------------------------------------
 
     def get_managed_resources(
-        self, namespace: str = "eda", phases: list[str] | None = None,
+        self,
+        namespace: str | Sequence[str] = "eda",
+        phases: list[str] | None = None,
     ) -> list[dict]:
         """
         Query EDA for all resources carrying the managed-by label.
 
         Args:
-            namespace: EDA namespace to query
+            namespace: EDA namespace to query, or a sequence of namespaces for
+                a multi-fabric design. Each (namespace, kind) pair is an
+                independent list endpoint.
             phases: Optional list of phases to filter by. If None, return all.
 
         Returns:
             List of managed resource dicts with _kind and _apiVersion injected.
         """
         self._ensure_auth()
+
+        namespaces = [namespace] if isinstance(namespace, str) else list(namespace)
 
         # Determine which kinds to query based on phase filter
         if phases:
@@ -570,10 +610,13 @@ class EdaClient:
 
         params = {"labelSelector": f"{MANAGED_BY_LABEL}={MANAGED_BY_VALUE}"}
 
-        def _fetch(crt: CRType) -> list[dict]:
+        def _fetch(target: tuple[str, CRType]) -> list[dict]:
+            ns, crt = target
             url = (
-                f"{self.url}/apps/{crt.api_version}"
-                f"/namespaces/{namespace}/{crt.plural}"
+                f"{self.url}/apps/{crt.api_version}/{crt.plural}"
+                if crt.cluster_scoped
+                else f"{self.url}/apps/{crt.api_version}"
+                f"/namespaces/{ns}/{crt.plural}"
             )
             try:
                 resp = self._request("GET", url, params=params)
@@ -582,19 +625,38 @@ class EdaClient:
                     for item in items:
                         item["_kind"] = crt.kind
                         item["_apiVersion"] = crt.api_version
+                        # EDA omits metadata.namespace on list responses for
+                        # some kinds; the queried namespace is authoritative and
+                        # the diff/delete paths key on it. A cluster-scoped
+                        # query has no such namespace to fall back on, and EDA
+                        # reports the real one on those kinds anyway.
+                        if not crt.cluster_scoped:
+                            item.setdefault("metadata", {}).setdefault(
+                                "namespace", ns
+                            )
                     return items
                 logger.warning(
-                    "Could not query %s: %s", crt.plural, resp.status_code
+                    "Could not query %s in %s: %s", crt.plural, ns, resp.status_code
                 )
             except Exception as e:
-                logger.warning("Error querying %s: %s", crt.plural, e)
+                logger.warning("Error querying %s in %s: %s", crt.plural, ns, e)
             return []
 
+        # A cluster-scoped kind has a single endpoint, so it is fetched once
+        # rather than once per namespace — querying it N times would return the
+        # same objects N times and inflate the live state with duplicates.
+        targets = [
+            (ns, crt)
+            for crt in resource_types
+            for ns in (namespaces[:1] if crt.cluster_scoped else namespaces)
+        ]
+
         managed: list[dict] = []
-        # Parallel fetch — each kind lives on an independent list endpoint,
-        # so 8 concurrent requests cuts wall-clock time by roughly that factor.
+        # Parallel fetch — each (namespace, kind) pair lives on an independent
+        # list endpoint, so 8 concurrent requests cuts wall-clock time by
+        # roughly that factor.
         with ThreadPoolExecutor(max_workers=8) as pool:
-            for items in pool.map(_fetch, resource_types):
+            for items in pool.map(_fetch, targets):
                 managed.extend(items)
 
         # Filter out resources marked as derived by another EDA resource.
@@ -672,7 +734,9 @@ class EdaClient:
         self._ref_profile_cache[cache_key] = spec
         return spec
 
-    def _enrich_node_profiles(self, crs: list[dict], namespace: str = "eda") -> list[dict]:
+    def _enrich_node_profiles(
+        self, crs: list[dict], namespace: str = "eda"
+    ) -> list[dict]:
         """Enrich NodeProfile CRs with version-specific fields from EDA.
 
         For each NodeProfile CR, look up the matching
@@ -680,6 +744,11 @@ class EdaClient:
         copy over the ``yang``, ``versionMatch``, ``versionPath``, and
         ``llmDb`` fields.  Clab-specific fields (``images``, ``port``,
         ``annotate``) are preserved from the generated CR.
+
+        EDA installs its reference profiles in a single namespace, so a CR
+        living in a design-specific namespace (e.g. ``dc1-backend``) still has
+        to resolve its reference from *namespace*. The CR's own namespace is
+        tried first to stay compatible with clusters that do replicate them.
         """
         result: list[dict] = []
         for cr in crs:
@@ -693,7 +762,12 @@ class EdaClient:
                 result.append(cr)
                 continue
 
-            ref = self._get_reference_node_profile(version, namespace=namespace)
+            cr_ns = cr.get("metadata", {}).get("namespace") or namespace
+            ref = self._get_reference_node_profile(version, namespace=cr_ns)
+            if not ref and cr_ns != namespace:
+                ref = self._get_reference_node_profile(
+                    version, namespace=namespace
+                )
             if ref:
                 for field in ("yang", "versionMatch", "versionPath", "llmDb"):
                     if field in ref:
@@ -710,7 +784,9 @@ class EdaClient:
     # TopoNode helpers
     # ------------------------------------------------------------------
 
-    def _get_existing_toponode_names(self, namespace: str = "eda") -> set[str]:
+    def _get_existing_toponode_names(
+        self, namespace: str | Sequence[str] = "eda"
+    ) -> set[tuple[str, str]]:
         """
         Query EDA for TopoNodes that already exist.
 
@@ -718,41 +794,47 @@ class EdaClient:
         triggers full re-evaluation and re-onboarding, even when the
         spec is unchanged.  By querying first we can skip existing
         TopoNodes and only ``create`` genuinely new ones.
+
+        Returns ``(namespace, name)`` pairs — node names are unique per
+        namespace, so a multi-fabric design may legitimately have a ``leaf1``
+        in each of its namespaces, and matching on bare names would wrongly
+        treat the second one as already onboarded.
         """
         self._ensure_auth()
-        url = (
-            f"{self.url}/apps/{self.registry.TOPO_NODE.api_version}"
-            f"/namespaces/{namespace}/{self.registry.TOPO_NODE.plural}"
-        )
-        try:
-            resp = self._request("GET", url)
-            if resp.status_code == 200:
-                items = resp.json().get("items", [])
-                names = {
-                    item.get("metadata", {}).get("name", "")
-                    for item in items
-                }
-                names.discard("")
-                logger.info(
-                    "Found %d existing TopoNodes in EDA: %s",
-                    len(names),
-                    ", ".join(sorted(names)) if names else "(none)",
-                )
-                return names
-            else:
-                logger.warning(
-                    "Could not query existing TopoNodes (HTTP %d), "
-                    "will use replace for all",
-                    resp.status_code,
-                )
-                return set()
-        except Exception as e:
-            logger.warning(
-                "Error querying existing TopoNodes: %s, "
-                "will use replace for all",
-                e,
+        namespaces = [namespace] if isinstance(namespace, str) else list(namespace)
+        found: set[tuple[str, str]] = set()
+
+        for ns in namespaces:
+            url = (
+                f"{self.url}/apps/{self.registry.TOPO_NODE.api_version}"
+                f"/namespaces/{ns}/{self.registry.TOPO_NODE.plural}"
             )
-            return set()
+            try:
+                resp = self._request("GET", url)
+                if resp.status_code == 200:
+                    for item in resp.json().get("items", []):
+                        name = item.get("metadata", {}).get("name", "")
+                        if name:
+                            found.add((ns, name))
+                else:
+                    logger.warning(
+                        "Could not query existing TopoNodes in %s (HTTP %d), "
+                        "will use replace for all",
+                        ns, resp.status_code,
+                    )
+            except Exception as e:
+                logger.warning(
+                    "Error querying existing TopoNodes in %s: %s, "
+                    "will use replace for all",
+                    ns, e,
+                )
+
+        logger.info(
+            "Found %d existing TopoNodes in EDA: %s",
+            len(found),
+            ", ".join(f"{ns}/{n}" for ns, n in sorted(found)) if found else "(none)",
+        )
+        return found
 
     # ------------------------------------------------------------------
     # Diff computation (for prune)
@@ -764,23 +846,30 @@ class EdaClient:
         """
         Compute the diff between desired and current state.
 
-        Resources are matched by ``kind:name``. A desired CR that already
-        exists is compared against live state with :func:`cr_matches_live_state`
-        and lands in ``updates`` only when its declared labels or spec fields
-        actually differ, so a converged fabric plans zero operations.
+        Resources are matched by ``namespace/kind:name``. The namespace is part
+        of the identity because EDA resource names are unique only within a
+        namespace — a multi-fabric design can have a ``leaf1`` TopoNode in each
+        of its namespaces, and matching on ``kind:name`` alone would fold them
+        together and plan a spurious delete for one of them.
+
+        A desired CR that already exists is compared against live state with
+        :func:`cr_matches_live_state` and lands in ``updates`` only when its
+        declared labels or spec fields actually differ, so a converged fabric
+        plans zero operations.
 
         Returns a TransactionPlan with creates, updates, deletes, and unchanged.
         """
         desired_keys: dict[str, dict] = {}
         for cr in desired:
-            key = f"{cr['kind']}:{cr['metadata']['name']}"
+            meta = cr["metadata"]
+            key = f"{meta.get('namespace', '')}/{cr['kind']}:{meta['name']}"
             desired_keys[key] = cr
 
         current_keys: dict[str, dict] = {}
         for cr in current:
             kind = cr.get("_kind", cr.get("kind", ""))
-            name = cr.get("metadata", {}).get("name", "")
-            key = f"{kind}:{name}"
+            meta = cr.get("metadata", {})
+            key = f"{meta.get('namespace', '')}/{kind}:{meta.get('name', '')}"
             current_keys[key] = cr
 
         plan = TransactionPlan()
@@ -998,11 +1087,13 @@ class EdaClient:
         """
         self.authenticate()
         run_phases = phases or ALL_PHASES
-        ns = self._extract_namespace(resources)
+        # A transaction body may span namespaces (each CR carries its own
+        # metadata.namespace), so live state has to be read from all of them.
+        namespaces = self._extract_namespaces(resources)
 
         # Plan against live state. Required for --prune, and recorded on
         # ``last_plan`` either way so callers can report real counts.
-        current = self.get_managed_resources(namespace=ns, phases=run_phases)
+        current = self.get_managed_resources(namespace=namespaces, phases=run_phases)
         plan = self.compute_diff(resources, current)
         self.last_plan = plan
         logger.info(plan.summary())
@@ -1028,7 +1119,7 @@ class EdaClient:
             delete_crs = plan.deletes
 
         # Enrich NodeProfile CRs with version-specific fields from EDA
-        all_desired = self._enrich_node_profiles(all_desired, namespace=ns)
+        all_desired = self._enrich_node_profiles(all_desired)
 
         # Split CRs into phases
         phased = self._split_by_phase(all_desired)
@@ -1042,16 +1133,17 @@ class EdaClient:
             # TopoNodes need special handling: re-applying an existing
             # TopoNode via replace triggers full re-onboarding. Query
             # EDA first and only create genuinely new ones.
-            existing_nodes = self._get_existing_toponode_names(namespace=ns)
+            existing_nodes = self._get_existing_toponode_names(namespace=namespaces)
             new_topo_nodes: list[dict] = []
-            skipped_nodes: list[str] = []
+            skipped_nodes: list[tuple[str, str]] = []
             other_crs: list[dict] = []
 
             for cr in topo_crs:
                 if cr.get("kind") == "TopoNode":
-                    name = cr.get("metadata", {}).get("name", "")
-                    if name in existing_nodes:
-                        skipped_nodes.append(name)
+                    meta = cr.get("metadata", {})
+                    key = (meta.get("namespace", ""), meta.get("name", ""))
+                    if key in existing_nodes:
+                        skipped_nodes.append(key)
                     else:
                         new_topo_nodes.append(cr)
                 else:
@@ -1061,7 +1153,7 @@ class EdaClient:
                 logger.info(
                     "Skipping %d existing TopoNodes (already onboarded): %s",
                     len(skipped_nodes),
-                    ", ".join(sorted(skipped_nodes)),
+                    ", ".join(f"{ns}/{n}" for ns, n in sorted(skipped_nodes)),
                 )
 
             # Build the topology transaction:
@@ -1081,16 +1173,18 @@ class EdaClient:
             # Wait for ALL TopoNodes (new + existing) to be Synced
             # before proceeding to fabric/services phases.
             if not dry_run:
-                all_node_names = (
-                    [cr.get("metadata", {}).get("name", "") for cr in new_topo_nodes]
-                    + skipped_nodes
-                )
-                if all_node_names:
-                    topo_ns = self._extract_namespace(resources)
+                all_nodes = [
+                    (
+                        cr.get("metadata", {}).get("namespace", ""),
+                        cr.get("metadata", {}).get("name", ""),
+                    )
+                    for cr in new_topo_nodes
+                ] + skipped_nodes
+                if all_nodes:
                     all_node_stubs = [
-                        {"metadata": {"name": n, "namespace": topo_ns},
+                        {"metadata": {"name": name, "namespace": node_ns},
                          "apiVersion": self.registry.TOPO_NODE.api_version}
-                        for n in all_node_names
+                        for node_ns, name in all_nodes
                     ]
                     self._wait_for_nodes_sync(all_node_stubs)
 
@@ -1132,7 +1226,7 @@ class EdaClient:
         phases: list[str] | None = None,
         dry_run: bool = False,
         auto_confirm: bool = False,
-        namespace: str = "eda",
+        namespace: str | Sequence[str] = "eda",
     ) -> TransactionResult:
         """
         Remove all managed resources in reverse dependency order.
@@ -1150,17 +1244,20 @@ class EdaClient:
             phases: Which phases to destroy (default: all)
             dry_run: If True, validate only
             auto_confirm: If True, skip confirmation
-            namespace: EDA namespace
+            namespace: EDA namespace, or a sequence of them for a multi-fabric
+                design. One transaction still covers them all — each delete
+                carries its own namespace.
 
         Returns:
             TransactionResult
         """
         self.authenticate()
         destroy_phases = phases or ALL_PHASES
+        namespaces = [namespace] if isinstance(namespace, str) else list(namespace)
 
         # Query managed resources, scoped to requested phases
         managed = self.get_managed_resources(
-            namespace=namespace, phases=destroy_phases,
+            namespace=namespaces, phases=destroy_phases,
         )
 
         if not managed:
@@ -1169,11 +1266,16 @@ class EdaClient:
                 success=True, message="No resources to destroy",
             )
 
-        # Group by kind for display
+        # Group by kind for display, qualifying names when more than one
+        # namespace is in play so the confirmation prompt is unambiguous.
+        multi_ns = len(namespaces) > 1
         by_kind: dict[str, list[str]] = {}
         for cr in managed:
             kind = cr.get("_kind", "?")
-            name = cr.get("metadata", {}).get("name", "?")
+            meta = cr.get("metadata", {})
+            name = meta.get("name", "?")
+            if multi_ns:
+                name = f"{meta.get('namespace', '?')}/{name}"
             by_kind.setdefault(kind, []).append(name)
 
         print(f"\n⚠️  Will DESTROY {len(managed)} managed resources:")
@@ -1201,9 +1303,13 @@ class EdaClient:
             if crt.kind in SHARED_KINDS:
                 continue
             for cr in managed_by_kind.get(crt.kind, []):
-                name = cr.get("metadata", {}).get("name", "")
+                meta = cr.get("metadata", {})
+                name = meta.get("name", "")
+                # Delete each resource in the namespace it was found in, not a
+                # single assumed one.
+                cr_ns = meta.get("namespace") or namespaces[0]
                 tx_crs.append(
-                    self._wrap_cr_delete(crt.api_version, crt.kind, name, namespace)
+                    self._wrap_cr_delete(crt.api_version, crt.kind, name, cr_ns)
                 )
 
         if not tx_crs:
@@ -1362,70 +1468,84 @@ class EdaClient:
         ``status.node-state`` for each node until all report ``Synced``
         or the timeout expires.
         """
-        node_names = [
-            cr.get("metadata", {}).get("name", "")
-            for cr in topo_nodes
-        ]
-        ns = topo_nodes[0].get("metadata", {}).get("namespace", "eda")
+        # Each node is polled in its own namespace: a multi-fabric intent has
+        # TopoNodes spread across namespaces, and reading them all from the
+        # first node's namespace would 404 for every node outside it and stall
+        # until the timeout.
+        default_ns = self._extract_namespace(topo_nodes)
+        nodes: list[tuple[str, str]] = []
+        for cr in topo_nodes:
+            meta = cr.get("metadata", {})
+            name = meta.get("name", "")
+            if name:
+                nodes.append((meta.get("namespace", "") or default_ns, name))
 
         logger.info(
             "Waiting for %d TopoNodes to reach Synced state...",
-            len(node_names),
+            len(nodes),
         )
 
-        def _check(name: str) -> tuple[str, str | None]:
-            """Return (name, node_state) — None on error."""
+        def _check(node: tuple[str, str]) -> tuple[tuple[str, str], str | None]:
+            """Return ((namespace, name), node_state) — error string on failure."""
+            node_ns, name = node
             url = (
                 f"{self.url}/apps/{self.registry.TOPO_NODE.api_version}"
-                f"/namespaces/{ns}/{self.registry.TOPO_NODE.plural}/{name}"
+                f"/namespaces/{node_ns}/{self.registry.TOPO_NODE.plural}/{name}"
             )
             try:
                 resp = self._request("GET", url)
                 if resp.status_code != 200:
-                    return name, f"http-{resp.status_code}"
-                return name, resp.json().get("status", {}).get("node-state", "") or "unknown"
+                    return node, f"http-{resp.status_code}"
+                return node, resp.json().get("status", {}).get("node-state", "") or "unknown"
             except Exception as e:
-                return name, f"error: {e}"
+                return node, f"error: {e}"
+
+        multi_ns = len({node_ns for node_ns, _ in nodes}) > 1
+
+        def _label(node: tuple[str, str]) -> str:
+            """``name`` for a single-namespace run, ``namespace/name`` otherwise."""
+            node_ns, name = node
+            return f"{node_ns}/{name}" if multi_ns else name
 
         start = time.time()
-        pending: list[tuple[str, str]] = []
-        with ThreadPoolExecutor(max_workers=min(8, max(1, len(node_names)))) as pool:
+        pending: list[tuple[tuple[str, str], str]] = []
+        with ThreadPoolExecutor(max_workers=min(8, max(1, len(nodes)))) as pool:
             while time.time() - start < timeout:
-                synced: list[str] = []
-                pending = []  # (name, current_state)
+                synced: list[tuple[str, str]] = []
+                pending = []  # ((namespace, name), current_state)
 
-                for name, state in pool.map(_check, node_names):
+                for node, state in pool.map(_check, nodes):
                     if state == "Synced":
-                        synced.append(name)
+                        synced.append(node)
                     else:
-                        pending.append((name, state or "unknown"))
+                        pending.append((node, state or "unknown"))
 
-                if len(synced) == len(node_names):
+                if len(synced) == len(nodes):
                     elapsed = int(time.time() - start)
                     logger.info(
                         "All %d TopoNodes are Synced (%ds)",
-                        len(node_names),
+                        len(nodes),
                         elapsed,
                     )
                     return
 
                 elapsed = int(time.time() - start)
                 state_summary = ", ".join(
-                    f"{n}={s}" for n, s in pending[:5]
+                    f"{_label(node)}={s}" for node, s in pending[:5]
                 )
                 if len(pending) > 5:
                     state_summary += f" (+{len(pending) - 5} more)"
                 logger.info(
                     "Waiting for TopoNodes: %d/%d Synced (%ds/%ds) — %s",
                     len(synced),
-                    len(node_names),
+                    len(nodes),
                     elapsed,
                     timeout,
                     state_summary,
                 )
                 time.sleep(interval)
 
-        pending_names = ", ".join(n for n, _ in pending)
+        pending_names = ", ".join(_label(node) for node, _ in pending)
         logger.warning(
             "Timed out waiting for TopoNodes after %ds — "
             "still pending: %s. Proceeding anyway.",

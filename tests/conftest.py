@@ -268,6 +268,7 @@ def _discover_topology(topo_file: str, gnmi_port: int | None = None) -> ClabTopo
                 "interface": a_intf,
                 "container": topo.container_name(a_node),
                 "client": b_node,
+                "client_interface": eps[1].split(":")[1],
             })
         elif b_node in srl_nodes and a_node in linux_nodes:
             topo.edge_links.append({
@@ -276,6 +277,7 @@ def _discover_topology(topo_file: str, gnmi_port: int | None = None) -> ClabTopo
                 "interface": b_intf,
                 "container": topo.container_name(b_node),
                 "client": a_node,
+                "client_interface": eps[0].split(":")[1],
             })
 
     # 3. Auto-detect gNMI port if not explicitly provided

@@ -436,6 +436,9 @@ def build_configlets(raw: list[dict], *, origin: str = "") -> list[ConfigletInte
     return [
         ConfigletIntent(
             name=c["name"],
+            # Multi-namespace designs let a configlet target one fabric; an
+            # unset namespace resolves to the intent default.
+            namespace=c.get("namespace", ""),
             endpoint_selector=c.get("endpoint_selector", []),
             endpoints=c.get("endpoints", []),
             operating_system=c.get("operating_system", "srl"),

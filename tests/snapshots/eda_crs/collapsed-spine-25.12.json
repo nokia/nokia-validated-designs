@@ -1,0 +1,2866 @@
+[
+  {
+    "apiVersion": "bootstrap.eda.nokia.com/v1alpha1",
+    "kind": "Init",
+    "metadata": {
+      "name": "init-base",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "commitSave": true,
+      "mgmt": {
+        "ipv4DHCP": true,
+        "ipv6DHCP": true
+      }
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "NodeUser",
+    "metadata": {
+      "name": "admin",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "groupBindings": [
+        {
+          "groups": [
+            "sudo"
+          ],
+          "nodeSelector": [
+            ""
+          ]
+        }
+      ],
+      "password": "NokiaSrl1!",
+      "username": "admin"
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "NodeProfile",
+    "metadata": {
+      "name": "clab-srlinux-25.3.2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "annotate": true,
+      "images": [
+        {
+          "image": "srlimages/srlinux-25.3.2-bin/srlinux.bin",
+          "imageMd5": "srlimages/srlinux-25.3.2-md5/srlinux.md5"
+        }
+      ],
+      "llmDb": "https://eda-asvr.eda-system.svc/eda-system/llm-dbs/llm-db-srlinux-ghcr-25.3.2/llm-embeddings-srl-25-3-2.tar.gz",
+      "nodeUser": "admin",
+      "onboardingPassword": "NokiaSrl1!",
+      "onboardingUsername": "admin",
+      "operatingSystem": "srl",
+      "port": 57410,
+      "version": "25.3.2",
+      "versionMatch": "v25\\.3\\.2.*",
+      "versionPath": ".system.information.version",
+      "yang": "https://eda-asvr.eda-system.svc/eda-system/schemaprofiles/srlinux-ghcr-25.3.2/srlinux-25.3.2.zip"
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoNode",
+    "metadata": {
+      "name": "spine1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/name": "spine1",
+        "eda.nokia.com/role": "collapsed-spine",
+        "eda.nokia.com/security-profile": "managed"
+      }
+    },
+    "spec": {
+      "nodeProfile": "clab-srlinux-25.3.2",
+      "npp": {
+        "mode": "normal"
+      },
+      "onBoarded": true,
+      "operatingSystem": "srl",
+      "platform": "7220 IXR-D3L",
+      "productionAddress": {
+        "ipv4": "172.21.21.101",
+        "ipv6": ""
+      },
+      "version": "25.3.2"
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoNode",
+    "metadata": {
+      "name": "spine2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/name": "spine2",
+        "eda.nokia.com/role": "collapsed-spine",
+        "eda.nokia.com/security-profile": "managed"
+      }
+    },
+    "spec": {
+      "nodeProfile": "clab-srlinux-25.3.2",
+      "npp": {
+        "mode": "normal"
+      },
+      "onBoarded": true,
+      "operatingSystem": "srl",
+      "platform": "7220 IXR-D3L",
+      "productionAddress": {
+        "ipv4": "172.21.21.102",
+        "ipv6": ""
+      },
+      "version": "25.3.2"
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoNode",
+    "metadata": {
+      "name": "tor1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/name": "tor1",
+        "eda.nokia.com/role": "tor",
+        "eda.nokia.com/security-profile": "managed"
+      }
+    },
+    "spec": {
+      "nodeProfile": "clab-srlinux-25.3.2",
+      "npp": {
+        "mode": "normal"
+      },
+      "onBoarded": true,
+      "operatingSystem": "srl",
+      "platform": "7220 IXR-D2L",
+      "productionAddress": {
+        "ipv4": "172.21.21.11",
+        "ipv6": ""
+      },
+      "version": "25.3.2"
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoNode",
+    "metadata": {
+      "name": "tor2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/name": "tor2",
+        "eda.nokia.com/role": "tor",
+        "eda.nokia.com/security-profile": "managed"
+      }
+    },
+    "spec": {
+      "nodeProfile": "clab-srlinux-25.3.2",
+      "npp": {
+        "mode": "normal"
+      },
+      "onBoarded": true,
+      "operatingSystem": "srl",
+      "platform": "7220 IXR-D2L",
+      "productionAddress": {
+        "ipv4": "172.21.21.12",
+        "ipv6": ""
+      },
+      "version": "25.3.2"
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoNode",
+    "metadata": {
+      "name": "tor3",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/name": "tor3",
+        "eda.nokia.com/role": "tor",
+        "eda.nokia.com/security-profile": "managed"
+      }
+    },
+    "spec": {
+      "nodeProfile": "clab-srlinux-25.3.2",
+      "npp": {
+        "mode": "normal"
+      },
+      "onBoarded": true,
+      "operatingSystem": "srl",
+      "platform": "7220 IXR-D3L",
+      "productionAddress": {
+        "ipv4": "172.21.21.13",
+        "ipv6": ""
+      },
+      "version": "25.3.2"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-ethernet-1-31",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-31",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine2-ethernet-1-31",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-31",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-ethernet-1-32",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-32",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine2-ethernet-1-32",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-32",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-ethernet-1-25",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-25",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "tor1-ethernet-1-51",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-51",
+          "lacpPortPriority": 32768,
+          "node": "tor1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-ethernet-1-26",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-26",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "tor2-ethernet-1-51",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-51",
+          "lacpPortPriority": 32768,
+          "node": "tor2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-ethernet-1-29",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-29",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "tor3-ethernet-1-29",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-29",
+          "lacpPortPriority": 32768,
+          "node": "tor3"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine2-ethernet-1-25",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-25",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "tor1-ethernet-1-52",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-52",
+          "lacpPortPriority": 32768,
+          "node": "tor1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine2-ethernet-1-26",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-26",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "tor2-ethernet-1-52",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-52",
+          "lacpPortPriority": 32768,
+          "node": "tor2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine2-ethernet-1-30",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-30",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "tor3-ethernet-1-30",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-30",
+          "lacpPortPriority": 32768,
+          "node": "tor3"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-ixia-1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/untagged-v10": "enabled",
+        "eda.nokia.com/tagged-v20": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-27",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine2-ixia-1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/tagged-v10": "enabled",
+        "eda.nokia.com/tagged-v30": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-29",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "tor1-ixia",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/tagged-v50-simple": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-55",
+          "lacpPortPriority": 32768,
+          "node": "tor1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "tor2-ixia",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/untagged-v10-simple": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-56",
+          "lacpPortPriority": 32768,
+          "node": "tor2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "tor3-ixia",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/tagged-v70-simple": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-32",
+          "lacpPortPriority": 32768,
+          "node": "tor3"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-ethernet-1-23",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-23",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine2-ethernet-1-23",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-23",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-ethernet-1-25",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-25",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine2-ethernet-1-25",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-25",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-ethernet-1-26",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-26",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine2-ethernet-1-26",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-26",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-ethernet-1-29",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-29",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine2-ethernet-1-30",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-30",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "tor1-ethernet-1-51",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-51",
+          "lacpPortPriority": 32768,
+          "node": "tor1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "tor1-ethernet-1-52",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-52",
+          "lacpPortPriority": 32768,
+          "node": "tor1"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "tor2-ethernet-1-51",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-51",
+          "lacpPortPriority": 32768,
+          "node": "tor2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "tor2-ethernet-1-52",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-52",
+          "lacpPortPriority": 32768,
+          "node": "tor2"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "tor3-ethernet-1-29",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-29",
+          "lacpPortPriority": 32768,
+          "node": "tor3"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "tor3-ethernet-1-30",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "null",
+      "lldp": true,
+      "members": [
+        {
+          "enabled": true,
+          "interface": "ethernet-1-30",
+          "lacpPortPriority": 32768,
+          "node": "tor3"
+        }
+      ],
+      "type": "interface"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-spine2-s3-lag",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/tagged-v40": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "ethernet": {
+        "reloadDelayTimer": 100
+      },
+      "lag": {
+        "lacp": {
+          "adminKey": 4,
+          "interval": "fast",
+          "lacpFallback": {
+            "mode": "static",
+            "timeout": 60
+          },
+          "mode": "active",
+          "systemIdMac": "00:00:00:00:40:00",
+          "systemPriority": 32768
+        },
+        "minLinks": 1,
+        "multihoming": {
+          "esi": "auto",
+          "mode": "all-active",
+          "preferredActiveNode": "",
+          "reloadDelayTimer": 100,
+          "revertive": false
+        },
+        "type": "lacp"
+      },
+      "lldp": true,
+      "members": [
+        {
+          "aggregateId": "4",
+          "enabled": true,
+          "interface": "ethernet-1-23",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        },
+        {
+          "aggregateId": "4",
+          "enabled": true,
+          "interface": "ethernet-1-23",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "lag"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-spine2-tor1-lag",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/tagged-v50": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "ethernet": {
+        "reloadDelayTimer": 100
+      },
+      "lag": {
+        "lacp": {
+          "adminKey": 1,
+          "interval": "fast",
+          "lacpFallback": {
+            "mode": "static",
+            "timeout": 60
+          },
+          "mode": "active",
+          "systemIdMac": "00:00:00:00:00:12",
+          "systemPriority": 32768
+        },
+        "minLinks": 1,
+        "multihoming": {
+          "esi": "auto",
+          "mode": "all-active",
+          "preferredActiveNode": "",
+          "reloadDelayTimer": 100,
+          "revertive": false
+        },
+        "type": "lacp"
+      },
+      "lldp": true,
+      "members": [
+        {
+          "aggregateId": "1",
+          "enabled": true,
+          "interface": "ethernet-1-25",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        },
+        {
+          "aggregateId": "1",
+          "enabled": true,
+          "interface": "ethernet-1-25",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "lag"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-spine2-tor2-lag",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/untagged-v10": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "ethernet": {
+        "reloadDelayTimer": 100
+      },
+      "lag": {
+        "lacp": {
+          "adminKey": 2,
+          "interval": "fast",
+          "lacpFallback": {
+            "mode": "static",
+            "timeout": 60
+          },
+          "mode": "active",
+          "systemIdMac": "00:00:00:00:12:00",
+          "systemPriority": 32768
+        },
+        "minLinks": 1,
+        "multihoming": {
+          "esi": "auto",
+          "mode": "all-active",
+          "preferredActiveNode": "",
+          "reloadDelayTimer": 100,
+          "revertive": false
+        },
+        "type": "lacp"
+      },
+      "lldp": true,
+      "members": [
+        {
+          "aggregateId": "2",
+          "enabled": true,
+          "interface": "ethernet-1-26",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        },
+        {
+          "aggregateId": "2",
+          "enabled": true,
+          "interface": "ethernet-1-26",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "lag"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "spine1-spine2-tor3-lag",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/tagged-v70": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "ethernet": {
+        "reloadDelayTimer": 100
+      },
+      "lag": {
+        "lacp": {
+          "adminKey": 3,
+          "interval": "fast",
+          "lacpFallback": {
+            "mode": "static",
+            "timeout": 60
+          },
+          "mode": "active",
+          "systemIdMac": "00:00:00:12:00:00",
+          "systemPriority": 32768
+        },
+        "minLinks": 1,
+        "multihoming": {
+          "esi": "auto",
+          "mode": "all-active",
+          "preferredActiveNode": "",
+          "reloadDelayTimer": 100,
+          "revertive": false
+        },
+        "type": "lacp"
+      },
+      "lldp": true,
+      "members": [
+        {
+          "aggregateId": "3",
+          "enabled": true,
+          "interface": "ethernet-1-29",
+          "lacpPortPriority": 32768,
+          "node": "spine1"
+        },
+        {
+          "aggregateId": "3",
+          "enabled": true,
+          "interface": "ethernet-1-30",
+          "lacpPortPriority": 32768,
+          "node": "spine2"
+        }
+      ],
+      "type": "lag"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "tor1-spine-lag",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/tagged-v50-simple": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "ethernet": {
+        "reloadDelayTimer": 100
+      },
+      "lag": {
+        "lacp": {
+          "adminKey": 1,
+          "interval": "fast",
+          "lacpFallback": {
+            "mode": "static",
+            "timeout": 60
+          },
+          "mode": "active",
+          "systemIdMac": "00:00:11:11:11:11",
+          "systemPriority": 32768
+        },
+        "minLinks": 1,
+        "multihoming": {
+          "esi": "auto",
+          "mode": "all-active",
+          "preferredActiveNode": "",
+          "reloadDelayTimer": 100,
+          "revertive": false
+        },
+        "type": "lacp"
+      },
+      "lldp": true,
+      "members": [
+        {
+          "aggregateId": "1",
+          "enabled": true,
+          "interface": "ethernet-1-51",
+          "lacpPortPriority": 32768,
+          "node": "tor1"
+        },
+        {
+          "aggregateId": "1",
+          "enabled": true,
+          "interface": "ethernet-1-52",
+          "lacpPortPriority": 32768,
+          "node": "tor1"
+        }
+      ],
+      "type": "lag"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "tor2-spine-lag",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/untagged-v10-simple": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "ethernet": {
+        "reloadDelayTimer": 100
+      },
+      "lag": {
+        "lacp": {
+          "adminKey": 1,
+          "interval": "fast",
+          "lacpFallback": {
+            "mode": "static",
+            "timeout": 60
+          },
+          "mode": "active",
+          "systemIdMac": "00:00:22:22:22:22",
+          "systemPriority": 32768
+        },
+        "minLinks": 1,
+        "multihoming": {
+          "esi": "auto",
+          "mode": "all-active",
+          "preferredActiveNode": "",
+          "reloadDelayTimer": 100,
+          "revertive": false
+        },
+        "type": "lacp"
+      },
+      "lldp": true,
+      "members": [
+        {
+          "aggregateId": "1",
+          "enabled": true,
+          "interface": "ethernet-1-51",
+          "lacpPortPriority": 32768,
+          "node": "tor2"
+        },
+        {
+          "aggregateId": "1",
+          "enabled": true,
+          "interface": "ethernet-1-52",
+          "lacpPortPriority": 32768,
+          "node": "tor2"
+        }
+      ],
+      "type": "lag"
+    }
+  },
+  {
+    "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+    "kind": "Interface",
+    "metadata": {
+      "name": "tor3-spine-lag",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "edge",
+        "eda.nokia.com/tagged-v70-simple": "enabled"
+      }
+    },
+    "spec": {
+      "enabled": true,
+      "encapType": "dot1q",
+      "ethernet": {
+        "reloadDelayTimer": 100
+      },
+      "lag": {
+        "lacp": {
+          "adminKey": 1,
+          "interval": "fast",
+          "lacpFallback": {
+            "mode": "static",
+            "timeout": 60
+          },
+          "mode": "active",
+          "systemIdMac": "00:00:33:33:33:33",
+          "systemPriority": 32768
+        },
+        "minLinks": 1,
+        "multihoming": {
+          "esi": "auto",
+          "mode": "all-active",
+          "preferredActiveNode": "",
+          "reloadDelayTimer": 100,
+          "revertive": false
+        },
+        "type": "lacp"
+      },
+      "lldp": true,
+      "members": [
+        {
+          "aggregateId": "1",
+          "enabled": true,
+          "interface": "ethernet-1-29",
+          "lacpPortPriority": 32768,
+          "node": "tor3"
+        },
+        {
+          "aggregateId": "1",
+          "enabled": true,
+          "interface": "ethernet-1-30",
+          "lacpPortPriority": 32768,
+          "node": "tor3"
+        }
+      ],
+      "type": "lag"
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "spine1-spine2-1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-31",
+            "interfaceResource": "spine1-ethernet-1-31",
+            "node": "spine1"
+          },
+          "remote": {
+            "interface": "ethernet-1-31",
+            "interfaceResource": "spine2-ethernet-1-31",
+            "node": "spine2"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "spine1-spine2-2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-32",
+            "interfaceResource": "spine1-ethernet-1-32",
+            "node": "spine1"
+          },
+          "remote": {
+            "interface": "ethernet-1-32",
+            "interfaceResource": "spine2-ethernet-1-32",
+            "node": "spine2"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "spine1-tor1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-25",
+            "interfaceResource": "spine1-ethernet-1-25",
+            "node": "spine1"
+          },
+          "remote": {
+            "interface": "ethernet-1-51",
+            "interfaceResource": "tor1-ethernet-1-51",
+            "node": "tor1"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "spine1-tor2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-26",
+            "interfaceResource": "spine1-ethernet-1-26",
+            "node": "spine1"
+          },
+          "remote": {
+            "interface": "ethernet-1-51",
+            "interfaceResource": "tor2-ethernet-1-51",
+            "node": "tor2"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "spine1-tor3",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-29",
+            "interfaceResource": "spine1-ethernet-1-29",
+            "node": "spine1"
+          },
+          "remote": {
+            "interface": "ethernet-1-29",
+            "interfaceResource": "tor3-ethernet-1-29",
+            "node": "tor3"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "spine2-tor1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-25",
+            "interfaceResource": "spine2-ethernet-1-25",
+            "node": "spine2"
+          },
+          "remote": {
+            "interface": "ethernet-1-52",
+            "interfaceResource": "tor1-ethernet-1-52",
+            "node": "tor1"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "spine2-tor2",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-26",
+            "interfaceResource": "spine2-ethernet-1-26",
+            "node": "spine2"
+          },
+          "remote": {
+            "interface": "ethernet-1-52",
+            "interfaceResource": "tor2-ethernet-1-52",
+            "node": "tor2"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "TopoLink",
+    "metadata": {
+      "name": "spine2-tor3",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine",
+        "eda.nokia.com/role": "interSwitch"
+      }
+    },
+    "spec": {
+      "links": [
+        {
+          "local": {
+            "interface": "ethernet-1-30",
+            "interfaceResource": "spine2-ethernet-1-30",
+            "node": "spine2"
+          },
+          "remote": {
+            "interface": "ethernet-1-30",
+            "interfaceResource": "tor3-ethernet-1-30",
+            "node": "tor3"
+          },
+          "type": "interSwitch"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "IndexAllocationPool",
+    "metadata": {
+      "name": "collapsed-spine-asn",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "segments": [
+        {
+          "size": 20,
+          "start": 65411
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "core.eda.nokia.com/v1",
+    "kind": "IPAllocationPool",
+    "metadata": {
+      "name": "system0",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "segments": [
+        {
+          "subnet": "192.168.254.0/24"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "fabrics.eda.nokia.com/v1alpha1",
+    "kind": "Fabric",
+    "metadata": {
+      "name": "dc1-collapsed",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "interSwitchLinks": {
+        "linkSelector": [
+          "eda.nokia.com/role=interSwitch"
+        ],
+        "unnumbered": "IPV6"
+      },
+      "leafs": {
+        "asnPool": "collapsed-spine-asn",
+        "leafNodeSelector": [
+          "eda.nokia.com/role=collapsed-spine"
+        ]
+      },
+      "overlayProtocol": {
+        "protocol": "EBGP"
+      },
+      "systemPoolIPV4": "system0",
+      "underlayProtocol": {
+        "bfd": {
+          "desiredMinTransmitInt": 1000000,
+          "detectionMultiplier": 3,
+          "enabled": true,
+          "minEchoReceiveInterval": 1000000,
+          "requiredMinReceive": 1000000
+        },
+        "bgp": {
+          "asnPool": "asn-pool"
+        },
+        "protocol": [
+          "EBGP"
+        ]
+      }
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "BridgeDomain",
+    "metadata": {
+      "name": "macvrf-v10",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "evi": 10,
+      "eviPool": "evi-pool",
+      "macAging": 300,
+      "macDuplicationDetection": {
+        "action": "StopLearning",
+        "enabled": true,
+        "holdDownTime": 9,
+        "monitoringWindow": 3,
+        "numMoves": 5
+      },
+      "macLearning": true,
+      "tunnelIndexPool": "tunnel-index-pool",
+      "type": "EVPNVXLAN",
+      "vni": 10010,
+      "vniPool": "vni-pool"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "BridgeDomain",
+    "metadata": {
+      "name": "macvrf-v20",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "evi": 20,
+      "eviPool": "evi-pool",
+      "macAging": 300,
+      "macDuplicationDetection": {
+        "action": "StopLearning",
+        "enabled": true,
+        "holdDownTime": 9,
+        "monitoringWindow": 3,
+        "numMoves": 5
+      },
+      "macLearning": true,
+      "tunnelIndexPool": "tunnel-index-pool",
+      "type": "EVPNVXLAN",
+      "vni": 10020,
+      "vniPool": "vni-pool"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "BridgeDomain",
+    "metadata": {
+      "name": "macvrf-v30",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "evi": 30,
+      "eviPool": "evi-pool",
+      "macAging": 300,
+      "macDuplicationDetection": {
+        "action": "StopLearning",
+        "enabled": true,
+        "holdDownTime": 9,
+        "monitoringWindow": 3,
+        "numMoves": 5
+      },
+      "macLearning": true,
+      "tunnelIndexPool": "tunnel-index-pool",
+      "type": "EVPNVXLAN",
+      "vni": 10030,
+      "vniPool": "vni-pool"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "BridgeDomain",
+    "metadata": {
+      "name": "macvrf-v40",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "evi": 40,
+      "eviPool": "evi-pool",
+      "macAging": 300,
+      "macDuplicationDetection": {
+        "action": "StopLearning",
+        "enabled": true,
+        "holdDownTime": 9,
+        "monitoringWindow": 3,
+        "numMoves": 5
+      },
+      "macLearning": true,
+      "tunnelIndexPool": "tunnel-index-pool",
+      "type": "EVPNVXLAN",
+      "vni": 10040,
+      "vniPool": "vni-pool"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "BridgeDomain",
+    "metadata": {
+      "name": "macvrf-v50",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "evi": 50,
+      "eviPool": "evi-pool",
+      "macAging": 300,
+      "macDuplicationDetection": {
+        "action": "StopLearning",
+        "enabled": true,
+        "holdDownTime": 9,
+        "monitoringWindow": 3,
+        "numMoves": 5
+      },
+      "macLearning": true,
+      "tunnelIndexPool": "tunnel-index-pool",
+      "type": "EVPNVXLAN",
+      "vni": 10050,
+      "vniPool": "vni-pool"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "BridgeDomain",
+    "metadata": {
+      "name": "macvrf-v70",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "evi": 70,
+      "eviPool": "evi-pool",
+      "macAging": 300,
+      "macDuplicationDetection": {
+        "action": "StopLearning",
+        "enabled": true,
+        "holdDownTime": 9,
+        "monitoringWindow": 3,
+        "numMoves": 5
+      },
+      "macLearning": true,
+      "tunnelIndexPool": "tunnel-index-pool",
+      "type": "EVPNVXLAN",
+      "vni": 10070,
+      "vniPool": "vni-pool"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "BridgeDomain",
+    "metadata": {
+      "name": "v10-simple",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "macAging": 300,
+      "macDuplicationDetection": {
+        "action": "StopLearning",
+        "enabled": true,
+        "holdDownTime": 9,
+        "monitoringWindow": 3,
+        "numMoves": 5
+      },
+      "macLearning": true,
+      "type": "SIMPLE"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "BridgeDomain",
+    "metadata": {
+      "name": "v50-simple",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "macAging": 300,
+      "macDuplicationDetection": {
+        "action": "StopLearning",
+        "enabled": true,
+        "holdDownTime": 9,
+        "monitoringWindow": 3,
+        "numMoves": 5
+      },
+      "macLearning": true,
+      "type": "SIMPLE"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "BridgeDomain",
+    "metadata": {
+      "name": "v70-simple",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "macAging": 300,
+      "macDuplicationDetection": {
+        "action": "StopLearning",
+        "enabled": true,
+        "holdDownTime": 9,
+        "monitoringWindow": 3,
+        "numMoves": 5
+      },
+      "macLearning": true,
+      "type": "SIMPLE"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "Router",
+    "metadata": {
+      "name": "vrf1",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "evi": 500,
+      "eviPool": "evi-pool",
+      "nodeSelector": [
+        "eda.nokia.com/role=collapsed-spine"
+      ],
+      "tunnelIndexPool": "tunnel-index-pool",
+      "type": "EVPNVXLAN",
+      "vni": 10500,
+      "vniPool": "vni-pool"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "IRBInterface",
+    "metadata": {
+      "name": "irb-v10",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "arpTimeout": 250,
+      "bridgeDomain": "macvrf-v10",
+      "evpnRouteAdvertisementType": {
+        "arpDynamic": true,
+        "arpStatic": true,
+        "ndDynamic": true,
+        "ndStatic": true,
+        "rfc9135SymmetricMode": false
+      },
+      "hostRoutePopulate": {
+        "dynamic": true,
+        "evpn": false,
+        "static": true
+      },
+      "ipAddresses": [
+        {
+          "ipv4Address": {
+            "ipPrefix": "172.16.10.254/24",
+            "primary": true
+          },
+          "ipv6Address": {
+            "ipPrefix": "2001:db8:0:10::254/64",
+            "primary": true
+          }
+        }
+      ],
+      "ipMTU": 9200,
+      "l3ProxyARPND": {
+        "proxyARP": true,
+        "proxyND": true
+      },
+      "learnUnsolicited": "BOTH",
+      "router": "vrf1"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "IRBInterface",
+    "metadata": {
+      "name": "irb-v20",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "arpTimeout": 280,
+      "bridgeDomain": "macvrf-v20",
+      "evpnRouteAdvertisementType": {
+        "arpDynamic": true,
+        "arpStatic": true,
+        "ndDynamic": true,
+        "ndStatic": true,
+        "rfc9135SymmetricMode": false
+      },
+      "hostRoutePopulate": {
+        "dynamic": true,
+        "evpn": false,
+        "static": true
+      },
+      "ipAddresses": [
+        {
+          "ipv4Address": {
+            "ipPrefix": "172.16.20.254/24",
+            "primary": true
+          },
+          "ipv6Address": {
+            "ipPrefix": "2001:db8:0:20::254/64",
+            "primary": true
+          }
+        }
+      ],
+      "ipMTU": 9200,
+      "l3ProxyARPND": {
+        "proxyARP": true,
+        "proxyND": true
+      },
+      "learnUnsolicited": "BOTH",
+      "router": "vrf1"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "IRBInterface",
+    "metadata": {
+      "name": "irb-v30",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "arpTimeout": 280,
+      "bridgeDomain": "macvrf-v30",
+      "evpnRouteAdvertisementType": {
+        "arpDynamic": true,
+        "arpStatic": true,
+        "ndDynamic": true,
+        "ndStatic": true,
+        "rfc9135SymmetricMode": false
+      },
+      "hostRoutePopulate": {
+        "dynamic": true,
+        "evpn": false,
+        "static": true
+      },
+      "ipAddresses": [
+        {
+          "ipv4Address": {
+            "ipPrefix": "172.16.30.254/24",
+            "primary": true
+          },
+          "ipv6Address": {
+            "ipPrefix": "2001:db8:0:30::254/64",
+            "primary": true
+          }
+        }
+      ],
+      "ipMTU": 9200,
+      "l3ProxyARPND": {
+        "proxyARP": true,
+        "proxyND": true
+      },
+      "learnUnsolicited": "BOTH",
+      "router": "vrf1"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "IRBInterface",
+    "metadata": {
+      "name": "irb-v40",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "arpTimeout": 280,
+      "bridgeDomain": "macvrf-v40",
+      "evpnRouteAdvertisementType": {
+        "arpDynamic": true,
+        "arpStatic": true,
+        "ndDynamic": true,
+        "ndStatic": true,
+        "rfc9135SymmetricMode": false
+      },
+      "hostRoutePopulate": {
+        "dynamic": true,
+        "evpn": false,
+        "static": true
+      },
+      "ipAddresses": [
+        {
+          "ipv4Address": {
+            "ipPrefix": "172.16.40.254/24",
+            "primary": true
+          },
+          "ipv6Address": {
+            "ipPrefix": "2001:db8:0:40::254/64",
+            "primary": true
+          }
+        }
+      ],
+      "ipMTU": 9200,
+      "l3ProxyARPND": {
+        "proxyARP": true,
+        "proxyND": true
+      },
+      "learnUnsolicited": "BOTH",
+      "router": "vrf1"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "IRBInterface",
+    "metadata": {
+      "name": "irb-v50",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "arpTimeout": 280,
+      "bridgeDomain": "macvrf-v50",
+      "evpnRouteAdvertisementType": {
+        "arpDynamic": true,
+        "arpStatic": true,
+        "ndDynamic": true,
+        "ndStatic": true,
+        "rfc9135SymmetricMode": false
+      },
+      "hostRoutePopulate": {
+        "dynamic": true,
+        "evpn": false,
+        "static": true
+      },
+      "ipAddresses": [
+        {
+          "ipv4Address": {
+            "ipPrefix": "172.16.50.254/24",
+            "primary": true
+          },
+          "ipv6Address": {
+            "ipPrefix": "2001:db8:0:50::254/64",
+            "primary": true
+          }
+        }
+      ],
+      "ipMTU": 9200,
+      "l3ProxyARPND": {
+        "proxyARP": true,
+        "proxyND": true
+      },
+      "learnUnsolicited": "BOTH",
+      "router": "vrf1"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "IRBInterface",
+    "metadata": {
+      "name": "irb-v70",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "arpTimeout": 280,
+      "bridgeDomain": "macvrf-v70",
+      "evpnRouteAdvertisementType": {
+        "arpDynamic": true,
+        "arpStatic": true,
+        "ndDynamic": true,
+        "ndStatic": true,
+        "rfc9135SymmetricMode": false
+      },
+      "hostRoutePopulate": {
+        "dynamic": true,
+        "evpn": false,
+        "static": true
+      },
+      "ipAddresses": [
+        {
+          "ipv4Address": {
+            "ipPrefix": "172.16.70.254/24",
+            "primary": true
+          },
+          "ipv6Address": {
+            "ipPrefix": "2001:db8:0:70::254/64",
+            "primary": true
+          }
+        }
+      ],
+      "ipMTU": 9200,
+      "l3ProxyARPND": {
+        "proxyARP": true,
+        "proxyND": true
+      },
+      "learnUnsolicited": "BOTH",
+      "router": "vrf1"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "VLAN",
+    "metadata": {
+      "name": "untagged-v10",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "bridgeDomain": "macvrf-v10",
+      "interfaceSelector": [
+        "eda.nokia.com/untagged-v10=enabled"
+      ],
+      "vlanID": "untagged"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "VLAN",
+    "metadata": {
+      "name": "tagged-v10",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "bridgeDomain": "macvrf-v10",
+      "interfaceSelector": [
+        "eda.nokia.com/tagged-v10=enabled"
+      ],
+      "vlanID": "10"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "VLAN",
+    "metadata": {
+      "name": "tagged-v20",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "bridgeDomain": "macvrf-v20",
+      "interfaceSelector": [
+        "eda.nokia.com/tagged-v20=enabled"
+      ],
+      "vlanID": "20"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "VLAN",
+    "metadata": {
+      "name": "tagged-v30",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "bridgeDomain": "macvrf-v30",
+      "interfaceSelector": [
+        "eda.nokia.com/tagged-v30=enabled"
+      ],
+      "vlanID": "30"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "VLAN",
+    "metadata": {
+      "name": "tagged-v40",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "bridgeDomain": "macvrf-v40",
+      "interfaceSelector": [
+        "eda.nokia.com/tagged-v40=enabled"
+      ],
+      "vlanID": "40"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "VLAN",
+    "metadata": {
+      "name": "tagged-v50",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "bridgeDomain": "macvrf-v50",
+      "interfaceSelector": [
+        "eda.nokia.com/tagged-v50=enabled"
+      ],
+      "vlanID": "50"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "VLAN",
+    "metadata": {
+      "name": "tagged-v70",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "bridgeDomain": "macvrf-v70",
+      "interfaceSelector": [
+        "eda.nokia.com/tagged-v70=enabled"
+      ],
+      "vlanID": "70"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "VLAN",
+    "metadata": {
+      "name": "untagged-v10-tor",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "bridgeDomain": "v10-simple",
+      "interfaceSelector": [
+        "eda.nokia.com/untagged-v10-simple=enabled"
+      ],
+      "vlanID": "untagged"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "VLAN",
+    "metadata": {
+      "name": "tagged-v50-tor",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "bridgeDomain": "v50-simple",
+      "interfaceSelector": [
+        "eda.nokia.com/tagged-v50-simple=enabled"
+      ],
+      "vlanID": "50"
+    }
+  },
+  {
+    "apiVersion": "services.eda.nokia.com/v1",
+    "kind": "VLAN",
+    "metadata": {
+      "name": "tagged-v70-tor",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "bridgeDomain": "v70-simple",
+      "interfaceSelector": [
+        "eda.nokia.com/tagged-v70-simple=enabled"
+      ],
+      "vlanID": "70"
+    }
+  },
+  {
+    "apiVersion": "config.eda.nokia.com/v1alpha1",
+    "kind": "Configlet",
+    "metadata": {
+      "name": "bgp-evpn-rapid",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "configs": [
+        {
+          "config": "{\n  \"rapid-update\": \"true\"\n}",
+          "operation": "Update",
+          "path": ".network-instance{.name==\"default\"}.protocols.bgp.afi-safi{.afi-safi-name==\"evpn\"}.evpn"
+        }
+      ],
+      "endpointSelector": [
+        "eda.nokia.com/role=collapsed-spine"
+      ],
+      "operatingSystem": "srl",
+      "priority": 100
+    }
+  },
+  {
+    "apiVersion": "config.eda.nokia.com/v1alpha1",
+    "kind": "Configlet",
+    "metadata": {
+      "name": "bgp-rapid-route-withdraw",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "configs": [
+        {
+          "config": "{\n  \"rapid-withdrawal\": \"true\"\n}",
+          "operation": "Update",
+          "path": ".network-instance{.name==\"default\"}.protocols.bgp.route-advertisement"
+        }
+      ],
+      "endpointSelector": [
+        "eda.nokia.com/role=collapsed-spine"
+      ],
+      "operatingSystem": "srl",
+      "priority": 100
+    }
+  },
+  {
+    "apiVersion": "config.eda.nokia.com/v1alpha1",
+    "kind": "Configlet",
+    "metadata": {
+      "name": "spine1-spine2-s3-lag",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "configs": [
+        {
+          "config": "{\n  \"activation-timer\": 0\n}",
+          "operation": "Update",
+          "path": ".system.network-instance.protocols.evpn.ethernet-segments.bgp-instance{.id==1}.ethernet-segment{.name==\"spine1-spine2-s3-lag\"}.df-election.timers"
+        }
+      ],
+      "endpoints": [
+        "spine1",
+        "spine2"
+      ],
+      "operatingSystem": "srl",
+      "priority": 100
+    }
+  },
+  {
+    "apiVersion": "config.eda.nokia.com/v1alpha1",
+    "kind": "Configlet",
+    "metadata": {
+      "name": "spine1-spine2-tor1-lag",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "configs": [
+        {
+          "config": "{\n  \"activation-timer\": 0\n}",
+          "operation": "Update",
+          "path": ".system.network-instance.protocols.evpn.ethernet-segments.bgp-instance{.id==1}.ethernet-segment{.name==\"spine1-spine2-tor1-lag\"}.df-election.timers"
+        }
+      ],
+      "endpoints": [
+        "spine1",
+        "spine2"
+      ],
+      "operatingSystem": "srl",
+      "priority": 100
+    }
+  },
+  {
+    "apiVersion": "config.eda.nokia.com/v1alpha1",
+    "kind": "Configlet",
+    "metadata": {
+      "name": "spine1-spine2-tor2-lag",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "configs": [
+        {
+          "config": "{\n  \"activation-timer\": 0\n}",
+          "operation": "Update",
+          "path": ".system.network-instance.protocols.evpn.ethernet-segments.bgp-instance{.id==1}.ethernet-segment{.name==\"spine1-spine2-tor2-lag\"}.df-election.timers"
+        }
+      ],
+      "endpoints": [
+        "spine1",
+        "spine2"
+      ],
+      "operatingSystem": "srl",
+      "priority": 100
+    }
+  },
+  {
+    "apiVersion": "config.eda.nokia.com/v1alpha1",
+    "kind": "Configlet",
+    "metadata": {
+      "name": "spine1-spine2-tor3-lag",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "configs": [
+        {
+          "config": "{\n  \"activation-timer\": 0\n}",
+          "operation": "Update",
+          "path": ".system.network-instance.protocols.evpn.ethernet-segments.bgp-instance{.id==1}.ethernet-segment{.name==\"spine1-spine2-tor3-lag\"}.df-election.timers"
+        }
+      ],
+      "endpoints": [
+        "spine1",
+        "spine2"
+      ],
+      "operatingSystem": "srl",
+      "priority": 100
+    }
+  },
+  {
+    "apiVersion": "siteinfo.eda.nokia.com/v1alpha1",
+    "kind": "DefaultMTU",
+    "metadata": {
+      "name": "default-port-mtu",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "interfaceMTU": 9232,
+      "layer2SubifMTU": 9232,
+      "layer3MTU": 9200,
+      "nodeSelector": [
+        "eda.nokia.com/role=collapsed-spine"
+      ]
+    }
+  },
+  {
+    "apiVersion": "siteinfo.eda.nokia.com/v1alpha1",
+    "kind": "Banner",
+    "metadata": {
+      "name": "nvd-banner",
+      "namespace": "eda",
+      "labels": {
+        "eda.nokia.com/managed-by": "nvd-automation",
+        "eda.nokia.com/nvd-design": "collapsed-spine"
+      }
+    },
+    "spec": {
+      "loginBanner": "NVD: collapsed-spine",
+      "nodeSelector": [
+        "eda.nokia.com/role=collapsed-spine",
+        "eda.nokia.com/role=tor"
+      ]
+    }
+  }
+]
