@@ -16,7 +16,7 @@ Usage:
     --mode eda
 
 Common options:
-    [--list-designs]
+    [--list-designs] [--version]
     [--generate-only] [--generate-clab] [--diff] [--fail-on-diff]
     [--phase {topology,fabric,services}]
     [--destroy] [--dry-run] [--prune] [--yes]
@@ -38,6 +38,7 @@ import logging
 import os
 import sys
 import time
+from importlib.metadata import PackageNotFoundError, version as pkg_version
 from pathlib import Path
 from typing import Any
 
@@ -63,12 +64,28 @@ from automation.generators.eda_generator import generate as eda_generate
 # Marker for machine-readable consumers (CI pipelines).
 DEPLOY_SUMMARY_MARKER = "[NVD-DEPLOY-SUMMARY]"
 
+_PACKAGE_NAME = "nokia-validated-designs"
+
+
+def get_version() -> str:
+    """Return the installed ``nokia-validated-designs`` package version.
+
+    The version is declared once in ``pyproject.toml`` and copied into
+    distribution metadata at install time; this reads that metadata.
+    """
+    try:
+        return pkg_version(_PACKAGE_NAME)
+    except PackageNotFoundError:
+        return "0.0.0+unknown"
+
+
 # Value of ``environment`` in topology.yaml that targets real hardware.
 PHYSICAL_ENVIRONMENT = "physical"
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
+        prog="nvd",
         description="Nokia Validated Design automation engine",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -85,6 +102,11 @@ def main() -> int:
         "--list-designs",
         action="store_true",
         help="List the validated designs this engine can deploy, and exit",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {get_version()}",
     )
 
     parser.add_argument(
