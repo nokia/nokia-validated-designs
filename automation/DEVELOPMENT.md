@@ -349,6 +349,21 @@ paths and values. Call it from the appropriate phase entry point (likely
 `build_services_updates()`). If the ACL JSON-RPC schema differs across
 SR Linux versions, override the function in `v25_3.py` and/or `v26.py`.
 
+**File:** `automation/generators/ansible_vars_contract.py`
+
+Declare the new `acls` key in `GROUPS` and add it to the phase's entry in
+`ROLE_VARS`. This is not optional bookkeeping: the contract renders both the
+project's vars JSON Schema and each role's `meta/argument_specs.yml`, so an
+undeclared key is rejected by the schema the generator itself writes — the
+editor would tell operators your new key is a typo. Mirror the model types
+exactly; a field that is `int | None` on the intent must be `raw` with
+`json_type=("integer", "null")`, because Ansible argument specs cannot express
+a union and will fail converting `None` to `int`.
+
+`tests/unit/test_ansible_vars_contract.py` scans the builder sources for
+`hv.get("...")` lookups and fails on any key missing from the contract, so
+skipping this step breaks the build rather than shipping silently.
+
 ### 2i. Add tests
 
 - **Builder test:** In `tests/unit/test_builder.py`, verify the new
@@ -375,6 +390,7 @@ SR Linux versions, override the function in `v25_3.py` and/or `v26.py`.
 | `executors/eda.py` | Phase/destroy mappings |
 | `generators/ansible_generator.py` | host_vars integration |
 | `generators/ansible_filter_plugins/srl_builders/default.py` | JSON-RPC builder |
+| `generators/ansible_vars_contract.py` | Vars declaration (renders the project schema + role argument specs) |
 | `tests/unit/test_*.py` | Coverage for the new resource |
 
 ---

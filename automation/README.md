@@ -529,6 +529,40 @@ This happens inside the `srl_builders` filter plugins during Ansible execution:
 Running without `--tags` applies all phases. With `--tags full`, pruning of
 stale resources is also performed.
 
+### The vars contract
+
+`inputs/` is schema-validated, but the generated `group_vars/`+`host_vars/` are
+the surface operators actually edit on Day-2 — and every builder reads them
+with `hv.get(key, default)`, so a misspelled key is silently ignored. Under
+`purge: true` that is worse than a no-op: the prune phase compares live device
+state against the intent the builders saw, so a key that failed to register
+gets its config **deleted** from the device.
+
+`ansible_vars_contract.py` declares that surface once and renders it into the
+project two ways:
+
+| Artifact | Checked when | Catches |
+|----------|--------------|---------|
+| `schemas/ansible_vars_schema.json`, referenced from a `# yaml-language-server: $schema=` directive at the top of every vars file | In the editor, and in CI via `check-jsonschema` | Unknown **top-level** keys, wrong types, bad enums, missing required keys, full nesting |
+| `roles/<role>/meta/argument_specs.yml`, validated by ansible-core on role entry | At playbook runtime | Misspelled **nested** keys, missing required keys, wrong types — against the merged group_vars + host_vars scope the builders actually receive |
+
+Both are needed. Role argument specs only collect the variables a role
+declares, so a top-level typo (`irb_interfacs:`) passes runtime validation
+untouched; the schema catches that but never sees the merged scope. The
+`ROLE_VARS` mapping keeps each role's spec to the keys its phase reads, which
+is also why a spine never trips over leaf-only structure.
+
+Some keys are declared but marked `consumed=False`: the generator emits them
+(so a project round-trips through its own schema) while the builders hardcode
+the corresponding device config. They render with an explicit "NOT read"
+note in both artifacts and are listed in the generated README, so nobody tunes
+a value that cannot take effect. `inert_var_paths()` enumerates them.
+
+When you teach a builder a new key, declare it here in the same change:
+`tests/unit/test_ansible_vars_contract.py` scans the builder sources for
+`hv.get("...")` lookups and fails on any key the contract does not know.
+Otherwise the new key works but the schema tells operators it is a typo.
+
 ## EDA vs Ansible: Where the Smarts Live
 
 | Concern | EDA Mode | Ansible Mode |
