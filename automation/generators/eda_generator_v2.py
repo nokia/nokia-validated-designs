@@ -1,5 +1,5 @@
 """
-EDA CR generator — 26.4.x (services/protocols v2) backend.
+EDA CR generator — 26.4.x / 26.8.x (services/protocols v2) backend.
 
 EDA 26.4 graduated ``services`` and ``protocols`` to **v2** and most other
 groups from ``v1alpha1`` to ``v1``, with breaking spec changes (``vni`` →
@@ -15,6 +15,14 @@ Init (``mgmt`` DHCP fields dropped in bootstrap v1) and Interface (recased
 ``type``/``encapType`` enums + LACP/multi-homing field renames) — are
 reimplemented here against the ``eda_models.eda_26_4`` models.
 
+26.8 shares this backend: its fabric-path spec shapes are a strict superset of
+26.4's (additive fields and widened enums only, verified by diffing the 26.4
+OpenAPI specs against a fresh 26.8.1 cluster's CRDs), so it reuses the same
+``eda_models.eda_26_4`` models. Where 26.8 does diverge is the AI-fabric kinds:
+all four of their groups graduated and ``Backend`` carries breaking renames, so
+those builders work against ``eda_models.eda_26_8`` and are gated on the
+profile's ``supports_ai_fabrics`` — 26.4 still refuses them.
+
 Entry point: :func:`generate`, dispatched to from
 ``eda_generator.generate`` when the selected registry's
 ``generator_variant`` is ``"v2"``.
@@ -29,20 +37,27 @@ from pathlib import Path
 
 from automation.eda_models.profiles import Registry
 from automation.core.models import (
+    AiBackendIntent,
     BannerIntent,
     BridgeDomainIntent,
     ConfigletIntent,
     DefaultMtuIntent,
     EdgeInterfaceIntent,
     FabricConfigInput,
+    FabricDefinitionIntent,
     FabricIntent,
+    ForwardingClassIntent,
     IrbInterfaceIntent,
     LagIntent,
+    NamespaceIntent,
+    NodeGroupIntent,
     PolicyStatementIntent,
     PrefixSetIntent,
+    QueueIntent,
     RoutedInterfaceIntent,
     RouterIntent,
     RoutingPolicyIntent,
+    TopologyGroupingIntent,
     VlanIntent,
 )
 
@@ -106,6 +121,27 @@ from automation.eda_models.eda_26_4.interfaces import (
     InterfaceEthernet,
 )
 
+# AI-fabric models. These groups all graduated in 26.8 (aifabrics v1alpha1 -> v1,
+# qos v1 -> v2, aaa v1alpha1 -> v1, topologies v1alpha1 -> v1) with breaking
+# renames on Backend, so they live in their own package rather than being reused
+# from eda_26_4 like the fabric-path models above. Only reachable from a profile
+# whose ``supports_ai_fabrics`` is set, which today means 26.8.
+from automation.eda_models.eda_26_8.aifabrics import (
+    BackendSpec,
+    BackendStripes,
+    BackendStripeConnector,
+    BackendRocev2Qos,
+    BackendGpuIsolationGroups,
+)
+from automation.eda_models.eda_26_8.qos import QueueSpec
+from automation.eda_models.eda_26_8.aaa import NodeGroupSpec
+from automation.eda_models.eda_26_8.topologies import (
+    TopologyGroupingSpec,
+    TopologyGroupingGroupSelectors,
+    TopologyGroupingTierSelectors,
+)
+from automation.eda_models.eda_26_8.core import NamespaceSpec
+
 logger = logging.getLogger(__name__)
 
 
@@ -144,28 +180,47 @@ def generate(
     v1._bind_registry(registry)
     reg = registry
 
-    # This backend is single-namespace and single-Fabric by construction. Rather
-    # than silently flatten a multi-fabric intent into one namespace (which
-    # would deploy a wrong-but-plausible fabric), refuse it: the v2 spec shapes
-    # for the AI-fabric kinds have not been verified against a live 26.4
-    # cluster, so there is nothing correct to emit yet.
-    unsupported: list[str] = []
-    if intent.ai_backends:
-        unsupported.append("ai_backends")
-    if intent.fabrics:
-        unsupported.append("fabrics")
-    if len(intent.namespaces_in_use()) > 1:
-        unsupported.append("multiple namespaces")
-    if unsupported:
-        raise ValueError(
-            f"Design '{intent.design}' uses {', '.join(unsupported)}, which the "
-            f"EDA {reg.eda_version} (v2) CR backend does not support. Target a "
-            f"25.12 cluster, or pass --eda-version 25.12 to generate 25.12 CRs."
-        )
+    # Multi-fabric / multi-namespace designs hang off the AI-fabric kinds, whose
+    # spec shapes were never read off a live 26.4 cluster. Rather than silently
+    # flatten such an intent into one namespace (which would deploy a
+    # wrong-but-plausible fabric), refuse it on releases whose profile does not
+    # claim AI-fabric support. 26.8 does claim it — its shapes are verified.
+    if not reg.supports_ai_fabrics:
+        unsupported: list[str] = []
+        if intent.ai_backends:
+            unsupported.append("ai_backends")
+        if intent.fabrics:
+            unsupported.append("fabrics")
+        if len(intent.namespaces_in_use()) > 1:
+            unsupported.append("multiple namespaces")
+        if unsupported:
+            raise ValueError(
+                f"Design '{intent.design}' uses {', '.join(unsupported)}, which "
+                f"the EDA {reg.eda_version} (v2) CR backend does not support. "
+                f"Target a 25.12 or 26.8 cluster, or pass --eda-version 25.12 "
+                f"to generate 25.12 CRs."
+            )
 
-    ns = intent.eda.namespace
     design = intent.design
     resources: list[dict] = []
+
+    # Namespace resolution, mirroring the v1 generator: ``intent.ns_of()`` falls
+    # back to the intent default for any resource that does not pin a namespace,
+    # so single-fabric designs behave exactly as they did when this backend read
+    # one ``ns`` up front.
+    ns = intent.eda.namespace
+    _ns = intent.ns_of
+    # Every namespace that needs the shared bootstrap resources (Init, NodeUser,
+    # NodeProfile). Derived from where the *nodes* live rather than from
+    # namespaces_in_use(): a namespace holding only eda-system-scoped resources
+    # has nothing to onboard.
+    node_namespaces: list[str] = []
+    for node in intent.nodes:
+        node_ns = _ns(node)
+        if node_ns not in node_namespaces:
+            node_namespaces.append(node_ns)
+    if not node_namespaces:
+        node_namespaces = [ns]
 
     # 26.4 renders a *static* mgmt0 address from TopoNode.productionAddress
     # (25.12 used Init mgmt DHCP, which is gone in bootstrap v1). SR Linux
@@ -178,132 +233,195 @@ def generate(
     except ValueError:
         _mgmt_prefix = 24
 
-    # 1. Init
-    resources.append(_cr_init(ns, design, reg))
+    # 0. Namespaces themselves (created in eda-system, before anything in them)
+    for nsi in intent.namespaces:
+        resources.append(_cr_namespace(nsi, design, reg))
 
-    # 2. NodeUser
+    # 0b. TopologyGrouping (topology view; independent of fabric resources)
+    for grouping in intent.topology_groupings:
+        resources.append(_cr_topology_grouping(grouping, design, reg))
+
+    # 1. Init — one per namespace that owns nodes
+    for node_ns in node_namespaces:
+        resources.append(_cr_init(node_ns, design, reg))
+
+    # 1b. NodeGroups — must precede NodeUser, whose groupBindings reference them
+    for group in intent.node_groups:
+        resources.append(_cr_node_group(group, _ns(group), design, reg))
+
+    # 2. NodeUser — one per namespace that owns nodes
     creds = intent.credentials
-    resources.append(v1._cr_node_user(ns, design, creds.username, creds.password))
+    for node_ns in node_namespaces:
+        resources.append(
+            v1._cr_node_user(node_ns, design, creds.username, creds.password)
+        )
 
-    # 3. NodeProfile
+    # 3. NodeProfile — derived from node version, one per namespace
     node_version = intent.nodes[0].version if intent.nodes else ""
     profile_name = intent.eda.node_profile or f"clab-srlinux-{node_version}"
     if node_version:
-        resources.append(
-            v1._cr_node_profile(
-                ns, profile_name, node_version, design, creds.username, creds.password
+        for node_ns in node_namespaces:
+            resources.append(
+                v1._cr_node_profile(
+                    node_ns, profile_name, node_version, design,
+                    creds.username, creds.password,
+                )
             )
-        )
 
     # 4. TopoNodes (productionAddress.ipv4 zoned to a CIDR — see _mgmt_prefix above)
     for node in intent.nodes:
-        cr = v1._cr_topo_node(node, profile_name, ns, design)
+        cr = v1._cr_topo_node(node, profile_name, _ns(node), design)
         pa = cr.get("spec", {}).get("productionAddress") or {}
         ipv4 = pa.get("ipv4")
         if ipv4 and "/" not in ipv4:
             pa["ipv4"] = f"{ipv4}/{_mgmt_prefix}"
         resources.append(cr)
 
-    # 5. ISL interfaces
-    seen_isl: set[tuple[str, str]] = set()
+    # 5. ISL interfaces. Keyed by namespace too: the same node name in two
+    # namespaces is two nodes.
+    seen_isl: set[tuple[str, str, str]] = set()
     for link in intent.links:
+        link_ns = _ns(link)
         for node, iface in (
             (link.local_node, link.local_interface),
             (link.remote_node, link.remote_interface),
         ):
-            key = (node, iface)
+            key = (link_ns, node, iface)
             if key in seen_isl:
                 continue
             seen_isl.add(key)
-            resources.append(_cr_interface_isl(node, iface, ns, design, reg))
+            resources.append(_cr_interface_isl(node, iface, link_ns, design, reg))
 
     # 6. Edge interfaces
     for ei in intent.edge_interfaces:
-        resources.append(_cr_interface_edge(ei, ns, design, reg))
+        resources.append(_cr_interface_edge(ei, _ns(ei), design, reg))
 
     # 7. LAG member interfaces
     for lag in intent.lags:
         for member in lag.members:
             resources.append(
-                _cr_interface_lag_member(member.node, member.interface, ns, design, reg)
+                _cr_interface_lag_member(
+                    member.node, member.interface, _ns(lag), design, reg
+                )
             )
 
     # 8. LAG interfaces
     for lag in intent.lags:
-        resources.append(_cr_interface_lag(lag, ns, design, reg))
+        resources.append(_cr_interface_lag(lag, _ns(lag), design, reg))
 
     # 9. Links
     for link in intent.links:
-        resources.append(v1._cr_topo_link(link, ns, design))
+        resources.append(v1._cr_topo_link(link, _ns(link), design))
 
-    # 10. ASN allocation pools
-    if v1._is_collapsed_spine(intent):
-        resources.append(
-            v1._cr_index_allocation_pool(
-                "collapsed-spine-asn", intent.leaf_asn_start, 20, ns, design
-            )
-        )
+    # 10-11. Allocation pools. A design that declares its own pools (any
+    # multi-fabric design must, since each fabric needs its own) owns them
+    # outright; otherwise they are synthesized from the intent's ASN/prefix
+    # scalars for the single fabric.
+    if intent.index_pools or intent.ip_pools:
+        for ipool in intent.index_pools:
+            resources.append(v1._cr_index_pool(ipool, _ns(ipool), design))
+        for ippool in intent.ip_pools:
+            resources.append(v1._cr_ip_pool(ippool, _ns(ippool), design))
     else:
+        if v1._is_collapsed_spine(intent):
+            resources.append(
+                v1._cr_index_allocation_pool(
+                    "collapsed-spine-asn", intent.leaf_asn_start, 20, ns, design
+                )
+            )
+        else:
+            resources.append(
+                v1._cr_index_allocation_pool(
+                    "leaf-asn", intent.leaf_asn_start, 20, ns, design
+                )
+            )
+            resources.append(
+                v1._cr_index_allocation_pool("spine-asn", intent.spine_asn, 10, ns, design)
+            )
         resources.append(
-            v1._cr_index_allocation_pool("leaf-asn", intent.leaf_asn_start, 20, ns, design)
-        )
-        resources.append(
-            v1._cr_index_allocation_pool("spine-asn", intent.spine_asn, 10, ns, design)
+            v1._cr_ip_allocation_pool("system0", intent.system0_prefix, ns, design)
         )
 
-    # 11. IP allocation pool (system0)
-    resources.append(
-        v1._cr_ip_allocation_pool("system0", intent.system0_prefix, ns, design)
-    )
+    # 11a. Seed the pools EDA would have installed into any namespace the design
+    # creates itself. A design's own declaration always wins.
+    declared_pools = {(_ns(p), p.name) for p in intent.index_pools}
+    for nsi in intent.namespaces:
+        for pool_name, (start, size) in v1._EDA_DEFAULT_INDEX_POOLS.items():
+            if (nsi.name, pool_name) in declared_pools:
+                continue
+            resources.append(
+                v1._cr_index_allocation_pool(pool_name, start, size, nsi.name, design)
+            )
+
+    # 11b. QoS scaffolding — Queues and ForwardingClasses that the AI Backend's
+    # RoCEv2 policies bind to, so they must exist before it.
+    for fc in intent.forwarding_classes:
+        resources.append(_cr_forwarding_class(fc, _ns(fc), design, reg))
+    for queue in intent.queues:
+        resources.append(_cr_queue(queue, _ns(queue), design, reg))
 
     # 12. Routing policy — PrefixSets + Policies before Fabric.
     for ps in intent.prefix_sets:
         if ps.internal:
             continue
-        resources.append(_cr_prefix_set(ps, ns, design, reg))
+        resources.append(_cr_prefix_set(ps, _ns(ps), design, reg))
     for rp in intent.routing_policies:
         if rp.internal:
             continue
-        resources.append(_cr_policy(rp, ns, design, reg))
+        resources.append(_cr_policy(rp, _ns(rp), design, reg))
 
-    # 13. Fabric
-    resources.append(_cr_fabric(intent, ns, design, reg))
+    # 13. Fabrics. Explicit definitions win; otherwise one Fabric is
+    # synthesized from the intent's node roles (the single-fabric path).
+    if intent.fabrics:
+        for fabric in intent.fabrics:
+            resources.append(_cr_fabric_definition(fabric, _ns(fabric), design, reg))
+    else:
+        resources.append(_cr_fabric(intent, ns, design, reg))
 
-    # 13. Bridge domains
+    # 13b. AI backend fabrics
+    for backend in intent.ai_backends:
+        resources.append(_cr_ai_backend(backend, _ns(backend), design, reg))
+
+    # 13c. Bridge domains
     for bd in intent.bridge_domains:
-        resources.append(_cr_bridge_domain(bd, ns, design, reg))
+        resources.append(_cr_bridge_domain(bd, _ns(bd), design, reg))
 
     # 14. Routers
     for router in intent.routers:
-        resources.append(_cr_router(router, ns, design, reg))
+        resources.append(_cr_router(router, _ns(router), design, reg))
 
     # 15. IRB interfaces
     for irb in intent.irb_interfaces:
-        resources.append(_cr_irb_interface(irb, ns, design, reg))
+        resources.append(_cr_irb_interface(irb, _ns(irb), design, reg))
 
     # 16. VLANs
     for vlan in intent.vlans:
-        resources.append(_cr_vlan(vlan, ns, design, reg))
+        resources.append(_cr_vlan(vlan, _ns(vlan), design, reg))
 
     # 17. Routed interfaces
     for ri in intent.routed_interfaces:
-        resources.append(_cr_routed_interface(ri, ns, design, reg))
+        resources.append(_cr_routed_interface(ri, _ns(ri), design, reg))
 
     # 18. Static routes (unchanged spec shape — reuse v1)
     for sr in intent.static_routes:
-        resources.append(v1._cr_static_route(sr, ns, design))
+        resources.append(v1._cr_static_route(sr, _ns(sr), design))
 
-    # 19. Configlets
+    # 19. Configlets — dynamic load balancing first, matching the order the
+    #     design used to emit it in.
+    for backend in intent.ai_backends:
+        ns = _ns(backend)
+        for cfglet in v1.dlb_configlet_intents(backend, ns, design):
+            resources.append(_cr_configlet(cfglet, ns, design, reg))
     for cfglet in intent.configlets:
-        resources.append(_cr_configlet(cfglet, ns, design, reg))
+        resources.append(_cr_configlet(cfglet, _ns(cfglet), design, reg))
 
     # 20. Default MTUs
     for mtu in intent.default_mtus:
-        resources.append(_cr_default_mtu(mtu, ns, design, reg))
+        resources.append(_cr_default_mtu(mtu, _ns(mtu), design, reg))
 
     # 21. Banners
     for banner in intent.banners:
-        resources.append(_cr_banner(banner, ns, design, reg))
+        resources.append(_cr_banner(banner, _ns(banner), design, reg))
 
     if output_dir:
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -946,4 +1064,214 @@ def _cr_fabric(intent: FabricIntent, ns: str, design: str, reg: Registry) -> dic
     spec = FabricSpec(**fabric_kwargs)
     return v1._wrap_cr(
         reg.FABRIC.api_version, reg.FABRIC.kind, intent.fabric_name, ns, spec, origin=design
+    )
+
+
+def _cr_fabric_definition(
+    fabric: FabricDefinitionIntent, ns: str, design: str, reg: Registry
+) -> dict:
+    """Fabric CR from an explicit fabric definition (v2).
+
+    The counterpart to :func:`_cr_fabric`, which infers a single Fabric from the
+    intent's node roles. Here the selectors and pools are stated outright,
+    because a multi-fabric intent cannot infer which nodes belong to which
+    fabric from roles alone — several fabrics each have leaves and spines.
+    """
+    cfg = fabric.fabric_config
+    underlay = _build_underlay_protocol_v2(cfg, [], [])
+    overlay = _build_overlay_protocol_v2(
+        cfg, fabric.leaf_node_selector, fabric.spine_node_selector
+    )
+    isl = _build_inter_switch_links_v2(cfg)
+    if fabric.inter_switch_link_selector:
+        isl.link_selectors = list(fabric.inter_switch_link_selector)
+
+    if underlay.bgp is not None and fabric.leaf_asn_pool:
+        underlay.bgp.asn_pool = fabric.leaf_asn_pool
+
+    spec = FabricSpec(
+        system_pool_i_pv4=fabric.system_pool_ipv4 or None,
+        leafs=FabricLeafs(
+            leaf_node_selectors=list(fabric.leaf_node_selector) or None,
+            asn_pool=fabric.leaf_asn_pool or None,
+        ),
+        spines=(
+            FabricSpines(
+                spine_node_selectors=list(fabric.spine_node_selector),
+                asn_pool=fabric.spine_asn_pool or None,
+            )
+            if fabric.spine_node_selector
+            else None
+        ),
+        inter_switch_links=isl,
+        underlay_protocol=underlay,
+        overlay_protocol=overlay,
+    )
+    return v1._wrap_cr(
+        reg.FABRIC.api_version, reg.FABRIC.kind, fabric.name, ns, spec, origin=design
+    )
+
+
+# ---------------------------------------------------------------------------
+# AI-fabric kinds (26.8: aifabrics v1, qos v2, aaa v1, topologies v1)
+# ---------------------------------------------------------------------------
+
+
+def _cr_namespace(nsi: NamespaceIntent, design: str, reg: Registry) -> dict:
+    """Namespace CR. Spec shape is unchanged from 25.12.
+
+    The CR itself lives in ``eda-system`` (or whatever ``parent_namespace``
+    says); ``metadata.name`` is the namespace being created.
+    """
+    spec = NamespaceSpec(description=nsi.description or None)
+    return v1._wrap_cr(
+        reg.NAMESPACE.api_version, reg.NAMESPACE.kind, nsi.name,
+        nsi.parent_namespace, spec, origin=design,
+    )
+
+
+def _cr_node_group(
+    group: NodeGroupIntent, ns: str, design: str, reg: Registry
+) -> dict:
+    """AAA NodeGroup CR. Spec shape is unchanged from 25.12; only the group
+    version moved (``aaa`` v1alpha1 -> v1)."""
+    spec = NodeGroupSpec(
+        services=list(group.services),
+        superuser=group.superuser,
+    )
+    return v1._wrap_cr(
+        reg.NODE_GROUP.api_version, reg.NODE_GROUP.kind, group.name, ns, spec,
+        origin=design,
+    )
+
+
+def _cr_topology_grouping(
+    grouping: TopologyGroupingIntent, design: str, reg: Registry
+) -> dict:
+    """TopologyGrouping CR (the fabric's topology view).
+
+    ``groupSelectors[].groupUIName`` is new in 26.8 and *required*. The intent
+    carries no per-group UI name, so it falls back to the group key — which is
+    what the field's own documentation says the UI would display anyway.
+    """
+    spec = TopologyGroupingSpec(
+        group_selectors=[
+            TopologyGroupingGroupSelectors(
+                group=gs.group,
+                group_ui_name=gs.group,
+                node_selector=list(gs.node_selector) or None,
+            )
+            for gs in grouping.group_selectors
+        ] or None,
+        tier_selectors=[
+            TopologyGroupingTierSelectors(
+                tier=ts.tier,
+                node_selector=list(ts.node_selector) or None,
+            )
+            for ts in grouping.tier_selectors
+        ] or None,
+        ui_name=grouping.ui_name or grouping.name,
+        ui_description=grouping.ui_description or None,
+    )
+    return v1._wrap_cr(
+        reg.TOPOLOGY_GROUPING.api_version, reg.TOPOLOGY_GROUPING.kind,
+        grouping.name, grouping.namespace, spec, origin=design,
+    )
+
+
+def _cr_queue(queue: QueueIntent, ns: str, design: str, reg: Registry) -> dict:
+    """QoS Queue CR (v2). The ``queueType`` enum was recased ``Pfc`` -> ``PFC``."""
+    spec = QueueSpec(
+        queue_id=queue.queue_id,
+        queue_type="PFC" if queue.queue_type == "Pfc" else queue.queue_type,
+        traffic_type=queue.traffic_type,
+    )
+    return v1._wrap_cr(
+        reg.QUEUE.api_version, reg.QUEUE.kind, queue.name, ns, spec, origin=design
+    )
+
+
+def _cr_forwarding_class(
+    fc: ForwardingClassIntent, ns: str, design: str, reg: Registry
+) -> dict:
+    """QoS ForwardingClass CR (v2).
+
+    The spec is still an empty object on qos v2 — the resource is purely its
+    name — so this is built from a raw ``{}`` rather than a typed model.
+    """
+    return v1._wrap_cr_raw(
+        reg.FORWARDING_CLASS.api_version, reg.FORWARDING_CLASS.kind, fc.name, ns,
+        {}, origin=design,
+    )
+
+
+def _cr_ai_backend(
+    backend: AiBackendIntent, ns: str, design: str, reg: Registry
+) -> dict:
+    """aifabrics Backend CR (v1) — a rail-optimized AI fabric.
+
+    26.8 renamed a number of fields relative to the 25.12 v1alpha1 shape:
+    ``systemPoolIPV4`` -> ``systemPoolIPv4`` (on the spec, stripes and the
+    stripe connector), the singular ``nodeSelector``/``linkSelector``/
+    ``interfaceSelector`` -> plural, ``gpuVlan`` -> ``gpuVLAN``, and the RoCEv2
+    timers/burst size gained explicit units (``pfcDeadlock*Timer`` -> ``*TimerMs``,
+    ``queueMaximumBurstSize`` -> ``queueMaximumBurstSizeBytes``). The intent
+    field names are unchanged; only the aliases on the 26.8 models differ.
+
+    ``dynamicLoadBalancing`` is new in 26.8 but deliberately left unset —
+    see ``dlb_configlet_intents`` for why the configlet rendering is kept.
+    ``addressAllocation`` is left unset so EDA applies its own defaults, and
+    ``type`` is omitted because its ``overlay`` sub-field is mandatory once the
+    block is present — the intent has nothing to say about either yet.
+    """
+    qos = backend.rocev2_qos
+    connector = backend.stripe_connector
+    spec = BackendSpec(
+        system_pool_i_pv4=backend.system_pool_ipv4 or None,
+        asn_pool=backend.asn_pool or None,
+        ip_mtu=backend.ip_mtu,
+        address_allocation=None,
+        dynamic_load_balancing=None,
+        type=None,
+        stripes=[
+            BackendStripes(
+                name=s.name,
+                stripe_id=s.stripe_id,
+                gpu_vlan=s.gpu_vlan,
+                node_selectors=list(s.node_selector),
+                asn_pool=s.asn_pool or None,
+                system_pool_i_pv4=s.system_pool_ipv4 or None,
+            )
+            for s in backend.stripes
+        ],
+        gpu_isolation_groups=[
+            BackendGpuIsolationGroups(
+                name=g.name,
+                interface_selectors=list(g.interface_selector),
+            )
+            for g in backend.gpu_isolation_groups
+        ],
+        stripe_connector=(
+            BackendStripeConnector(
+                name=connector.name,
+                node_selectors=list(connector.node_selector),
+                link_selectors=list(connector.link_selector),
+                asn_pool=connector.asn_pool or None,
+                system_pool_i_pv4=connector.system_pool_ipv4 or None,
+            )
+            if connector is not None
+            else None
+        ),
+        rocev2_qo_s=BackendRocev2Qos(
+            ecn_max_drop_probability_percent=qos.ecn_max_drop_probability_percent,
+            ecn_slope_max_threshold_percent=qos.ecn_slope_max_threshold_percent,
+            ecn_slope_min_threshold_percent=qos.ecn_slope_min_threshold_percent,
+            pfc_deadlock_detection_timer_ms=qos.pfc_deadlock_detection_timer,
+            pfc_deadlock_recovery_timer_ms=qos.pfc_deadlock_recovery_timer,
+            queue_maximum_burst_size_bytes=qos.queue_maximum_burst_size,
+        ),
+    )
+    return v1._wrap_cr(
+        reg.AI_BACKEND.api_version, reg.AI_BACKEND.kind, backend.name, ns, spec,
+        origin=design,
     )

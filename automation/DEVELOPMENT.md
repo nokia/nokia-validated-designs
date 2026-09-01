@@ -217,6 +217,81 @@ that's exactly the `eda_26_4` / `eda_generator_v2` setup described above.
 > per-node `nodesWithConfigChanges[].errors` ("Unable to load JSON … ip-prefix
 > … Must match the pattern") with `success:false` and no `generalErrors`.
 
+Second worked example — **EDA 26.8.1**, which shows the *partial* case: a release
+can be profile-only for most of the CR surface while still needing a new model
+package for a subset of groups.
+
+Every group on the fabric path serves the **same version as 26.4** (`services`
+and `protocols` on v2, the rest on v1), and diffing 26.4's OpenAPI specs against
+26.8's live CRDs for all 17 kinds the generator emits showed the changes are
+**additive only** — new optional fields and widened enums, no removals or
+renames. So `_PROFILE_26_8` sets `generator_variant="v2"` and reuses
+`eda_models/eda_26_4` unchanged; the 3-stage, collapsed-spine and
+unconstrained-3-stage snapshots are byte-identical between the two profiles, and
+a test asserts that. The mgmt0-as-CIDR requirement above applies unchanged.
+
+The AI-fabric groups did move, though: `aifabrics` v1alpha1 → **v1**, `qos` v1 →
+**v2**, plus `aaa` v1 and `topologies` v1. Those specs have genuinely breaking
+renames, so `eda_models/eda_26_8/` exists and holds **only** those groups
+(`Backend`, `Queue`, `NodeGroup`, `TopologyGrouping`, and `Namespace` from
+`core`) — everything else on the 26.8 path still resolves to `eda_26_4`. The
+renames the v2 AI builders handle: `systemPoolIPV4` → `systemPoolIPv4`,
+`nodeSelector`/`interfaceSelector`/`linkSelector` → plural, `gpuVlan` →
+`gpuVLAN`, RoCEv2 QoS fields gained unit suffixes (`…TimerMs`, `…SizeBytes`),
+the `Queue` type enum recased `Pfc` → `PFC`, and `TopologyGrouping`'s
+`GroupSelectors` gained a required `groupUIName`.
+
+Because AI-DC is verified on 25.12 and 26.8 but **not** on 26.4, the capability
+is a `Registry` flag (`supports_ai_fabrics`) rather than a version comparison —
+`eda_generator_v2` refuses AI-fabric kinds, multi-fabric and multi-namespace
+designs when it is unset, so 26.4 keeps rejecting the AI-DC design while 26.8
+generates it. 26.8 also adds the `26.7` SR Linux train.
+
+> **Re-homing nodes between EDA clusters needs a node wipe.** Tearing a design
+> down with `--destroy` deliberately leaves the node config intact, which means
+> the nodes keep the `EDA` TLS profile holding a cert issued by the *old*
+> cluster's `eda-node-ca`. A different cluster can't onboard them: it needs a
+> trusted gNSI session to install its own cert, but the node presents a cert
+> signed by a CA it doesn't trust. The nodes sit at `TopoNode` state
+> `NotOnBoarded` with `TargetNode.status.bootstrapStatus: CertInstall`
+> ("initializing gNSI certificate process") and the deploy never converges.
+> Redeploy the containerlab topology (`containerlab destroy --cleanup` +
+> `deploy`) so the nodes come back without the profile — `info from running
+> system grpc-server` should show `eda-mgmt` reporting *"Unable to retrieve TLS
+> profile 'EDA'"*. Onboarding then completes in about a minute.
+
+> **26.8's native `Backend.dynamicLoadBalancing` is not usable on AI-DC yet.**
+> The block looks like a clean replacement for the `dlb` +
+> `ip-load-balance-network-instance` configlets, and on `default` it renders
+> byte-identical config. But EDA binds the balancer into *every* network
+> instance the Backend owns, including the GPU isolation-group VRF
+> (`all-rails`). That VRF carries routes leaked from `default`, and binding the
+> balancer there drops their next-hop resolution: on 26.8.1 all 30 leaked rail
+> prefixes went to `Next hops: 0 entries`, costing every rail its ECMP paths
+> and leaving GPUs unable to reach their rail gateway (48 system-test failures,
+> 32 of them `test_rail_gateway`). Removing the block restored the next hops
+> immediately; applying the same `.system load-balancing` via configlet never
+> reproduced it. So `dynamic_load_balancing` is carried as intent on
+> `AiBackendIntent` and both generator backends render it as configlets — see
+> `eda_generator.dlb_configlet_intents`. Revisit if a later release scopes the
+> binding to the underlay instance.
+
+The 26.8 deploy was validated live against a 25.12 baseline of the same design
+(same 10 nodes, captured with `fcli -t <topo> -p 57410`; note EDA-managed nodes
+serve gNMI on **57410**, not fcli's default 57400). BGP peers, network
+instances, sub-interfaces, LAGs, IRBs, ethernet segments, VXLAN tunnels, LLDP
+neighbours and ARP entries all matched exactly, with 32/32 sessions established
+on both. The only differences are benign:
+
+| Difference | Cause |
+| --- | --- |
+| `!!! EDA Source CRs` annotations say `v1` not `v1alpha1` | group graduation; comment metadata only |
+| mgmt0 renders a static address instead of `dhcp-client` | bootstrap v1 dropped `ipv4DHCP`/`ipv6DHCP` (see above) |
+| loopback prefix-set widened to `0.0.0.0/0` + `::/0` | EDA 26.8 renderer, now dual-stack |
+| `maximum-paths` 32 → 128, `keep-all-routes false` added | changed EDA defaults |
+| VXLAN VNIs assigned to different bridge domains | pool allocation is order-dependent per deploy; still consistent fabric-wide |
+| MAC table has a few more `evpn`/`learnt` entries | dynamically learned hosts; all `evpn-static` and IRB entries identical |
+
 ---
 
 ## 2. Adding a New Resource Type (e.g., ACLs)

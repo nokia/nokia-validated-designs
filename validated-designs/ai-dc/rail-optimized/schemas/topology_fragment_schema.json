@@ -6,6 +6,44 @@
   "type": "object",
   "additionalProperties": false,
   "$defs": {
+    "dynamicLoadBalancing": {
+      "description": "Balance on measured link quality instead of a static hash. RoCEv2 elephant flows collide badly on static ECMP. Use true/false for the defaults, or a mapping to retune.",
+      "oneOf": [
+        { "type": "boolean" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Set false to turn dynamic load balancing off while keeping the tunables documented."
+            },
+            "mode": {
+              "type": "string",
+              "enum": ["Dynamic", "PerPacket"],
+              "description": "Dynamic reassigns flows from observed load; PerPacket sprays individual packets."
+            },
+            "flowset_size": {
+              "type": "integer",
+              "enum": [256, 512, 1024, 2048, 4096, 8192, 16384, 32768],
+              "description": "Flowset entries reserved per aggregate ECMP group."
+            },
+            "inactivity_timer_us": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535,
+              "description": "Flow inactivity timer in microseconds."
+            },
+            "sampling_interval_us": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 255,
+              "description": "Interface state sampling interval in microseconds."
+            }
+          }
+        }
+      ]
+    },
     "credentials": {
       "type": "object",
       "additionalProperties": false,
@@ -352,10 +390,7 @@
         "servers": {
           "$ref": "#/$defs/gpuServerGroup"
         },
-        "dynamic_load_balancing": {
-          "type": "boolean",
-          "description": "Balance on measured link quality instead of a static hash. RoCEv2 elephant flows collide badly on static ECMP."
-        },
+        "dynamic_load_balancing": { "$ref": "#/$defs/dynamicLoadBalancing" },
         "rocev2_qos": {
           "type": "object",
           "additionalProperties": false,

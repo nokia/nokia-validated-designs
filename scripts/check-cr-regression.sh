@@ -45,11 +45,12 @@ DESIGNS=(
     unconstrained-3-stage
     ai-dc/rail-optimized
 )
-PROFILES=(25.12 26.4)
-# ai-dc needs CR kinds the v2 (26.4) backend does not implement yet, and the
-# generator rejects that combination by design rather than emitting something
-# the cluster would refuse.
-PROFILES_ai_dc_rail_optimized=(25.12)
+PROFILES=(25.12 26.4 26.8)
+# ai-dc needs the AI-fabric kinds, whose CR shapes were never verified against a
+# live 26.4 cluster. The generator rejects that combination by design rather
+# than emitting something the cluster would refuse. 26.8's shapes *are*
+# verified, so it generates them.
+PROFILES_ai_dc_rail_optimized=(25.12 26.8)
 
 mode="check"
 [[ "${1:-}" == "--save" ]] && mode="save"

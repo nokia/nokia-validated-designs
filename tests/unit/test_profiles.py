@@ -32,7 +32,7 @@ class TestProfileSelection:
         assert len(list_eda_versions()) >= 2
 
     def test_profiles_keyed_by_major_minor(self):
-        assert set(list_eda_versions()) == {"25.12", "26.4"}
+        assert set(list_eda_versions()) == {"25.12", "26.4", "26.8"}
 
 
 class TestVersionMatching:
@@ -47,6 +47,9 @@ class TestVersionMatching:
             ("25.12.4", "25.12"),
             ("25.12.7", "25.12"),
             ("v25.12.0-abc", "25.12"),
+            ("26.8", "26.8"),
+            ("26.8.1", "26.8"),
+            ("v26.8.1-2608202030-ge91888ac", "26.8"),
         ],
     )
     def test_normalize_eda_version(self, given, expected):
@@ -99,9 +102,66 @@ class TestApiVersionVariesByProfile:
         assert reg.CONFIGLET.api_version == "config.eda.nokia.com/v1"
         assert reg.BANNER.api_version == "siteinfo.eda.nokia.com/v1"
 
+    def test_26_8_group_versions(self):
+        """Verified against a freshly-installed 26.8.1 cluster's api-resources +
+        /openapi/v3 discovery. The fabric-path groups match 26.4 exactly; the
+        four AI-fabric groups are where 26.8 moves on."""
+        reg = get_registry("26.8.1")
+        assert reg.group_versions == {
+            "bootstrap": "v1",
+            "core": "v1",
+            "interfaces": "v1",
+            "fabrics": "v1",
+            "services": "v2",
+            "protocols": "v2",
+            "config": "v1",
+            "siteinfo": "v1",
+            "routingpolicies": "v1",
+            "aifabrics": "v1",
+            "qos": "v2",
+            "aaa": "v1",
+            "topologies": "v1",
+        }
+
+    def test_26_8_ai_fabric_groups_graduated_past_26_4(self):
+        r26_8 = get_registry("26.8.1")
+        r26_4 = get_registry("26.4.2")
+        assert r26_8.AI_BACKEND.api_version == "aifabrics.eda.nokia.com/v1"
+        assert r26_8.QUEUE.api_version == "qos.eda.nokia.com/v2"
+        assert r26_8.FORWARDING_CLASS.api_version == "qos.eda.nokia.com/v2"
+        assert r26_8.NODE_GROUP.api_version == "aaa.eda.nokia.com/v1"
+        assert r26_8.TOPOLOGY_GROUPING.api_version == "topologies.eda.nokia.com/v1"
+        for attr in ("AI_BACKEND", "QUEUE", "NODE_GROUP", "TOPOLOGY_GROUPING"):
+            assert getattr(r26_8, attr).api_version != getattr(r26_4, attr).api_version
+
+    def test_26_8_shares_fabric_path_versions_with_26_4(self):
+        """The reason 26.8 can reuse the v2 generator and the eda_26_4 models."""
+        r26_8 = get_registry("26.8.1")
+        r26_4 = get_registry("26.4.2")
+        shared = (
+            "bootstrap", "core", "interfaces", "fabrics", "services",
+            "protocols", "config", "siteinfo", "routingpolicies",
+        )
+        for group in shared:
+            assert r26_8.group_versions[group] == r26_4.group_versions[group]
+
     def test_26_4_uses_v2_generator(self):
         assert get_registry("26.4.2").generator_variant == "v2"
         assert get_registry("25.12.4").generator_variant == "v1"
+        assert get_registry("26.8.1").generator_variant == "v2"
+
+    def test_ai_fabric_support_gated_to_verified_profiles(self):
+        """26.4's AI-fabric group versions were never read off a live cluster,
+        so the v2 backend still refuses those designs there. 26.8's are."""
+        assert get_registry("26.8.1").supports_ai_fabrics is True
+        assert get_registry("25.12.4").supports_ai_fabrics is True
+        assert get_registry("26.4.2").supports_ai_fabrics is False
+
+    def test_26_8_supports_srl_26_7_train(self):
+        """26.8 ships a srlinux-ghcr-26.7.1 artifact that earlier releases lack."""
+        assert get_registry("26.8.1").check_srl_version("26.7.1") is None
+        assert get_registry("26.4.2").check_srl_version("26.7.1") is not None
+        assert get_registry("25.12.4").check_srl_version("26.7.1") is not None
 
     def test_26_4_and_25_12_differ_in_api_versions(self):
         r26 = get_registry("26.4.2")

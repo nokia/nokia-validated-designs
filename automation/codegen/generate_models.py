@@ -130,6 +130,48 @@ RESOURCE_MAP_26_4: dict[str, tuple[str, list[str]]] = {
 }
 
 
+# EDA 26.8.x (fresh install) resource map. Deliberately *partial*: 26.8's spec
+# shapes for the fabric-path kinds are a strict superset of 26.4's (additive
+# fields and widened enums only, verified by diffing the 26.4 specs against the
+# live 26.8 CRDs), so those models are reused from ``eda_models.eda_26_4``
+# rather than duplicated here.
+#
+# What is 26.8-specific is the AI-fabric set. All four groups graduated
+# (``aifabrics`` v1alpha1 -> v1, ``qos`` v1 -> v2, ``aaa`` v1alpha1 -> v1,
+# ``topologies`` v1alpha1 -> v1) and ``Backend`` in particular carries breaking
+# renames vs 25.12 (``systemPoolIPV4`` -> ``systemPoolIPv4``, ``nodeSelector``
+# -> ``nodeSelectors``, ``gpuVlan`` -> ``gpuVLAN``, ``interfaceSelector`` ->
+# ``interfaceSelectors``, ``pfcDeadlock*Timer`` -> ``*TimerMs``,
+# ``queueMaximumBurstSize`` -> ``queueMaximumBurstSizeBytes``). ``Namespace``
+# is included because the multi-namespace AI design needs it and it is absent
+# from ``RESOURCE_MAP_26_4``.
+#
+# ForwardingClass is intentionally absent for the same reason as in
+# ``RESOURCE_MAP``: its spec is still an empty object on qos v2.
+RESOURCE_MAP_26_8: dict[str, tuple[str, list[str]]] = {
+    "aifabrics_eda_nokia_com_v1.json": (
+        "aifabrics",
+        ["Backend"],
+    ),
+    "qos_eda_nokia_com_v2.json": (
+        "qos",
+        ["Queue"],
+    ),
+    "aaa_eda_nokia_com_v1.json": (
+        "aaa",
+        ["NodeGroup"],
+    ),
+    "topologies_eda_nokia_com_v1.json": (
+        "topologies",
+        ["TopologyGrouping"],
+    ),
+    "core_eda_nokia_com_v1.json": (
+        "core",
+        ["Namespace"],
+    ),
+}
+
+
 @dataclass(frozen=True)
 class Target:
     """One model-generation target: a spec set rendered into a package dir."""
@@ -143,6 +185,7 @@ class Target:
 TARGETS: list[Target] = [
     Target("eda_25_12 (default)", SPEC_DIR, OUT_DIR, RESOURCE_MAP),
     Target("eda_26_4", SPEC_DIR / "eda_26_4", OUT_DIR / "eda_26_4", RESOURCE_MAP_26_4),
+    Target("eda_26_8", SPEC_DIR / "eda_26_8", OUT_DIR / "eda_26_8", RESOURCE_MAP_26_8),
 ]
 
 

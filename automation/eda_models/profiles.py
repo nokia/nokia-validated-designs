@@ -265,6 +265,7 @@ class Registry:
         srl_support: SrlSupport,
         tested_srl_versions: list[str],
         generator_variant: str = "v1",
+        supports_ai_fabrics: bool = True,
     ):
         self.eda_version = eda_version
         self.group_versions = dict(group_versions)
@@ -274,6 +275,13 @@ class Registry:
         # ``"v2"`` selects ``eda_generator_v2`` (26.4.x services/protocols v2
         # spec shapes + the ``eda_models.eda_26_4`` model package).
         self.generator_variant = generator_variant
+        # Whether the AI-fabric kinds (Backend, Queue, ForwardingClass,
+        # NodeGroup, TopologyGrouping, Namespace) and the multi-fabric /
+        # multi-namespace designs that use them can be generated for this
+        # release. False where the CR shapes were never verified against a
+        # live cluster, so the generator refuses rather than emitting
+        # something plausible but wrong.
+        self.supports_ai_fabrics = supports_ai_fabrics
 
         types: list[CRType] = []
         for attr, group_key, kind, plural in _CR_SKELETON:
@@ -317,6 +325,14 @@ _TRAINS_CURRENT: tuple[SrlTrain, ...] = (
 
 _SRL_SUPPORT_CURRENT = SrlSupport(floor="24.10", trains=_TRAINS_CURRENT)
 
+# EDA 26.8 ships a ``srlinux-ghcr-26.7.1`` artifact/node profile on top of the
+# trains above (read off a fresh 26.8.1 cluster's artifact list). Kept as its
+# own tuple rather than widening ``_TRAINS_CURRENT`` so the 25.12 and 26.4
+# profiles keep rejecting a train their clusters cannot onboard.
+_TRAINS_26_8: tuple[SrlTrain, ...] = _TRAINS_CURRENT + (SrlTrain("26.7"),)
+
+_SRL_SUPPORT_26_8 = SrlSupport(floor="24.10", trains=_TRAINS_26_8)
+
 # Known-good, explicitly tested exact versions (used by acceptance tests and
 # kept for backward compatibility with the old SUPPORTED_SRL_VERSIONS export).
 _TESTED_SRL_VERSIONS: list[str] = [
@@ -331,6 +347,31 @@ _TESTED_SRL_VERSIONS: list[str] = [
     "25.7.2",
     "25.10.1",
     "25.10.2",
+]
+
+# SR Linux releases EDA 26.8 ships an artifact + node profile for, read off a
+# fresh 26.8.1 cluster (``kubectl get artifacts -A | grep srlinux-ghcr``).
+_TESTED_SRL_VERSIONS_26_8: list[str] = [
+    "24.10.1",
+    "24.10.2",
+    "24.10.3",
+    "24.10.4",
+    "24.10.5",
+    "24.10.6",
+    "24.10.7",
+    "25.3.2",
+    "25.3.3",
+    "25.7.1",
+    "25.7.2",
+    "25.10.1",
+    "25.10.2",
+    "25.10.3",
+    "25.10.4",
+    "25.10.5",
+    "26.3.1",
+    "26.3.2",
+    "26.3.3",
+    "26.7.1",
 ]
 
 # EDA 25.12.x — current default. Mixed graduated/pre-release groups.
@@ -390,6 +431,46 @@ _PROFILE_26_4 = Registry(
     srl_support=_SRL_SUPPORT_CURRENT,
     tested_srl_versions=_TESTED_SRL_VERSIONS,
     generator_variant="v2",
+    # The AI-fabric group versions above are guesses carried over from 25.12,
+    # and their 26.4 spec shapes were never read off a live cluster.
+    supports_ai_fabrics=False,
+)
+
+# EDA 26.8.x — verified against a freshly-installed live 26.8.1 cluster
+# (``/core/about/version`` -> ``v26.8.1-2608202030-ge91888ac``). The groups the
+# fabric path uses are versioned exactly as on 26.4, and a property-by-property
+# diff of the 26.4 OpenAPI specs against the 26.8 CRDs found the spec shapes to
+# be *additive only* — no field removed or renamed — so 26.8 reuses the v2
+# generator backend and the ``eda_models.eda_26_4`` model package unchanged.
+#
+# The four AI-fabric groups are where 26.8 diverges from 26.4: all of them
+# graduated (they were unverified guesses on 26.4), and their spec shapes carry
+# real renames (``systemPoolIPV4`` -> ``systemPoolIPv4``, ``nodeSelector`` ->
+# ``nodeSelectors``, ``gpuVlan`` -> ``gpuVLAN``, ``pfcDeadlock*Timer`` ->
+# ``*TimerMs``, ``Queue.queueType`` ``Pfc`` -> ``PFC``, ...). Those kinds are
+# generated from the ``eda_models.eda_26_8`` package.
+_PROFILE_26_8 = Registry(
+    eda_version="26.8",
+    group_versions={
+        "bootstrap": "v1",
+        "core": "v1",
+        "interfaces": "v1",
+        "fabrics": "v1",
+        "services": "v2",
+        "protocols": "v2",
+        "config": "v1",
+        "siteinfo": "v1",
+        "routingpolicies": "v1",
+        # Graduated in 26.8 — verified against the live cluster's
+        # ``kubectl api-resources`` and ``/openapi/v3`` discovery.
+        "aifabrics": "v1",
+        "qos": "v2",
+        "aaa": "v1",
+        "topologies": "v1",
+    },
+    srl_support=_SRL_SUPPORT_26_8,
+    tested_srl_versions=_TESTED_SRL_VERSIONS_26_8,
+    generator_variant="v2",
 )
 
 
@@ -399,6 +480,7 @@ _PROFILE_26_4 = Registry(
 _PROFILES: dict[str, Registry] = {
     _PROFILE_25_12.eda_version: _PROFILE_25_12,
     _PROFILE_26_4.eda_version: _PROFILE_26_4,
+    _PROFILE_26_8.eda_version: _PROFILE_26_8,
 }
 
 DEFAULT_EDA_VERSION = _PROFILE_25_12.eda_version

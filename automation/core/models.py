@@ -738,6 +738,24 @@ class Rocev2QosIntent(BaseModel):
         return self
 
 
+class DynamicLoadBalancingIntent(BaseModel):
+    """Balance on measured link quality instead of a static ECMP hash.
+
+    RoCEv2 elephant flows collide badly on a static hash, so the rail leaves
+    reassign flows from observed interface load. Field names and ranges mirror
+    EDA's ``Backend.dynamicLoadBalancing``; releases whose Backend CR predates
+    that block render the same intent as a raw configlet instead.
+    """
+
+    mode: Literal["Dynamic", "PerPacket"] = "Dynamic"
+    flowset_size: Literal[256, 512, 1024, 2048, 4096, 8192, 16384, 32768] = 256
+    inactivity_timer_us: int = Field(default=50, ge=1, le=65535)
+    sampling_interval_us: int = Field(default=5, ge=1, le=255)
+    # Which nodes carry the balancer. Only consulted by the configlet fallback:
+    # where the Backend CR has the block, EDA applies it across the fabric.
+    endpoint_selector: list[str] = Field(default_factory=list)
+
+
 class AiBackendIntent(NamespacedIntent):
     """A rail-optimized AI backend fabric (an ``aifabrics`` Backend CR)."""
 
@@ -749,6 +767,8 @@ class AiBackendIntent(NamespacedIntent):
     gpu_isolation_groups: list[AiGpuIsolationGroupIntent] = Field(default_factory=list)
     stripe_connector: AiStripeConnectorIntent | None = None
     rocev2_qos: Rocev2QosIntent = Field(default_factory=Rocev2QosIntent)
+    # None means dynamic load balancing is off for this fabric.
+    dynamic_load_balancing: DynamicLoadBalancingIntent | None = None
 
 
 # ---------------------------------------------------------------------------

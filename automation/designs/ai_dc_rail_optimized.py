@@ -36,6 +36,7 @@ from automation.core.models import (
     BridgeDomainIntent,
     ConfigletConfigEntry,
     ConfigletIntent,
+    DynamicLoadBalancingIntent,
     EdgeInterfaceIntent,
     FabricBfdConfig,
     FabricConfigInput,
@@ -418,7 +419,9 @@ class _BackendPlan:
         self.system0_prefix: str = cfg.get("system0_prefix", "192.0.2.0/24")
         self.asn_start: int = cfg.get("asn_start", 100)
         self.asn_size: int = cfg.get("asn_size", 3000)
-        self.dynamic_load_balancing: bool = cfg.get("dynamic_load_balancing", True)
+        self.dynamic_load_balancing: DynamicLoadBalancingIntent | None = (
+            _parse_dynamic_load_balancing(cfg.get("dynamic_load_balancing", True))
+        )
         self.rail_ip_mtu: int = cfg.get("ip_mtu") or EDA_DEFAULT_RAIL_IP_MTU
 
         if self.stripes < 1:
@@ -1133,6 +1136,28 @@ class _FrontendPlan:
 # ---------------------------------------------------------------------------
 
 
+def _parse_dynamic_load_balancing(value: object) -> DynamicLoadBalancingIntent | None:
+    """Read ``backend.dynamic_load_balancing`` into an intent, or ``None`` if off.
+
+    Accepts the ``true``/``false`` shorthand as well as a mapping of explicit
+    tunables, so a design can opt into ``PerPacket`` mode or retune the flowset
+    without dropping to a configlet.
+    """
+    if value is None or value is False:
+        return None
+    if value is True:
+        return DynamicLoadBalancingIntent()
+    if isinstance(value, dict):
+        options = dict(value)
+        if not options.pop("enabled", True):
+            return None
+        return DynamicLoadBalancingIntent(**options)
+    raise ValueError(
+        "backend.dynamic_load_balancing must be a boolean or a mapping of "
+        f"dynamic load balancing options, got {type(value).__name__}"
+    )
+
+
 def _validate_role(platform_name: str, role: str, field: str) -> None:
     """Reject a platform that the registry does not allow in *role*."""
     platform = get_platform(platform_name)
@@ -1197,7 +1222,6 @@ def _build_ai_backend(
         system_pool_ipv4="systemipv4-pool",
         asn_pool="asn-pool",
         ip_mtu=cfg.get("ip_mtu"),
-        dynamic_load_balancing=backend.dynamic_load_balancing,
         stripes=[
             AiStripeIntent(
                 name=f"stripe{stripe_num}",
@@ -1222,6 +1246,15 @@ def _build_ai_backend(
             link_selector=[f"{LABEL_ROLE}={ROLE_INTER_SWITCH}"],
         ),
         rocev2_qos=Rocev2QosIntent(**qos_cfg) if qos_cfg else Rocev2QosIntent(),
+        # The balancer belongs on the rail leaves; releases that render it as a
+        # configlet need to know that, ones with the native block do not.
+        dynamic_load_balancing=(
+            dlb.model_copy(
+                update={"endpoint_selector": [f"{LABEL_ROLE}={ROLE_LEAF}"]}
+            )
+            if (dlb := backend.dynamic_load_balancing) is not None
+            else None
+        ),
     )
 
 
@@ -1230,79 +1263,20 @@ def _build_backend_configlets(
 ) -> list[ConfigletIntent]:
     """Raw-config knobs the Backend CR does not expose.
 
-    Two things a rail-optimized RoCEv2 fabric needs that have no field on the
+    One thing a rail-optimized RoCEv2 fabric needs that has no field on the
     Backend CR:
 
-    * **Dynamic load balancing** — RoCEv2 elephant flows hash-collide badly on
-      static ECMP, so the leaves balance on measured link quality instead.
-      Enabled per leaf, then pointed at all IPv6 prefixes in the default
-      network-instance.
     * **IPv6 eBGP multipath** — the rail leaves must use every spine path, and
       each path is a different AS, so multipath needs both a maximum-paths
       matching the spine count and ``allow-multiple-as``.
+
+    Dynamic load balancing used to live here too. It is now carried as intent
+    on the Backend (``dynamic_load_balancing``); the EDA generators render it
+    natively where the Backend CR supports it and fall back to an equivalent
+    configlet on releases that do not.
     """
     configlets: list[ConfigletIntent] = []
     leaf_selector = [f"{LABEL_ROLE}={ROLE_LEAF}"]
-
-    if backend.dynamic_load_balancing:
-        configlets.append(
-            ConfigletIntent(
-                name="dlb",
-                namespace=namespace,
-                endpoint_selector=leaf_selector,
-                priority=100,
-                origin=DESIGN_NAME,
-                configs=[
-                    ConfigletConfigEntry(
-                        path=".system",
-                        operation="Create",
-                        config=json.dumps(
-                            {
-                                "load-balancing": {
-                                    "dynamic": {
-                                        "flowset-size": "256",
-                                        "inactivity-timer": 50,
-                                        "mode": "flow-dynamic",
-                                        "link-quality-sampling-interval": 5,
-                                        "weighting-factor": {
-                                            "port-utilization": 70,
-                                            "queue-utilization": 20,
-                                            "itm-utilization": 10,
-                                        },
-                                    }
-                                }
-                            },
-                            indent=2,
-                        ),
-                    )
-                ],
-            )
-        )
-        configlets.append(
-            ConfigletIntent(
-                name="ip-load-balance-network-instance",
-                namespace=namespace,
-                endpoint_selector=leaf_selector,
-                priority=100,
-                origin=DESIGN_NAME,
-                configs=[
-                    ConfigletConfigEntry(
-                        path='.network-instance{.name=="default"}',
-                        operation="Create",
-                        config=json.dumps(
-                            {
-                                "ip-load-balancing": {
-                                    "dynamic-load-balancing": {
-                                        "prefix": [{"ip-prefix": "::/0"}]
-                                    }
-                                }
-                            },
-                            indent=2,
-                        ),
-                    )
-                ],
-            )
-        )
 
     # The Backend reconciler builds the egress QoS profiles below from its
     # rocev2QoS block, but leaves a few knobs at platform defaults that a

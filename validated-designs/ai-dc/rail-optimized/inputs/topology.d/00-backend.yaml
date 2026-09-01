@@ -77,4 +77,10 @@ backend:
     queue_maximum_burst_size: 52110640
 
   # Dynamic load balancing keeps large RoCEv2 flows from colliding on one path.
+  # `true` takes the defaults below; swap in a mapping to retune, e.g.
+  #   dynamic_load_balancing:
+  #     mode: PerPacket        # Dynamic (default) | PerPacket
+  #     flowset_size: 4096     # 256..32768
+  #     inactivity_timer_us: 50
+  #     sampling_interval_us: 5
   dynamic_load_balancing: true

@@ -56,6 +56,7 @@ from automation.core.models import (
     BannerIntent,
     BridgeDomainIntent,
     BreakoutIntent,
+    ConfigletConfigEntry,
     ConfigletIntent,
     DefaultMtuIntent,
     EdgeInterfaceIntent,
@@ -448,7 +449,12 @@ def generate(
     for sr in intent.static_routes:
         resources.append(_cr_static_route(sr, _ns(sr), design))
 
-    # 19. Configlets
+    # 19. Configlets — dynamic load balancing first, matching the order the
+    #     design used to emit it in.
+    for backend in intent.ai_backends:
+        ns = _ns(backend)
+        for cfglet in dlb_configlet_intents(backend, ns, design):
+            resources.append(_cr_configlet(cfglet, ns, design))
     for cfglet in intent.configlets:
         resources.append(_cr_configlet(cfglet, _ns(cfglet), design))
 
@@ -1569,6 +1575,77 @@ def _cr_configlet(cfglet: ConfigletIntent, ns: str, design: str) -> dict:
         CR_CONFIGLET.api_version, CR_CONFIGLET.kind, cfglet.name, ns, spec,
         origin=cfglet.origin or design,
     )
+
+
+def dlb_configlet_intents(
+    backend: AiBackendIntent, ns: str, design: str
+) -> list[ConfigletIntent]:
+    """Render Backend dynamic load balancing as raw config.
+
+    Two configlets: the system-level balancer on every rail leaf, and the
+    prefix binding that sends IPv6 traffic in the *default* network-instance
+    through it. Callers wrap these with their own ``_cr_configlet``, since the
+    Configlet spec renamed ``endpointSelector`` to plural in 26.8.
+
+    26.8's Backend CR has a native ``dynamicLoadBalancing`` block, but it is
+    deliberately not used: EDA renders the prefix binding into *every* network
+    instance the Backend owns, including the GPU isolation-group VRF. That VRF
+    carries routes leaked from ``default``, and binding the balancer there
+    drops their next-hop resolution — verified on 26.8.1, where it cost every
+    rail its ECMP paths and left GPUs unable to reach their rail gateway.
+
+    The weighting factors are SR Linux platform defaults, restated so the
+    rendered config is explicit about what the fabric relies on.
+    """
+    dlb = backend.dynamic_load_balancing
+    if dlb is None:
+        return []
+
+    system_dlb = {
+        "load-balancing": {
+            "dynamic": {
+                "flowset-size": str(dlb.flowset_size),
+                "inactivity-timer": dlb.inactivity_timer_us,
+                "mode": "flow-dynamic" if dlb.mode == "Dynamic" else "packet-based",
+                "link-quality-sampling-interval": dlb.sampling_interval_us,
+                "weighting-factor": {
+                    "port-utilization": 70,
+                    "queue-utilization": 20,
+                    "itm-utilization": 10,
+                },
+            }
+        }
+    }
+    prefix_binding = {
+        "ip-load-balancing": {
+            "dynamic-load-balancing": {"prefix": [{"ip-prefix": "::/0"}]}
+        }
+    }
+
+    return [
+        ConfigletIntent(
+            name=name,
+            namespace=ns,
+            endpoint_selector=list(dlb.endpoint_selector),
+            priority=100,
+            origin=design,
+            configs=[
+                ConfigletConfigEntry(
+                    path=path,
+                    operation="Create",
+                    config=json.dumps(config, indent=2),
+                )
+            ],
+        )
+        for name, path, config in (
+            ("dlb", ".system", system_dlb),
+            (
+                "ip-load-balance-network-instance",
+                '.network-instance{.name=="default"}',
+                prefix_binding,
+            ),
+        )
+    ]
 
 
 def _cr_default_mtu(mtu: DefaultMtuIntent, ns: str, design: str) -> dict:
