@@ -220,7 +220,8 @@
         "stripe_id_step": {
           "type": "integer",
           "minimum": 1,
-          "description": "Stripe N gets stripe ID N * this value. The stripe ID appears in the rail IPv6 addressing."
+          "maximum": 256,
+          "description": "Stripe N gets stripe ID N * this value. The stripe ID appears in the rail IPv6 addressing. EDA caps stripe IDs at 256, so stripes * stripe_id_step must stay within that."
         },
         "gpu_nic_bandwidth": {
           "$ref": "#/$defs/bandwidth",

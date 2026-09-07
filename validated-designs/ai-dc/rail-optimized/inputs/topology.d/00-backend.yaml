@@ -20,11 +20,15 @@ backend:
   namespace: dc1-backend
 
   # Fabric shape ------------------------------------------------------------
-  stripes: 2 # number of stripes (any value >= 1)
+  stripes: 4 # number of stripes (any value >= 1)
   rail_size: 8 # rails per stripe = GPUs per server
   servers_per_stripe: 2 # GPU servers attached to each stripe
   gpu_vlan: 100 # VLAN on the GPU-facing interfaces
   gpu_tenant: tenant1 # GPU isolation group membership
+  # Stripe N gets stripe ID N * this step, and that ID is the second group of
+  # the rail addressing (fd00:<stripeID>:<rail>:...). EDA caps a stripe ID at
+  # 256, so a coarser step trades stripe count for readable addresses.
+  stripe_id_step: 1
 
   # Uplink sizing. `uplinks_per_leaf` is derived as
   #   ceil(servers_per_stripe * gpu_nic_bandwidth
@@ -54,7 +58,7 @@ backend:
       2: "7220 IXR-H5-64D"
 
   spine:
-    count: 2
+    count: 4
     platform: "7220 IXR-H4"
     version: "25.10.1"
     mgmt_base_ipv4: "172.21.21.101"

@@ -68,10 +68,11 @@ class TestDesignRegistration:
 
 
 class TestBackendGeometry:
-    def test_leaf_count_is_stripes_times_rail_size(self, intent):
+    def test_leaf_count_is_stripes_times_rail_size(self, topology, intent):
+        backend = topology["backend"]
         leaves = [n for n in intent.nodes if n.namespace == BACKEND_NS
                   and n.role == "leaf"]
-        assert len(leaves) == 2 * 8
+        assert len(leaves) == backend["stripes"] * backend["rail_size"]
 
     def test_every_server_nic_lands_on_a_different_leaf_of_its_stripe(self, intent):
         # This is the rail-optimized property: rail r of every server in a
@@ -113,18 +114,20 @@ class TestBackendGeometry:
 
     def test_uplinks_derived_from_oversubscription(self, topology):
         # 2 servers x 400G of GPU into 400G uplinks, non-blocking → 2 uplinks.
-        plan = design._BackendPlan(
-            {**topology["backend"], "oversubscription_ratio": 1.0}
-        )
-        assert plan.uplinks_per_leaf == 2
+        # The spine layer is pinned at 2 so the rounding below does not lift
+        # the result and hide the calculation being tested here.
+        backend = copy.deepcopy(topology["backend"])
+        backend["spine"]["count"] = 2
+        backend["oversubscription_ratio"] = 1.0
+        assert design._BackendPlan(backend).uplinks_per_leaf == 2
 
     def test_derived_uplinks_round_up_to_a_whole_round_of_spines(self, topology):
         # 4:1 oversubscription only needs 1 uplink, but a leaf cannot cable to
         # half the spine layer, so it is rounded up to one full round of 2.
-        plan = design._BackendPlan(
-            {**topology["backend"], "oversubscription_ratio": 4.0}
-        )
-        assert plan.uplinks_per_leaf == 2
+        backend = copy.deepcopy(topology["backend"])
+        backend["spine"]["count"] = 2
+        backend["oversubscription_ratio"] = 4.0
+        assert design._BackendPlan(backend).uplinks_per_leaf == 2
 
     def test_a_wider_spine_layer_raises_the_derived_uplink_count(self, topology):
         backend = copy.deepcopy(topology["backend"])
@@ -199,6 +202,13 @@ class TestCapacityGuards:
         with pytest.raises(ValueError, match="not allowed as spine"):
             design.build(topology, copy.deepcopy(services))
 
+    def test_rejects_stripe_ids_above_what_eda_accepts(self, topology, services):
+        # The Backend CRD caps stripeID at 256, and a step that overshoots it
+        # would otherwise only surface as a validation error from the CR model,
+        # after the whole intent had been built.
+        with pytest.raises(ValueError, match="EDA allows"):
+            _build(topology, services, stripe_id_step=design.EDA_MAX_STRIPE_ID)
+
     @pytest.mark.parametrize("field", ["stripes", "rail_size", "servers_per_stripe"])
     def test_rejects_a_zero_dimension(self, topology, services, field):
         with pytest.raises(ValueError, match="at least 1"):
@@ -206,6 +216,15 @@ class TestCapacityGuards:
 
 
 class TestFrontendGeometry:
+    @staticmethod
+    def _attached_server_counts(topology) -> tuple[int, int]:
+        """``(gpu, storage)`` server counts the frontend leaves have to host."""
+        backend = topology["backend"]
+        return (
+            backend["stripes"] * backend["servers_per_stripe"],
+            topology["frontend"]["storage_servers"]["count"],
+        )
+
     def _frontend(self, topology, services, **leaf_overrides):
         topology = copy.deepcopy(topology)
         topology["frontend"]["leaf"].update(leaf_overrides)
@@ -239,9 +258,10 @@ class TestFrontendGeometry:
             for lag in intent.lags
             for member in lag.members
         )
-        # 4 uplinks take ports 1-4, then 4 GPU servers and 8 storage nodes.
+        # 4 uplinks take ports 1-4, then the GPU servers and the storage nodes.
+        gpu, storage = self._attached_server_counts(topology)
         assert ports[0] == 5
-        assert ports[-1] == 4 + 4 + 8
+        assert ports[-1] == 4 + gpu + storage
 
     def test_rejects_uplinks_that_are_not_whole_rounds_of_the_spine_layer(
         self, topology, services
@@ -259,7 +279,9 @@ class TestFrontendGeometry:
             assert lag.multihoming_mode == "all-active"
             assert len({m.node for m in lag.members}) == 2
 
-    def test_gpu_lags_are_tagged_and_storage_lags_untagged(self, intent):
+    def test_gpu_lags_are_tagged_and_storage_lags_untagged(
+        self, topology, intent
+    ):
         tagged = [
             lag for lag in intent.lags
             if "eda.nokia.com/tagged-v100" in lag.labels
@@ -268,8 +290,9 @@ class TestFrontendGeometry:
             lag for lag in intent.lags
             if "eda.nokia.com/untagged-v100" in lag.labels
         ]
-        assert len(tagged) == 4
-        assert len(untagged) == 8
+        gpu, storage = self._attached_server_counts(topology)
+        assert len(tagged) == gpu
+        assert len(untagged) == storage
         # No LAG may carry both: the VLAN selectors would match it twice.
         assert not set(id(l) for l in tagged) & set(id(l) for l in untagged)
 
@@ -402,12 +425,24 @@ class TestGeneratedCrs:
         # the other two live in it.
         assert EdaClient._extract_namespaces(resources)[0] == SYSTEM_NS
 
-    def test_the_backend_cr_describes_one_stripe_per_stripe(self, resources):
+    def test_the_backend_cr_describes_one_stripe_per_stripe(
+        self, inputs, resources
+    ):
+        planned = inputs[0]["backend"]
+        count = planned["stripes"]
+        step = planned.get("stripe_id_step", 1)
         backend = next(cr for cr in resources if cr["kind"] == "Backend")
         assert backend["metadata"]["namespace"] == BACKEND_NS
         stripes = backend["spec"]["stripes"]
-        assert [s["name"] for s in stripes] == ["stripe1", "stripe2"]
-        assert [s["stripeID"] for s in stripes] == [100, 200]
+        assert [s["name"] for s in stripes] == [
+            f"stripe{n}" for n in range(1, count + 1)
+        ]
+        # Stripe IDs land in the rail addressing, so they have to be the
+        # stepped values the containerlab twin puts on the GPU NICs.
+        assert [s["stripeID"] for s in stripes] == [
+            n * step for n in range(1, count + 1)
+        ]
+        assert stripes[-1]["stripeID"] <= design.EDA_MAX_STRIPE_ID
 
     def test_the_frontend_is_an_explicit_fabric_cr(self, resources):
         fabric = next(cr for cr in resources if cr["kind"] == "Fabric")
@@ -443,6 +478,14 @@ class TestGeneratedCrs:
 
 class TestContainerlabTwin:
     @pytest.fixture(scope="class")
+    def plan(self):
+        # The rail addressing and the server-facing port numbers are geometry,
+        # so they are asserted against the plan rather than restated as
+        # literals that a resized reference design would invalidate.
+        topology, _ = load_inputs(DESIGN_DIR)
+        return design._BackendPlan(topology["backend"])
+
+    @pytest.fixture(scope="class")
     def clab(self, tmp_path_factory):
         import yaml
 
@@ -452,16 +495,24 @@ class TestContainerlabTwin:
         path = clab_generator.generate(intent, out)
         return yaml.safe_load(path.read_text())["topology"], out
 
-    def test_switches_and_servers_are_all_present(self, clab):
+    def test_switches_and_servers_are_all_present(self, inputs, clab):
         topo, _ = clab
-        # 18 backend switches + 4 frontend switches + 4 GPU + 8 storage.
-        assert len(topo["nodes"]) == 34
+        backend, frontend = inputs[0]["backend"], inputs[0]["frontend"]
+        gpu = backend["stripes"] * backend["servers_per_stripe"]
+        storage = frontend["storage_servers"]["count"]
+        switches = (
+            backend["stripes"] * backend["rail_size"]
+            + backend["spine"]["count"]
+            + frontend["leaf"]["count"]
+            + frontend["spine"]["count"]
+        )
+        assert len(topo["nodes"]) == switches + gpu + storage
         linux = {
             name for name, spec in topo["nodes"].items()
             if spec.get("kind") == "linux"
         }
-        assert linux == {f"s{i}" for i in range(1, 5)} | {
-            f"weka{i}" for i in range(1, 9)
+        assert linux == {f"s{i}" for i in range(1, gpu + 1)} | {
+            f"weka{i}" for i in range(1, storage + 1)
         }
 
     def test_declared_servers_replace_the_derived_clients(self, clab):
@@ -490,15 +541,16 @@ class TestContainerlabTwin:
         assert "ip addr add 172.16.10.11/24 dev bond0" in script
         assert "type vlan" not in script
 
-    def test_rail_nics_are_addressed_individually_not_bonded(self, clab):
+    def test_rail_nics_are_addressed_individually_not_bonded(self, plan, clab):
         _, out = clab
         script = (out / "client-configs" / "s1.sh").read_text()
         # Each rail NIC goes to a different leaf, so bonding them would be
         # wrong; they each carry their own rail address.
-        for rail in range(1, 9):
+        port = plan.gpu_port_index(1)
+        for rail in range(1, plan.rail_size + 1):
             assert (
-                f"ip -6 addr add fd00:100:{rail}:1:0:3:0:2/96 "
-                f"dev eth{rail}.100"
+                f"ip -6 addr add fd00:{plan.stripe_id(1)}:{rail}"
+                f":1:0:{port}:0:2/96 dev eth{rail}.100"
             ) in script
 
     def test_rail_nics_are_tagged_with_the_gpu_vlan(self, clab):
@@ -519,14 +571,20 @@ class TestContainerlabTwin:
         assert "ip link set dev eth1 mtu 4136" in script
         assert "ip link set dev eth1.100 mtu 4136" in script
 
-    def test_second_stripe_rails_use_global_rail_numbering(self, clab):
+    def test_second_stripe_rails_use_global_rail_numbering(self, plan, clab):
         _, out = clab
-        script = (out / "client-configs" / "s3.sh").read_text()
+        # The first server of stripe 2 follows the stripe-1 servers.
+        first_of_stripe2 = plan.servers_per_stripe + 1
+        script = (
+            out / "client-configs" / f"s{first_of_stripe2}.sh"
+        ).read_text()
         # EDA numbers rails across the whole fabric, so stripe 2 owns rails
         # 9..16 — restarting at 1 per stripe would miss the leaf's subnet.
-        for rail in range(1, 9):
+        port = plan.gpu_port_index(1)
+        for rail in range(1, plan.rail_size + 1):
             assert (
-                f"ip -6 addr add fd00:200:{rail + 8}:1:0:3:0:2/96 "
+                f"ip -6 addr add fd00:{plan.stripe_id(2)}"
+                f":{plan.global_rail(2, rail)}:1:0:{port}:0:2/96 "
                 f"dev eth{rail}.100"
             ) in script
 

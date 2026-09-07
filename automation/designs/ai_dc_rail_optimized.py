@@ -103,6 +103,10 @@ QUEUE_IDS = range(9)
 # large RDMA frames are dropped on the leaf.
 EDA_DEFAULT_RAIL_IP_MTU = 4136
 
+# Largest stripe ID the aifabrics Backend CRD accepts (stripeID is 0..256), so
+# `stripes * stripe_id_step` has to stay inside it.
+EDA_MAX_STRIPE_ID = 256
+
 # The forwarding-class names SR Linux ships. ForwardingClass CRs have an empty
 # spec — they exist so QoS policies can reference a class by name.
 FORWARDING_CLASSES = (
@@ -413,7 +417,7 @@ class _BackendPlan:
         self.rail_size: int = cfg.get("rail_size", 8)
         self.servers_per_stripe: int = cfg.get("servers_per_stripe", 2)
         self.gpu_vlan: int = cfg.get("gpu_vlan", 100)
-        self.stripe_id_step: int = cfg.get("stripe_id_step", 100)
+        self.stripe_id_step: int = cfg.get("stripe_id_step", 1)
         self.gpu_tenant: str = cfg.get("gpu_tenant", "tenant1")
         self.mgmt_subnet: str = cfg.get("mgmt_subnet", "")
         self.system0_prefix: str = cfg.get("system0_prefix", "192.0.2.0/24")
@@ -430,6 +434,19 @@ class _BackendPlan:
             raise ValueError("backend.rail_size must be at least 1")
         if self.servers_per_stripe < 1:
             raise ValueError("backend.servers_per_stripe must be at least 1")
+        if self.stripe_id(self.stripes) > EDA_MAX_STRIPE_ID:
+            largest_step = EDA_MAX_STRIPE_ID // self.stripes
+            remedy = (
+                f"lower stripe_id_step to {largest_step} or less"
+                if largest_step >= 1
+                else f"a fabric cannot exceed {EDA_MAX_STRIPE_ID} stripes"
+            )
+            raise ValueError(
+                f"backend.stripes ({self.stripes}) x backend.stripe_id_step "
+                f"({self.stripe_id_step}) gives stripe ID "
+                f"{self.stripe_id(self.stripes)}, above the {EDA_MAX_STRIPE_ID} "
+                f"EDA allows; {remedy}"
+            )
 
         spine_cfg = cfg.get("spine") or {}
         leaf_cfg = cfg.get("leaf") or {}

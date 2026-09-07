@@ -29,7 +29,7 @@ frontend:
     count: 2
     platform: "7220 IXR-D5"
     version: "25.10.1"
-    mgmt_base_ipv4: "172.21.21.33"
+    mgmt_base_ipv4: "172.21.21.128"
     uplinks_per_leaf: 2
     # name_template: "frontend-leaf{i}"
 
@@ -37,7 +37,7 @@ frontend:
     count: 2
     platform: "7220 IXR-H5-64O"
     version: "25.10.1"
-    mgmt_base_ipv4: "172.21.21.31"
+    mgmt_base_ipv4: "172.21.21.242"
     # name_template: "frontend-spine{i}"
 
   # Dedicated storage nodes, attached only to the frontend fabric.
