@@ -427,13 +427,19 @@ name-based references resolve (e.g., every IRB's `bridge_domain` must exist in
 ### Environment guardrails
 
 `environment` in `topology.yaml` is either `containerlab` (default) or
-`physical`, and the deployer preflights the built intent against it before any
-generation or deployment work starts. It is also reported in the
+`physical`. Generators branch on it (NodeProfile defaults, Init mgmt DHCP,
+Ansible metadata, clab headers), and the deployer preflights the built intent
+before any generation or deployment work starts. It is also reported in the
 `[NVD-DEPLOY-SUMMARY]` line so pipelines can assert which target they are
 pointed at.
 
-For `containerlab` nothing is checked -- the lab defaults are the intended ones
-there. For `physical`:
+| `environment` | Generator output |
+|---------------|------------------|
+| `containerlab` | NodeProfile `clab-srlinux-<ver>`, container image, gNMI port 57410, annotate on; Init enables mgmt DHCP |
+| `physical` | NodeProfile `srlinux-hw-<ver>`, hardware image bins, gNMI port 57400, annotate off; Init has no mgmt DHCP; Ansible sets `ansible_password_vault_recommended`; clab file gets a twin header when `--generate-clab` |
+
+For `containerlab` deploy preflight runs no checks — the lab defaults are the
+intended ones there. For `physical`:
 
 | Condition | Result |
 |-----------|--------|

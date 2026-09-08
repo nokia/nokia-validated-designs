@@ -494,12 +494,17 @@ def _preflight_environment(
         )
 
     if args.mode == "eda":
-        logging.warning(
-            "environment=physical: the generated NodeProfile points at the "
-            "'srlimages/srlinux-<version>-bin' image paths and 'srlinux-ghcr-<version>' "
-            "schema/LLM-DB names. Confirm the hardware images and schema profiles "
-            "exist under those names in the EDA artifact server."
-        )
+        if intent.environment == PHYSICAL_ENVIRONMENT:
+            logging.warning(
+                "environment=physical: confirm the hardware image bins under "
+                "'srlimages/srlinux-<version>-bin/' exist in the EDA artifact server, "
+                "and that schema profiles 'srlinux-ghcr-<version>' are installed."
+            )
+        else:
+            logging.warning(
+                "environment=containerlab: NodeProfile uses container image "
+                "'ghcr.io/nokia/srlinux:<version>' and gNMI port 57410 for lab onboarding."
+            )
 
     if args.mode == "ansible":
         logging.warning(

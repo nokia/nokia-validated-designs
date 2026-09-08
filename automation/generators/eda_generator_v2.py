@@ -258,13 +258,20 @@ def generate(
 
     # 3. NodeProfile — derived from node version, one per namespace
     node_version = intent.nodes[0].version if intent.nodes else ""
-    profile_name = intent.eda.node_profile or f"clab-srlinux-{node_version}"
+    profile_name = intent.eda.node_profile or v1.default_node_profile_name(
+        intent.environment, node_version
+    )
     if node_version:
         for node_ns in node_namespaces:
             resources.append(
                 v1._cr_node_profile(
-                    node_ns, profile_name, node_version, design,
-                    creds.username, creds.password,
+                    node_ns,
+                    profile_name,
+                    node_version,
+                    design,
+                    intent.environment,
+                    creds.username,
+                    creds.password,
                 )
             )
 

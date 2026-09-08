@@ -233,6 +233,12 @@ _STATEMENTS = V(
 GROUPS: dict[str, tuple[V, ...]] = {
     "fabric": (
         V(
+            "environment",
+            "str",
+            "Deployment target from topology.yaml: containerlab or physical. "
+            "Echoed here so generated projects record what they were built for.",
+        ),
+        V(
             "fabric_name",
             "str",
             "Fabric name. Used to derive default BGP peer-group and "
@@ -255,6 +261,12 @@ GROUPS: dict[str, tuple[V, ...]] = {
             "confirm_timeout",
             "int",
             "Confirmed-commit window in seconds. 0 disables two-phase commit.",
+        ),
+        V(
+            "ansible_password_vault_recommended",
+            "bool",
+            "Present when environment is physical. Move ansible_password to "
+            "Ansible Vault before deploying to hardware.",
         ),
     ),
     "node": (
@@ -832,6 +844,7 @@ ROLE_VARS: dict[str, tuple[str, ...]] = {
     ),
     "fabric": (
         "node",
+        "environment",
         "fabric_name",
         "system0_prefix",
         "underlay_interfaces",

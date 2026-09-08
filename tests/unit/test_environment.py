@@ -106,3 +106,56 @@ class TestPhysicalPreflight:
         with caplog.at_level(logging.WARNING):
             assert _preflight_environment(intent, _args(generate_clab=True)) == []
         assert any("twin" in r.message for r in caplog.records)
+
+
+class TestGeneratorEnvironment:
+    def test_eda_node_profile_differs_by_environment(self):
+        from automation.generators.eda_generator import generate
+
+        node = _node("leaf1", "172.21.21.11")
+        node.version = "25.10.2"
+        for env, name, port, annotate, container in (
+            ("containerlab", "clab-srlinux-25.10.2", 57410, True, "ghcr.io/nokia/srlinux:25.10.2"),
+            ("physical", "srlinux-hw-25.10.2", 57400, False, None),
+        ):
+            intent = _intent(env, [node])
+            profile = next(
+                cr for cr in generate(intent) if cr["kind"] == "NodeProfile"
+            )
+            assert profile["metadata"]["name"] == name
+            assert profile["spec"]["port"] == port
+            assert profile["spec"]["annotate"] is annotate
+            assert profile["spec"].get("containerImage") == container
+
+    def test_eda_init_enables_mgmt_dhcp_only_for_containerlab(self):
+        from automation.generators.eda_generator import generate
+
+        node = _node("leaf1", "172.21.21.11")
+        node.version = "25.10.2"
+        clab_init = next(
+            cr for cr in generate(_intent("containerlab", [node])) if cr["kind"] == "Init"
+        )
+        phys_init = next(
+            cr for cr in generate(_intent("physical", [node])) if cr["kind"] == "Init"
+        )
+        assert clab_init["spec"]["mgmt"]["ipv4DHCP"] is True
+        assert "mgmt" not in phys_init["spec"]
+
+    def test_ansible_group_vars_record_environment(self, tmp_path):
+        from automation.generators.ansible_generator import generate
+
+        node = _node("leaf1", "172.21.21.11")
+        node.version = "25.10.2"
+        generate(_intent("physical", [node]), output_dir=tmp_path)
+        gv = (tmp_path / "group_vars" / "all.yml").read_text()
+        assert "environment: physical" in gv
+        assert "ansible_password_vault_recommended: true" in gv
+
+    def test_clab_header_marks_physical_twin(self, tmp_path):
+        from automation.generators.clab_generator import generate
+
+        node = _node("leaf1", "172.21.21.11")
+        node.version = "25.10.2"
+        path = generate(_intent("physical", [node]), output_dir=tmp_path)
+        text = path.read_text()
+        assert text.startswith("# environment: physical")

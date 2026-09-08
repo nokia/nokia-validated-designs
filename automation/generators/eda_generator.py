@@ -51,6 +51,12 @@ from automation.eda_models.registry import (
     AI_BACKEND as CR_AI_BACKEND,
 )
 from automation.eda_models.profiles import Registry, get_default_registry
+from automation.core.deployment_environment import (
+    CONTAINERLAB,
+    default_node_profile_name,
+    build_init_spec,
+    build_node_profile_spec,
+)
 from automation.core.models import (
     AiBackendIntent,
     BannerIntent,
@@ -126,8 +132,6 @@ from automation.eda_models.core import (
     TopoLinkLinks,
     TopoLinkA,
     TopoLinkB,
-    NodeProfileSpec,
-    NodeProfileImages,
     NodeUserSpec,
     NodeUserGroupBindings,
     IndexAllocationPoolSpec,
@@ -160,7 +164,6 @@ from automation.eda_models.interfaces import (
     InterfaceMultiHoming,
     InterfaceEthernet,
 )
-from automation.eda_models.bootstrap import InitSpec, InitMgmt
 from automation.eda_models.config import ConfigletSpec, ConfigletConfigurations
 from automation.eda_models.siteinfo import DefaultMTUSpec, BannerSpec
 
@@ -282,7 +285,7 @@ def generate(
 
     # 1. Init (commitSave) — one per namespace that owns nodes
     for node_ns in node_namespaces:
-        resources.append(_cr_init(node_ns, design))
+        resources.append(_cr_init(node_ns, design, intent.environment))
 
     # 1b. NodeGroups — must precede NodeUser, whose groupBindings reference them
     for group in intent.node_groups:
@@ -295,13 +298,20 @@ def generate(
 
     # 3. NodeProfile — derived from node version, one per namespace
     node_version = intent.nodes[0].version if intent.nodes else ""
-    profile_name = intent.eda.node_profile or f"clab-srlinux-{node_version}"
+    profile_name = intent.eda.node_profile or default_node_profile_name(
+        intent.environment, node_version
+    )
     if node_version:
         for node_ns in node_namespaces:
             resources.append(
                 _cr_node_profile(
-                    node_ns, profile_name, node_version, design,
-                    creds.username, creds.password,
+                    node_ns,
+                    profile_name,
+                    node_version,
+                    design,
+                    intent.environment,
+                    creds.username,
+                    creds.password,
                 )
             )
 
@@ -610,8 +620,8 @@ def _wrap_cr_raw(
 # ---------------------------------------------------------------------------
 
 
-def _cr_init(ns: str, design: str) -> dict:
-    spec = InitSpec(commit_save=True, mgmt=InitMgmt(ipv4_dhcp=True, ipv6_dhcp=True))
+def _cr_init(ns: str, design: str, environment: str = CONTAINERLAB) -> dict:
+    spec = build_init_spec(environment)
     return _wrap_cr(CR_INIT.api_version, CR_INIT.kind, "init-base", ns, spec, origin=design)
 
 
@@ -624,26 +634,17 @@ def _cr_node_user(ns: str, design: str, username: str = "admin", password: str =
     return _wrap_cr(CR_NODE_USER.api_version, CR_NODE_USER.kind, username, ns, spec, origin=design)
 
 
-def _cr_node_profile(ns: str, profile_name: str, version: str, design: str, username: str = "admin", password: str = "NokiaSrl1!") -> dict:
-    ver_escaped = version.replace(".", "\\.")
-    spec = NodeProfileSpec(
-        images=[
-            NodeProfileImages(
-                image=f"srlimages/srlinux-{version}-bin/srlinux.bin",
-                image_md5=f"srlimages/srlinux-{version}-md5/srlinux.md5",
-            )
-        ],
-        llm_db=f"https://eda-asvr.eda-system.svc/eda-system/llm-dbs/llm-db-srlinux-ghcr-{version}/llm-embeddings-srl-{version.replace('.', '-')}.tar.gz",
-        node_user=username,
-        onboarding_username=username,
-        onboarding_password=password,
-        operating_system="srl",
-        port=57410,
-        version=version,
-        version_match=f"v{ver_escaped}.*",
-        version_path=".system.information.version",
-        yang=f"https://eda-asvr.eda-system.svc/eda-system/schemaprofiles/srlinux-ghcr-{version}/srlinux-{version}.zip",
-        annotate=True,
+def _cr_node_profile(
+    ns: str,
+    profile_name: str,
+    version: str,
+    design: str,
+    environment: str,
+    username: str = "admin",
+    password: str = "NokiaSrl1!",
+) -> dict:
+    spec = build_node_profile_spec(
+        environment, version, username=username, password=password
     )
     return _wrap_cr(CR_NODE_PROFILE.api_version, CR_NODE_PROFILE.kind, profile_name, ns, spec, origin=design)
 

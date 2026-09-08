@@ -24,6 +24,7 @@ from typing import Any
 
 import yaml
 
+from automation.core.deployment_environment import PHYSICAL
 from automation.core.models import (
     ConfigletIntent,
     EdgeInterfaceIntent,
@@ -189,6 +190,11 @@ def generate(intent: FabricIntent, output_dir: Path) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     clab_path = output_dir / f"{intent.fabric_name}.clab.yml"
     with open(clab_path, "w") as f:
+        if intent.environment == PHYSICAL:
+            f.write(
+                "# environment: physical — containerlab twin for validation only; "
+                "not the deployment target.\n"
+            )
         yaml.dump(clab_topo, f, default_flow_style=False, sort_keys=False)
     logger.info("Wrote containerlab topology to %s", clab_path)
 
