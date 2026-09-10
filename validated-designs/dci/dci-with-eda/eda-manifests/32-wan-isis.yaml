@@ -1,0 +1,635 @@
+# © 2026 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License-Identifier: BSD-3-Clause
+
+# IS-IS L2 as the WAN IGP, with segment routing enabled.
+#
+# The metric is the whole traffic-engineering story of this lab: 10 on the direct
+# DCGW-to-DCGW mesh and 100 on the links through p1/p2. Both paths are always up,
+# so steady-state DCI traffic takes the direct mesh and fails over to the P core
+# without any protocol change - which is what makes the WAN-failover tests
+# meaningful.
+#
+# system0 and lo1 are passive: advertised, but forming no adjacency. system0
+# carries the SR node SID (indexed into the sr-global SRGB), giving every DCGW and
+# P router an SR-MPLS transport tunnel alongside LDP.
+
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInstance
+metadata:
+  name: wan-isis
+  namespace: dci
+spec:
+  enabled: true
+  levelCapability: L2
+  areaIDs:
+    - "49.0001"
+  addressFamilies:
+    - IPv4
+  maxECMP: 8
+  lspMTU: 1492
+  segmentRouting:
+    mpls:
+      enabled: true
+      srgbLabelBlock: sr-global
+      nodeSIDIndexPool: node-sid-index-pool
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInstanceDeployment
+metadata:
+  name: wan-isis-dcgw1
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  defaultRouter: router-dcgw1
+  node: dcgw1
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInstanceDeployment
+metadata:
+  name: wan-isis-dcgw2
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  defaultRouter: router-dcgw2
+  node: dcgw2
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInstanceDeployment
+metadata:
+  name: wan-isis-dcgw3
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  defaultRouter: router-dcgw3
+  node: dcgw3
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInstanceDeployment
+metadata:
+  name: wan-isis-dcgw4
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  defaultRouter: router-dcgw4
+  node: dcgw4
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInstanceDeployment
+metadata:
+  name: wan-isis-p1
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  defaultRouter: router-p1
+  node: p1
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInstanceDeployment
+metadata:
+  name: wan-isis-p2
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  defaultRouter: router-p2
+  node: p2
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw1-system0
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw1-system0
+  interfaceKind: SystemInterface
+  passive: true
+  level: L2
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw2-system0
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw2-system0
+  interfaceKind: SystemInterface
+  passive: true
+  level: L2
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw3-system0
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw3-system0
+  interfaceKind: SystemInterface
+  passive: true
+  level: L2
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw4-system0
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw4-system0
+  interfaceKind: SystemInterface
+  passive: true
+  level: L2
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-p1-system0
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: p1-system0
+  interfaceKind: SystemInterface
+  passive: true
+  level: L2
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-p2-system0
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: p2-system0
+  interfaceKind: SystemInterface
+  passive: true
+  level: L2
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw1-lo1
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw1-lo1
+  interfaceKind: DefaultLoopbackInterface
+  passive: true
+  level: L2
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw2-lo1
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw2-lo1
+  interfaceKind: DefaultLoopbackInterface
+  passive: true
+  level: L2
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw3-lo1
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw3-lo1
+  interfaceKind: DefaultLoopbackInterface
+  passive: true
+  level: L2
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw4-lo1
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw4-lo1
+  interfaceKind: DefaultLoopbackInterface
+  passive: true
+  level: L2
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw1-ethernet-1-5
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw1-ethernet-1-5-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 10
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw2-ethernet-1-5
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw2-ethernet-1-5-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 10
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw1-ethernet-1-3
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw1-ethernet-1-3-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 10
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw3-ethernet-1-3
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw3-ethernet-1-3-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 10
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw1-ethernet-1-4
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw1-ethernet-1-4-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 10
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw4-ethernet-1-4
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw4-ethernet-1-4-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 10
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw2-ethernet-1-4
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw2-ethernet-1-4-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 10
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw3-ethernet-1-4
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw3-ethernet-1-4-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 10
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw2-ethernet-1-3
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw2-ethernet-1-3-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 10
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw4-ethernet-1-3
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw4-ethernet-1-3-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 10
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw3-ethernet-1-5
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw3-ethernet-1-5-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 10
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw4-ethernet-1-5
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw4-ethernet-1-5-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 10
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw1-ethernet-1-6
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw1-ethernet-1-6-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 100
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-p1-ethernet-1-1
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: p1-ethernet-1-1-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 100
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw2-ethernet-1-6
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw2-ethernet-1-6-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 100
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-p1-ethernet-1-2
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: p1-ethernet-1-2-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 100
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw3-ethernet-1-6
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw3-ethernet-1-6-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 100
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-p1-ethernet-1-3
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: p1-ethernet-1-3-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 100
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw4-ethernet-1-6
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw4-ethernet-1-6-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 100
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-p1-ethernet-1-4
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: p1-ethernet-1-4-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 100
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw1-ethernet-1-7
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw1-ethernet-1-7-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 100
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-p2-ethernet-1-1
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: p2-ethernet-1-1-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 100
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw2-ethernet-1-7
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw2-ethernet-1-7-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 100
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-p2-ethernet-1-2
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: p2-ethernet-1-2-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 100
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw3-ethernet-1-7
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw3-ethernet-1-7-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 100
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-p2-ethernet-1-3
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: p2-ethernet-1-3-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 100
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-dcgw4-ethernet-1-7
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: dcgw4-ethernet-1-7-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 100
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-p2-ethernet-1-4
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: p2-ethernet-1-4-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 100
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-p1-ethernet-1-5
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: p1-ethernet-1-5-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 100
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultISISInterface
+metadata:
+  name: wan-isis-p2-ethernet-1-5
+  namespace: dci
+spec:
+  defaultISISInstance: wan-isis
+  interface: p2-ethernet-1-5-wan
+  interfaceKind: DefaultInterface
+  type: PointToPoint
+  level: L2
+  level2:
+    metric: 100

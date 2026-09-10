@@ -1,0 +1,358 @@
+# © 2026 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License-Identifier: BSD-3-Clause
+
+# MPLS label ranges for the DCI plane, and the per-node deployments that push
+# them.
+#
+# LabelBlock only declares a range; LabelBlockDeployment binds it to a node. The
+# dynamic blocks feed LDP (dyn-ldp), the VPN services (dyn-svc), EVPN (dyn-evpn)
+# and EVPN inclusive-multicast (dyn-mcast). The two static blocks back segment
+# routing: sr-global is the shared SRGB that node SIDs index into - hence
+# type:SRGB on its deployments - and sr-adj is the non-shared adjacency-SID block.
+#
+# sr-adj is reserved rather than used. It lands in system mpls label-ranges, but
+# nothing binds it to the ISIS instance: DefaultISISInstance's segmentRouting has
+# srgbLabelBlock and nodeSIDIndexPool and no adjacency equivalent, so EDA leaves
+# instance-level segment-routing an empty container and adjacency SIDs come from
+# the dynamic range. It is kept because the range is what the reference design
+# reserves, and because reserving it costs nothing.
+#
+# p1/p2 are pure LSRs: they switch labels but terminate no service, so they get
+# only the LDP and SR blocks.
+
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlock
+metadata:
+  name: dyn-ldp
+  namespace: dci
+spec:
+  type: Dynamic
+  startLabel: 20000
+  endLabel: 29999
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlock
+metadata:
+  name: dyn-svc
+  namespace: dci
+spec:
+  type: Dynamic
+  startLabel: 30000
+  endLabel: 39999
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlock
+metadata:
+  name: dyn-evpn
+  namespace: dci
+spec:
+  type: Dynamic
+  startLabel: 40000
+  endLabel: 49999
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlock
+metadata:
+  name: dyn-mcast
+  namespace: dci
+spec:
+  type: Dynamic
+  startLabel: 50000
+  endLabel: 59999
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlock
+metadata:
+  name: sr-global
+  namespace: dci
+spec:
+  type: Static
+  startLabel: 15000
+  endLabel: 15999
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlock
+metadata:
+  name: sr-adj
+  namespace: dci
+spec:
+  type: Static
+  startLabel: 16000
+  endLabel: 16999
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: dyn-ldp-dcgw1
+  namespace: dci
+spec:
+  labelBlock: dyn-ldp
+  node: dcgw1
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: dyn-ldp-dcgw2
+  namespace: dci
+spec:
+  labelBlock: dyn-ldp
+  node: dcgw2
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: dyn-ldp-dcgw3
+  namespace: dci
+spec:
+  labelBlock: dyn-ldp
+  node: dcgw3
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: dyn-ldp-dcgw4
+  namespace: dci
+spec:
+  labelBlock: dyn-ldp
+  node: dcgw4
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: dyn-ldp-p1
+  namespace: dci
+spec:
+  labelBlock: dyn-ldp
+  node: p1
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: dyn-ldp-p2
+  namespace: dci
+spec:
+  labelBlock: dyn-ldp
+  node: p2
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: dyn-svc-dcgw1
+  namespace: dci
+spec:
+  labelBlock: dyn-svc
+  node: dcgw1
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: dyn-svc-dcgw2
+  namespace: dci
+spec:
+  labelBlock: dyn-svc
+  node: dcgw2
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: dyn-svc-dcgw3
+  namespace: dci
+spec:
+  labelBlock: dyn-svc
+  node: dcgw3
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: dyn-svc-dcgw4
+  namespace: dci
+spec:
+  labelBlock: dyn-svc
+  node: dcgw4
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: dyn-evpn-dcgw1
+  namespace: dci
+spec:
+  labelBlock: dyn-evpn
+  node: dcgw1
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: dyn-evpn-dcgw2
+  namespace: dci
+spec:
+  labelBlock: dyn-evpn
+  node: dcgw2
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: dyn-evpn-dcgw3
+  namespace: dci
+spec:
+  labelBlock: dyn-evpn
+  node: dcgw3
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: dyn-evpn-dcgw4
+  namespace: dci
+spec:
+  labelBlock: dyn-evpn
+  node: dcgw4
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: dyn-mcast-dcgw1
+  namespace: dci
+spec:
+  labelBlock: dyn-mcast
+  node: dcgw1
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: dyn-mcast-dcgw2
+  namespace: dci
+spec:
+  labelBlock: dyn-mcast
+  node: dcgw2
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: dyn-mcast-dcgw3
+  namespace: dci
+spec:
+  labelBlock: dyn-mcast
+  node: dcgw3
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: dyn-mcast-dcgw4
+  namespace: dci
+spec:
+  labelBlock: dyn-mcast
+  node: dcgw4
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: sr-global-dcgw1
+  namespace: dci
+spec:
+  labelBlock: sr-global
+  node: dcgw1
+  type: SRGB
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: sr-global-dcgw2
+  namespace: dci
+spec:
+  labelBlock: sr-global
+  node: dcgw2
+  type: SRGB
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: sr-global-dcgw3
+  namespace: dci
+spec:
+  labelBlock: sr-global
+  node: dcgw3
+  type: SRGB
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: sr-global-dcgw4
+  namespace: dci
+spec:
+  labelBlock: sr-global
+  node: dcgw4
+  type: SRGB
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: sr-global-p1
+  namespace: dci
+spec:
+  labelBlock: sr-global
+  node: p1
+  type: SRGB
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: sr-global-p2
+  namespace: dci
+spec:
+  labelBlock: sr-global
+  node: p2
+  type: SRGB
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: sr-adj-dcgw1
+  namespace: dci
+spec:
+  labelBlock: sr-adj
+  node: dcgw1
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: sr-adj-dcgw2
+  namespace: dci
+spec:
+  labelBlock: sr-adj
+  node: dcgw2
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: sr-adj-dcgw3
+  namespace: dci
+spec:
+  labelBlock: sr-adj
+  node: dcgw3
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: sr-adj-dcgw4
+  namespace: dci
+spec:
+  labelBlock: sr-adj
+  node: dcgw4
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: sr-adj-p1
+  namespace: dci
+spec:
+  labelBlock: sr-adj
+  node: p1
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: LabelBlockDeployment
+metadata:
+  name: sr-adj-p2
+  namespace: dci
+spec:
+  labelBlock: sr-adj
+  node: p2

@@ -1,0 +1,42 @@
+# © 2026 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License-Identifier: BSD-3-Clause
+
+# The node login EDA uses to reach the switches.
+#
+# The "sudo" NodeGroup has to be declared here even though EDA ships one: the
+# seeded copy lives in EDA's own "eda" namespace, and NodeGroup references do not
+# cross namespaces. A design that creates its own namespace starts with none, and
+# both the NodeUser and Init resources fail with "Node group sudo not found"
+# until it exists.
+#
+# Containerlab SR Linux images ship with admin/NokiaSrl1!. An empty nodeSelector
+# entry matches every node in the namespace.
+
+apiVersion: aaa.eda.nokia.com/v1
+kind: NodeGroup
+metadata:
+  name: sudo
+  namespace: dci
+spec:
+  superuser: true
+  services:
+    - GNMI
+    - CLI
+    - NETCONF
+    - GNSI
+    - GNOI
+---
+apiVersion: core.eda.nokia.com/v1
+kind: NodeUser
+metadata:
+  name: admin
+  namespace: dci
+spec:
+  username: admin
+  password: NokiaSrl1!
+  groupBindings:
+    - groups:
+        - sudo
+      nodeSelector:
+        - ""

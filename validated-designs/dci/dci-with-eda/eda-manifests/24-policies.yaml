@@ -1,0 +1,403 @@
+# © 2026 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License-Identifier: BSD-3-Clause
+
+# Loop prevention, host-route scoping and per-service gateway pinning.
+#
+# None of these three has a field on the interconnect resources, so each is
+# expressed as a Policy CR and referenced from the WAN BGP group.
+#
+# 1. Site-of-origin loop prevention. Every route a DC exports to the WAN is
+#    stamped with origin:65000:<dc>, and each DC rejects its own stamp on import.
+#    Without it, a DC's peer gateway re-imports that DC's own re-originated routes
+#    back off the WAN. This is the L2 equivalent of the D-PATH domain IDs the
+#    RouterInterconnect handles natively for L3.
+#
+# 2. Host-route scoping. The DCGWs install /32 ARP host routes from the local
+#    fabric so traffic to a local host is not tromboned, but re-originating those
+#    /32s across the WAN would leak the whole host table into the other DC.
+#    Statement 08 drops anything matching a /32 out of 10.200.0.0/16, so only the
+#    /24 subnet route crosses. Note the match is on prefix alone: the v1 policy
+#    families enum is IPv4/IPv6/EVPN/RTC and has no VPN-IPv4 member, so the
+#    family cannot be named the way the hand-built config names it.
+#
+# 3. Per-service gateway pinning. BD-B's WAN route target is de-preferred to
+#    local-pref 90 so BD-B settles on dcgw2/dcgw4 while BD-A rides dcgw1/dcgw3.
+#    The de-preferred path stays present as a hot standby rather than being
+#    filtered out, so losing a gateway is a reconvergence and not an outage.
+#    Local-pref rather than AS-path prepend because the WAN core is iBGP - a
+#    prepend of our own AS would look like a loop to the peer DCGW, which would
+#    drop the standby path entirely.
+#
+# 4. Keeping the fabric out of the WAN. The DCGW's WAN iBGP sessions and its
+#    fabric eBGP sessions live in the same network-instance and the same EVPN
+#    address family, so by default every EVPN route the DCGW learns from its
+#    spines is re-advertised straight to the far DC - original RD, original
+#    route target, original VXLAN next hop - and the far DC installs leaf VTEP
+#    addresses it has no tunnel to. The stitch still looks healthy: sessions
+#    come up, prefix counters move, and only the MAC tables give it away.
+#
+#    The hand-built config catches this with internal-tags: the VXLAN-side BGP
+#    instance stamps tag-1 and the WAN export rejects tag-1. Internal tags are
+#    not on any of the service CRs, so the export policy discriminates on the
+#    route target instead, which separates the two sides just as cleanly - the
+#    DC instances carry target:<evi>:<evi> and the interconnect instances
+#    target:65000:*. Hence statements 15/18/20 accept exactly the three WAN
+#    targets over a default-action of reject, rather than accepting everything.
+#    Ethernet-segment routes fall to the default and are rejected, which is
+#    correct here: the ES are DC-local and must not cross the DCI.
+
+apiVersion: routingpolicies.eda.nokia.com/v1
+kind: PrefixSet
+metadata:
+  name: host-routes-l3dci
+  namespace: dci
+spec:
+  prefixes:
+    - prefix: 10.200.0.0/16
+      startRange: 32
+      endRange: 32
+---
+apiVersion: routingpolicies.eda.nokia.com/v1
+kind: CommunitySet
+metadata:
+  name: soo-dc1
+  namespace: dci
+spec:
+  type: Extended
+  members:
+    - origin:65000:1
+---
+apiVersion: routingpolicies.eda.nokia.com/v1
+kind: CommunitySet
+metadata:
+  name: soo-dc2
+  namespace: dci
+spec:
+  type: Extended
+  members:
+    - origin:65000:2
+---
+apiVersion: routingpolicies.eda.nokia.com/v1
+kind: CommunitySet
+metadata:
+  name: rt-wan-l2dci-b
+  namespace: dci
+spec:
+  type: Extended
+  members:
+    - target:65000:110
+---
+apiVersion: routingpolicies.eda.nokia.com/v1
+kind: CommunitySet
+metadata:
+  name: rt-wan-l2dci-a
+  namespace: dci
+spec:
+  type: Extended
+  members:
+    - target:65000:100
+---
+apiVersion: routingpolicies.eda.nokia.com/v1
+kind: CommunitySet
+metadata:
+  name: rt-wan-l3dci
+  namespace: dci
+spec:
+  type: Extended
+  members:
+    - target:65000:3000
+---
+apiVersion: routingpolicies.eda.nokia.com/v1
+kind: CommunitySet
+metadata:
+  name: rt-dc-l2dci-a
+  namespace: dci
+spec:
+  type: Extended
+  members:
+    - target:100:100
+---
+apiVersion: routingpolicies.eda.nokia.com/v1
+kind: CommunitySet
+metadata:
+  name: rt-dc-l2dci-b
+  namespace: dci
+spec:
+  type: Extended
+  members:
+    - target:110:110
+---
+apiVersion: routingpolicies.eda.nokia.com/v1
+kind: Policy
+metadata:
+  name: dcgw-dc-pin-dcgw1
+  namespace: dci
+spec:
+  defaultAction:
+    policyResult: NextPolicy
+  statements:
+    - name: "10-depref-bd-b-toward-fabric"
+      match:
+        families:
+          - EVPN
+        bgp:
+          communitySet: rt-dc-l2dci-b
+      action:
+        policyResult: NextPolicy
+        bgp:
+          asPathPrepend:
+            asn: "65000"
+            count: 2
+---
+apiVersion: routingpolicies.eda.nokia.com/v1
+kind: PolicyDeployment
+metadata:
+  name: policy-dcgw-dc-pin-dcgw1
+  namespace: dci
+spec:
+  policy: dcgw-dc-pin-dcgw1
+  node: dcgw1
+---
+apiVersion: routingpolicies.eda.nokia.com/v1
+kind: Policy
+metadata:
+  name: dcgw-dc-pin-dcgw2
+  namespace: dci
+spec:
+  defaultAction:
+    policyResult: NextPolicy
+  statements:
+    - name: "10-depref-bd-a-toward-fabric"
+      match:
+        families:
+          - EVPN
+        bgp:
+          communitySet: rt-dc-l2dci-a
+      action:
+        policyResult: NextPolicy
+        bgp:
+          asPathPrepend:
+            asn: "65000"
+            count: 2
+---
+apiVersion: routingpolicies.eda.nokia.com/v1
+kind: PolicyDeployment
+metadata:
+  name: policy-dcgw-dc-pin-dcgw2
+  namespace: dci
+spec:
+  policy: dcgw-dc-pin-dcgw2
+  node: dcgw2
+---
+apiVersion: routingpolicies.eda.nokia.com/v1
+kind: Policy
+metadata:
+  name: dcgw-dc-pin-dcgw3
+  namespace: dci
+spec:
+  defaultAction:
+    policyResult: NextPolicy
+  statements:
+    - name: "10-depref-bd-b-toward-fabric"
+      match:
+        families:
+          - EVPN
+        bgp:
+          communitySet: rt-dc-l2dci-b
+      action:
+        policyResult: NextPolicy
+        bgp:
+          asPathPrepend:
+            asn: "65000"
+            count: 2
+---
+apiVersion: routingpolicies.eda.nokia.com/v1
+kind: PolicyDeployment
+metadata:
+  name: policy-dcgw-dc-pin-dcgw3
+  namespace: dci
+spec:
+  policy: dcgw-dc-pin-dcgw3
+  node: dcgw3
+---
+apiVersion: routingpolicies.eda.nokia.com/v1
+kind: Policy
+metadata:
+  name: dcgw-dc-pin-dcgw4
+  namespace: dci
+spec:
+  defaultAction:
+    policyResult: NextPolicy
+  statements:
+    - name: "10-depref-bd-a-toward-fabric"
+      match:
+        families:
+          - EVPN
+        bgp:
+          communitySet: rt-dc-l2dci-a
+      action:
+        policyResult: NextPolicy
+        bgp:
+          asPathPrepend:
+            asn: "65000"
+            count: 2
+---
+apiVersion: routingpolicies.eda.nokia.com/v1
+kind: PolicyDeployment
+metadata:
+  name: policy-dcgw-dc-pin-dcgw4
+  namespace: dci
+spec:
+  policy: dcgw-dc-pin-dcgw4
+  node: dcgw4
+---
+apiVersion: routingpolicies.eda.nokia.com/v1
+kind: Policy
+metadata:
+  name: dcgw-wan-export-dc1
+  namespace: dci
+spec:
+  defaultAction:
+    policyResult: Reject
+  statements:
+    - name: "08-drop-tenant-host-routes"
+      match:
+        prefixSet: host-routes-l3dci
+      action:
+        policyResult: Reject
+    - name: "15-depref-bd-b"
+      match:
+        families:
+          - EVPN
+        bgp:
+          communitySet: rt-wan-l2dci-b
+      action:
+        policyResult: Accept
+        bgp:
+          setLocalPreference: 90
+          communities:
+            addSets:
+              - soo-dc1
+    - name: "18-accept-bd-a"
+      match:
+        families:
+          - EVPN
+        bgp:
+          communitySet: rt-wan-l2dci-a
+      action:
+        policyResult: Accept
+        bgp:
+          communities:
+            addSets:
+              - soo-dc1
+    - name: "20-accept-l3vpn"
+      match:
+        bgp:
+          communitySet: rt-wan-l3dci
+      action:
+        policyResult: Accept
+        bgp:
+          communities:
+            addSets:
+              - soo-dc1
+---
+apiVersion: routingpolicies.eda.nokia.com/v1
+kind: Policy
+metadata:
+  name: dcgw-wan-import-dc1
+  namespace: dci
+spec:
+  defaultAction:
+    policyResult: Reject
+  statements:
+    - name: "10-reject-own-soo"
+      match:
+        bgp:
+          communitySet: soo-dc1
+      action:
+        policyResult: Reject
+    - name: "20-accept-evpn"
+      match:
+        families:
+          - EVPN
+      action:
+        policyResult: Accept
+    - name: "30-accept-the-rest"
+      action:
+        policyResult: Accept
+---
+apiVersion: routingpolicies.eda.nokia.com/v1
+kind: Policy
+metadata:
+  name: dcgw-wan-export-dc2
+  namespace: dci
+spec:
+  defaultAction:
+    policyResult: Reject
+  statements:
+    - name: "08-drop-tenant-host-routes"
+      match:
+        prefixSet: host-routes-l3dci
+      action:
+        policyResult: Reject
+    - name: "15-depref-bd-b"
+      match:
+        families:
+          - EVPN
+        bgp:
+          communitySet: rt-wan-l2dci-b
+      action:
+        policyResult: Accept
+        bgp:
+          setLocalPreference: 90
+          communities:
+            addSets:
+              - soo-dc2
+    - name: "18-accept-bd-a"
+      match:
+        families:
+          - EVPN
+        bgp:
+          communitySet: rt-wan-l2dci-a
+      action:
+        policyResult: Accept
+        bgp:
+          communities:
+            addSets:
+              - soo-dc2
+    - name: "20-accept-l3vpn"
+      match:
+        bgp:
+          communitySet: rt-wan-l3dci
+      action:
+        policyResult: Accept
+        bgp:
+          communities:
+            addSets:
+              - soo-dc2
+---
+apiVersion: routingpolicies.eda.nokia.com/v1
+kind: Policy
+metadata:
+  name: dcgw-wan-import-dc2
+  namespace: dci
+spec:
+  defaultAction:
+    policyResult: Reject
+  statements:
+    - name: "10-reject-own-soo"
+      match:
+        bgp:
+          communitySet: soo-dc2
+      action:
+        policyResult: Reject
+    - name: "20-accept-evpn"
+      match:
+        families:
+          - EVPN
+      action:
+        policyResult: Accept
+    - name: "30-accept-the-rest"
+      action:
+        policyResult: Accept

@@ -1,0 +1,418 @@
+# © 2026 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License-Identifier: BSD-3-Clause
+
+# LDP over every WAN link, drawing labels from the dyn-ldp block.
+#
+# LDP and SR-ISIS run in parallel. Both are listed in allowedTunnelTypes on the
+# interconnect CRs, so a service can resolve its next hop over either and killing
+# one transport leaves the other carrying traffic.
+#
+# linkAdjacency deliberately omits transportAddress: EDA rejects it for SR Linux
+# ("Link adjancency transport address is not supported on srl platform"). SR
+# Linux derives the LDP transport address from the router-id, which is system0
+# here, so the effect the knob would have had is already the default.
+#
+# The keepalive interval is 30s, not the 10s that would mirror the hello timers:
+# SR Linux constrains session-keepalive-interval to 15..1200.
+
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPRouter
+metadata:
+  name: wan-ldp
+  namespace: dci
+spec:
+  enabled: true
+  labelBlockRef: dyn-ldp
+  longestPrefixMatch: false
+  maxECMP: 8
+  linkAdjacency:
+    helloIntervalSeconds: 5
+    helloHoldTimeSeconds: 15
+  keepAlive:
+    keepAliveIntervalSeconds: 30
+    keepAliveHoldTimeSeconds: 90
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPRouterDeployment
+metadata:
+  name: wan-ldp-dcgw1
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  node: dcgw1
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPRouterDeployment
+metadata:
+  name: wan-ldp-dcgw2
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  node: dcgw2
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPRouterDeployment
+metadata:
+  name: wan-ldp-dcgw3
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  node: dcgw3
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPRouterDeployment
+metadata:
+  name: wan-ldp-dcgw4
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  node: dcgw4
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPRouterDeployment
+metadata:
+  name: wan-ldp-p1
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  node: p1
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPRouterDeployment
+metadata:
+  name: wan-ldp-p2
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  node: p2
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-dcgw1-ethernet-1-5
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: dcgw1-ethernet-1-5-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-dcgw2-ethernet-1-5
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: dcgw2-ethernet-1-5-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-dcgw1-ethernet-1-3
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: dcgw1-ethernet-1-3-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-dcgw3-ethernet-1-3
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: dcgw3-ethernet-1-3-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-dcgw1-ethernet-1-4
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: dcgw1-ethernet-1-4-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-dcgw4-ethernet-1-4
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: dcgw4-ethernet-1-4-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-dcgw2-ethernet-1-4
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: dcgw2-ethernet-1-4-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-dcgw3-ethernet-1-4
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: dcgw3-ethernet-1-4-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-dcgw2-ethernet-1-3
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: dcgw2-ethernet-1-3-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-dcgw4-ethernet-1-3
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: dcgw4-ethernet-1-3-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-dcgw3-ethernet-1-5
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: dcgw3-ethernet-1-5-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-dcgw4-ethernet-1-5
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: dcgw4-ethernet-1-5-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-dcgw1-ethernet-1-6
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: dcgw1-ethernet-1-6-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-p1-ethernet-1-1
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: p1-ethernet-1-1-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-dcgw2-ethernet-1-6
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: dcgw2-ethernet-1-6-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-p1-ethernet-1-2
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: p1-ethernet-1-2-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-dcgw3-ethernet-1-6
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: dcgw3-ethernet-1-6-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-p1-ethernet-1-3
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: p1-ethernet-1-3-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-dcgw4-ethernet-1-6
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: dcgw4-ethernet-1-6-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-p1-ethernet-1-4
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: p1-ethernet-1-4-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-dcgw1-ethernet-1-7
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: dcgw1-ethernet-1-7-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-p2-ethernet-1-1
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: p2-ethernet-1-1-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-dcgw2-ethernet-1-7
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: dcgw2-ethernet-1-7-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-p2-ethernet-1-2
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: p2-ethernet-1-2-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-dcgw3-ethernet-1-7
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: dcgw3-ethernet-1-7-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-p2-ethernet-1-3
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: p2-ethernet-1-3-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-dcgw4-ethernet-1-7
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: dcgw4-ethernet-1-7-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-p2-ethernet-1-4
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: p2-ethernet-1-4-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-p1-ethernet-1-5
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: p1-ethernet-1-5-wan
+  ipv4:
+    enabled: true
+---
+apiVersion: mpls.eda.nokia.com/v1alpha1
+kind: DefaultLDPInterface
+metadata:
+  name: wan-ldp-p2-ethernet-1-5
+  namespace: dci
+spec:
+  defaultLDPRouter: wan-ldp
+  interface: p2-ethernet-1-5-wan
+  ipv4:
+    enabled: true

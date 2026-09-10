@@ -1,0 +1,203 @@
+# © 2026 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License-Identifier: BSD-3-Clause
+
+# Allocation pools: one set per fabric, plus the EDA well-known defaults.
+#
+# Nothing here is pinned to a particular node, and nothing downstream depends on
+# a specific value. That is a deliberate correction: IndexAllocationPool
+# segments[].allocations look like they pin a value to a node, but the Fabric
+# does not request its ASNs under the bare TopoNode name, so a pinned entry only
+# ever RESERVES the value away from general allocation. Pinning leaf1..leaf4 to
+# 65401..65404 in a size-4 segment simply exhausts the pool. Everywhere a peer
+# address would otherwise have to be written down, the manifests reference the
+# peer's SystemInterface resource by name instead (see 34-wan-ibgp.yaml).
+#
+# The spine pools are size 1 because every spine in a fabric shares one ASN. The
+# DCGW pools are size 2 because a Fabric insists on a distinct ASN per border
+# leaf - see the note in 34-wan-ibgp.yaml for how the WAN core is still iBGP
+# despite that.
+#
+# The trailing well-known pools (evi-pool, vni-pool, tunnel-index-pool, ...) are
+# seeded by EDA into its OWN namespace at install time. A design that creates its
+# own namespace inherits none of them, and the first BridgeDomain or LAG fails
+# with "pool template does not exist in namespace dci". Ranges mirror the install
+# defaults.
+
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: leaf-asn-dc1
+  namespace: dci
+spec:
+  segments:
+    - start: 65401
+      size: 8
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: spine-asn-dc1
+  namespace: dci
+spec:
+  segments:
+    - start: 65501
+      size: 1
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: dcgw-asn-dc1
+  namespace: dci
+spec:
+  segments:
+    - start: 65001
+      size: 2
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IPAllocationPool
+metadata:
+  name: systemipv4-dc1
+  namespace: dci
+spec:
+  segments:
+    - subnet: 192.0.2.0/24
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: leaf-asn-dc2
+  namespace: dci
+spec:
+  segments:
+    - start: 65405
+      size: 8
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: spine-asn-dc2
+  namespace: dci
+spec:
+  segments:
+    - start: 65502
+      size: 1
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: dcgw-asn-dc2
+  namespace: dci
+spec:
+  segments:
+    - start: 65003
+      size: 2
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IPAllocationPool
+metadata:
+  name: systemipv4-dc2
+  namespace: dci
+spec:
+  segments:
+    - subnet: 192.0.3.0/24
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: es-index-pool
+  namespace: dci
+spec:
+  segments:
+    - start: 1
+      size: 16777216
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: evi-pool
+  namespace: dci
+spec:
+  segments:
+    - start: 100
+      size: 4000
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: irb-subif-pool
+  namespace: dci
+spec:
+  segments:
+    - start: 0
+      size: 4000
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: lag-admin-key-pool
+  namespace: dci
+spec:
+  segments:
+    - start: 1
+      size: 65535
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: lagid-pool
+  namespace: dci
+spec:
+  segments:
+    - start: 1
+      size: 128
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: loopback-id-pool
+  namespace: dci
+spec:
+  segments:
+    - start: 0
+      size: 255
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: node-sid-index-pool
+  namespace: dci
+spec:
+  segments:
+    - start: 1
+      size: 1000
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: tunnel-index-pool
+  namespace: dci
+spec:
+  segments:
+    - start: 1
+      size: 16777215
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: vlan-pool
+  namespace: dci
+spec:
+  segments:
+    - start: 1
+      size: 4000
+---
+apiVersion: core.eda.nokia.com/v1
+kind: IndexAllocationPool
+metadata:
+  name: vni-pool
+  namespace: dci
+spec:
+  segments:
+    - start: 200
+      size: 4000

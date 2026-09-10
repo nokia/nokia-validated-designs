@@ -1,0 +1,567 @@
+# © 2026 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License-Identifier: BSD-3-Clause
+
+# The numbered side of the WAN: /31 links, the anycast DCI loopback, and the two
+# P routers' default network-instance.
+#
+# p1/p2 belong to no Fabric, so nothing creates their default network-instance or
+# system0 for them - hence the explicit DefaultRouter (with BGP off; they are
+# label switches, not PEs) and SystemInterface. The DCGWs get theirs from their
+# Fabric, and this file only adds their WAN-facing interfaces on top - which is
+# why every DefaultInterface here references <node>-default, a router the Fabric
+# created for the DCGWs and this file created for the P routers.
+#
+# lo1 is the anycast loopback: BOTH DCGWs in a pair carry the same address
+# (192.0.2.150 in dc1, 192.0.3.150 in dc2). It is the next hop the far DC resolves
+# for the stretched L2 services, so either gateway can answer and losing one does
+# not withdraw the route. It is also the RD administrator field on the
+# BridgeDomainInterconnects.
+
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultRouter
+metadata:
+  name: router-p1
+  namespace: dci
+spec:
+  node: p1
+  routerID: 192.0.100.201
+  description: wan-core role P/LSR
+  ecmp: 8
+  bgp:
+    enabled: false
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: SystemInterface
+metadata:
+  name: p1-system0
+  namespace: dci
+spec:
+  defaultRouter: router-p1
+  ipv4Address: 192.0.100.201/32
+  description: p1 system0 loopback
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultRouter
+metadata:
+  name: router-p2
+  namespace: dci
+spec:
+  node: p2
+  routerID: 192.0.100.202
+  description: wan-core role P/LSR
+  ecmp: 8
+  bgp:
+    enabled: false
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: SystemInterface
+metadata:
+  name: p2-system0
+  namespace: dci
+spec:
+  defaultRouter: router-p2
+  ipv4Address: 192.0.100.202/32
+  description: p2 system0 loopback
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultLoopbackInterface
+metadata:
+  name: dcgw1-lo1
+  namespace: dci
+spec:
+  node: dcgw1
+  interfaceIndex: 1
+  subinterfaceIndex: 0
+  description: anycast DCI loopback shared by the dc1 DCGW pair
+  ipv4Addresses:
+    - 192.0.2.150/32
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultLoopbackInterface
+metadata:
+  name: dcgw2-lo1
+  namespace: dci
+spec:
+  node: dcgw2
+  interfaceIndex: 1
+  subinterfaceIndex: 0
+  description: anycast DCI loopback shared by the dc1 DCGW pair
+  ipv4Addresses:
+    - 192.0.2.150/32
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultLoopbackInterface
+metadata:
+  name: dcgw3-lo1
+  namespace: dci
+spec:
+  node: dcgw3
+  interfaceIndex: 1
+  subinterfaceIndex: 0
+  description: anycast DCI loopback shared by the dc2 DCGW pair
+  ipv4Addresses:
+    - 192.0.3.150/32
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultLoopbackInterface
+metadata:
+  name: dcgw4-lo1
+  namespace: dci
+spec:
+  node: dcgw4
+  interfaceIndex: 1
+  subinterfaceIndex: 0
+  description: anycast DCI loopback shared by the dc2 DCGW pair
+  ipv4Addresses:
+    - 192.0.3.150/32
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: dcgw1-ethernet-1-5-wan
+  namespace: dci
+spec:
+  defaultRouter: router-dcgw1
+  interface: dcgw1-ethernet-1-5
+  subinterfaceIndex: 0
+  description: dcgw1-to-dcgw2-direct
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.0.0/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: dcgw2-ethernet-1-5-wan
+  namespace: dci
+spec:
+  defaultRouter: router-dcgw2
+  interface: dcgw2-ethernet-1-5
+  subinterfaceIndex: 0
+  description: dcgw2-to-dcgw1-direct
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.0.1/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: dcgw1-ethernet-1-3-wan
+  namespace: dci
+spec:
+  defaultRouter: router-dcgw1
+  interface: dcgw1-ethernet-1-3
+  subinterfaceIndex: 0
+  description: dcgw1-to-dcgw3-direct
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.0.2/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: dcgw3-ethernet-1-3-wan
+  namespace: dci
+spec:
+  defaultRouter: router-dcgw3
+  interface: dcgw3-ethernet-1-3
+  subinterfaceIndex: 0
+  description: dcgw3-to-dcgw1-direct
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.0.3/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: dcgw1-ethernet-1-4-wan
+  namespace: dci
+spec:
+  defaultRouter: router-dcgw1
+  interface: dcgw1-ethernet-1-4
+  subinterfaceIndex: 0
+  description: dcgw1-to-dcgw4-direct
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.0.4/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: dcgw4-ethernet-1-4-wan
+  namespace: dci
+spec:
+  defaultRouter: router-dcgw4
+  interface: dcgw4-ethernet-1-4
+  subinterfaceIndex: 0
+  description: dcgw4-to-dcgw1-direct
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.0.5/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: dcgw2-ethernet-1-4-wan
+  namespace: dci
+spec:
+  defaultRouter: router-dcgw2
+  interface: dcgw2-ethernet-1-4
+  subinterfaceIndex: 0
+  description: dcgw2-to-dcgw3-direct
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.0.6/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: dcgw3-ethernet-1-4-wan
+  namespace: dci
+spec:
+  defaultRouter: router-dcgw3
+  interface: dcgw3-ethernet-1-4
+  subinterfaceIndex: 0
+  description: dcgw3-to-dcgw2-direct
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.0.7/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: dcgw2-ethernet-1-3-wan
+  namespace: dci
+spec:
+  defaultRouter: router-dcgw2
+  interface: dcgw2-ethernet-1-3
+  subinterfaceIndex: 0
+  description: dcgw2-to-dcgw4-direct
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.0.8/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: dcgw4-ethernet-1-3-wan
+  namespace: dci
+spec:
+  defaultRouter: router-dcgw4
+  interface: dcgw4-ethernet-1-3
+  subinterfaceIndex: 0
+  description: dcgw4-to-dcgw2-direct
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.0.9/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: dcgw3-ethernet-1-5-wan
+  namespace: dci
+spec:
+  defaultRouter: router-dcgw3
+  interface: dcgw3-ethernet-1-5
+  subinterfaceIndex: 0
+  description: dcgw3-to-dcgw4-direct
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.0.10/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: dcgw4-ethernet-1-5-wan
+  namespace: dci
+spec:
+  defaultRouter: router-dcgw4
+  interface: dcgw4-ethernet-1-5
+  subinterfaceIndex: 0
+  description: dcgw4-to-dcgw3-direct
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.0.11/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: dcgw1-ethernet-1-6-wan
+  namespace: dci
+spec:
+  defaultRouter: router-dcgw1
+  interface: dcgw1-ethernet-1-6
+  subinterfaceIndex: 0
+  description: dcgw1-to-p1-core
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.1.0/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: p1-ethernet-1-1-wan
+  namespace: dci
+spec:
+  defaultRouter: router-p1
+  interface: p1-ethernet-1-1
+  subinterfaceIndex: 0
+  description: p1-to-dcgw1-core
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.1.1/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: dcgw2-ethernet-1-6-wan
+  namespace: dci
+spec:
+  defaultRouter: router-dcgw2
+  interface: dcgw2-ethernet-1-6
+  subinterfaceIndex: 0
+  description: dcgw2-to-p1-core
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.1.2/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: p1-ethernet-1-2-wan
+  namespace: dci
+spec:
+  defaultRouter: router-p1
+  interface: p1-ethernet-1-2
+  subinterfaceIndex: 0
+  description: p1-to-dcgw2-core
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.1.3/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: dcgw3-ethernet-1-6-wan
+  namespace: dci
+spec:
+  defaultRouter: router-dcgw3
+  interface: dcgw3-ethernet-1-6
+  subinterfaceIndex: 0
+  description: dcgw3-to-p1-core
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.1.4/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: p1-ethernet-1-3-wan
+  namespace: dci
+spec:
+  defaultRouter: router-p1
+  interface: p1-ethernet-1-3
+  subinterfaceIndex: 0
+  description: p1-to-dcgw3-core
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.1.5/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: dcgw4-ethernet-1-6-wan
+  namespace: dci
+spec:
+  defaultRouter: router-dcgw4
+  interface: dcgw4-ethernet-1-6
+  subinterfaceIndex: 0
+  description: dcgw4-to-p1-core
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.1.6/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: p1-ethernet-1-4-wan
+  namespace: dci
+spec:
+  defaultRouter: router-p1
+  interface: p1-ethernet-1-4
+  subinterfaceIndex: 0
+  description: p1-to-dcgw4-core
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.1.7/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: dcgw1-ethernet-1-7-wan
+  namespace: dci
+spec:
+  defaultRouter: router-dcgw1
+  interface: dcgw1-ethernet-1-7
+  subinterfaceIndex: 0
+  description: dcgw1-to-p2-core
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.1.8/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: p2-ethernet-1-1-wan
+  namespace: dci
+spec:
+  defaultRouter: router-p2
+  interface: p2-ethernet-1-1
+  subinterfaceIndex: 0
+  description: p2-to-dcgw1-core
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.1.9/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: dcgw2-ethernet-1-7-wan
+  namespace: dci
+spec:
+  defaultRouter: router-dcgw2
+  interface: dcgw2-ethernet-1-7
+  subinterfaceIndex: 0
+  description: dcgw2-to-p2-core
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.1.10/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: p2-ethernet-1-2-wan
+  namespace: dci
+spec:
+  defaultRouter: router-p2
+  interface: p2-ethernet-1-2
+  subinterfaceIndex: 0
+  description: p2-to-dcgw2-core
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.1.11/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: dcgw3-ethernet-1-7-wan
+  namespace: dci
+spec:
+  defaultRouter: router-dcgw3
+  interface: dcgw3-ethernet-1-7
+  subinterfaceIndex: 0
+  description: dcgw3-to-p2-core
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.1.12/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: p2-ethernet-1-3-wan
+  namespace: dci
+spec:
+  defaultRouter: router-p2
+  interface: p2-ethernet-1-3
+  subinterfaceIndex: 0
+  description: p2-to-dcgw3-core
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.1.13/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: dcgw4-ethernet-1-7-wan
+  namespace: dci
+spec:
+  defaultRouter: router-dcgw4
+  interface: dcgw4-ethernet-1-7
+  subinterfaceIndex: 0
+  description: dcgw4-to-p2-core
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.1.14/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: p2-ethernet-1-4-wan
+  namespace: dci
+spec:
+  defaultRouter: router-p2
+  interface: p2-ethernet-1-4
+  subinterfaceIndex: 0
+  description: p2-to-dcgw4-core
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.1.15/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: p1-ethernet-1-5-wan
+  namespace: dci
+spec:
+  defaultRouter: router-p1
+  interface: p1-ethernet-1-5
+  subinterfaceIndex: 0
+  description: p1-to-p2-core
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.1.16/31
+      primary: true
+---
+apiVersion: routing.eda.nokia.com/v1
+kind: DefaultInterface
+metadata:
+  name: p2-ethernet-1-5-wan
+  namespace: dci
+spec:
+  defaultRouter: router-p2
+  interface: p2-ethernet-1-5
+  subinterfaceIndex: 0
+  description: p2-to-p1-core
+  ipMTU: 9198
+  ipv4Addresses:
+    - ipPrefix: 10.255.1.17/31
+      primary: true

@@ -1,0 +1,43 @@
+# © 2026 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License-Identifier: BSD-3-Clause
+
+# Containerlab flavour of the stock srlinux-ghcr-26.7.1 profile.
+#
+# The stock profile EDA ships targets HARDWARE: gNMI on 57400, a DHCP block, and
+# an imagePullSecret. A containerlab node needs gNMI on 57410 and the plain
+# ghcr.io/nokia/srlinux:26.7.1 tag the topology file actually runs, so the two
+# profiles cannot be interchanged.
+#
+# Everything version-specific is copied verbatim from the stock profile:
+#   yang    the schema profile EDA validates the node's YANG models against
+#   llmDb   the embeddings behind EDA's natural-language query features
+#   images  the .bin artifact. Never downloaded for a container node, but the
+#           bootstrap intent indexes into this list unconditionally and dies with
+#           an IndexError if it is empty.
+#
+# annotate:false keeps the rendered device config readable - with it on, every
+# config line carries the originating CR as a description.
+
+apiVersion: core.eda.nokia.com/v1
+kind: NodeProfile
+metadata:
+  name: clab-srlinux-26.7.1
+  namespace: dci
+spec:
+  operatingSystem: srl
+  version: 26.7.1
+  versionMatch: v26\.7\.1.*
+  versionPath: .system.information.version
+  platformPath: .platform.chassis.type
+  containerImage: ghcr.io/nokia/srlinux:26.7.1
+  images:
+    - image: _base_/srlimages/srlinux-26.7.1-554
+      imageMd5: _base_/srlimages/srlinux-26.7.1-554-md5
+  nodeUser: admin
+  onboardingUsername: admin
+  onboardingPassword: NokiaSrl1!
+  port: 57410
+  annotate: false
+  yang: https://eda-asvr.eda-system.svc/_base_/schemaprofiles/srlinux-ghcr-26.7.1/srlinux-26.7.1.zip
+  llmDb: https://eda-asvr.eda-system.svc/_base_/llm-dbs/llm-db-srlinux-ghcr-26.7.1/llm-embeddings-srl-26-7-1.tar.gz

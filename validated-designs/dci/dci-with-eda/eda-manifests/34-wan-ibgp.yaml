@@ -1,0 +1,402 @@
+# © 2026 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License-Identifier: BSD-3-Clause
+
+# The DCI control plane: a 4-node iBGP full mesh between all DCGWs in AS 65000,
+# carrying EVPN (for the stretched L2 services) and VPN-IPv4 (for the L3 service).
+#
+# Sessions are sourced from system0 and peer to the other DCGWs' system0, so they
+# ride whichever WAN path IS-IS currently prefers rather than being pinned to a
+# link. There is one group per site because the import/export policies differ per
+# DC - each stamps its own site-of-origin - while the AS number and address
+# families are identical.
+#
+# 12 peer CRs = 4 gateways x 3 remote gateways.
+
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultBGPGroup
+metadata:
+  name: wan-ibgp-dc1
+  namespace: dci
+spec:
+  configuredName: wan-ibgp
+  description: DCI iBGP core between all four DCGWs
+  peerAS:
+    autonomousSystem: 65000
+  localAS:
+    autonomousSystem: 65000
+  nextHopSelf: false
+  exportPolicies:
+    - dcgw-wan-export-dc1
+  importPolicies:
+    - dcgw-wan-import-dc1
+  l2VPNEVPN:
+    enabled: true
+  vpnIPv4Unicast:
+    enabled: true
+  ipv4Unicast:
+    enabled: false
+  ipv6Unicast:
+    enabled: false
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultBGPGroup
+metadata:
+  name: wan-ibgp-dc2
+  namespace: dci
+spec:
+  configuredName: wan-ibgp
+  description: DCI iBGP core between all four DCGWs
+  peerAS:
+    autonomousSystem: 65000
+  localAS:
+    autonomousSystem: 65000
+  nextHopSelf: false
+  exportPolicies:
+    - dcgw-wan-export-dc2
+  importPolicies:
+    - dcgw-wan-import-dc2
+  l2VPNEVPN:
+    enabled: true
+  vpnIPv4Unicast:
+    enabled: true
+  ipv4Unicast:
+    enabled: false
+  ipv6Unicast:
+    enabled: false
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultBGPGroupDeployment
+metadata:
+  name: wan-ibgp-dcgw1
+  namespace: dci
+spec:
+  defaultBGPGroup: wan-ibgp-dc1
+  node: dcgw1
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultBGPGroupDeployment
+metadata:
+  name: wan-ibgp-dcgw2
+  namespace: dci
+spec:
+  defaultBGPGroup: wan-ibgp-dc1
+  node: dcgw2
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultBGPGroupDeployment
+metadata:
+  name: wan-ibgp-dcgw3
+  namespace: dci
+spec:
+  defaultBGPGroup: wan-ibgp-dc2
+  node: dcgw3
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultBGPGroupDeployment
+metadata:
+  name: wan-ibgp-dcgw4
+  namespace: dci
+spec:
+  defaultBGPGroup: wan-ibgp-dc2
+  node: dcgw4
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultBGPPeer
+metadata:
+  name: wan-ibgp-dcgw1-to-dcgw2
+  namespace: dci
+spec:
+  group: wan-ibgp-dc1
+  interface: dcgw1-system0
+  interfaceKind: SystemInterface
+  peerInterface: dcgw2-system0
+  peerInterfaceKind: SystemInterface
+  description: DCI iBGP to dcgw2
+  peerAS:
+    autonomousSystem: 65000
+  localAS:
+    autonomousSystem: 65000
+  l2VPNEVPN:
+    enabled: true
+  vpnIPv4Unicast:
+    enabled: true
+  ipv4Unicast:
+    enabled: false
+  ipv6Unicast:
+    enabled: false
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultBGPPeer
+metadata:
+  name: wan-ibgp-dcgw1-to-dcgw3
+  namespace: dci
+spec:
+  group: wan-ibgp-dc1
+  interface: dcgw1-system0
+  interfaceKind: SystemInterface
+  peerInterface: dcgw3-system0
+  peerInterfaceKind: SystemInterface
+  description: DCI iBGP to dcgw3
+  peerAS:
+    autonomousSystem: 65000
+  localAS:
+    autonomousSystem: 65000
+  l2VPNEVPN:
+    enabled: true
+  vpnIPv4Unicast:
+    enabled: true
+  ipv4Unicast:
+    enabled: false
+  ipv6Unicast:
+    enabled: false
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultBGPPeer
+metadata:
+  name: wan-ibgp-dcgw1-to-dcgw4
+  namespace: dci
+spec:
+  group: wan-ibgp-dc1
+  interface: dcgw1-system0
+  interfaceKind: SystemInterface
+  peerInterface: dcgw4-system0
+  peerInterfaceKind: SystemInterface
+  description: DCI iBGP to dcgw4
+  peerAS:
+    autonomousSystem: 65000
+  localAS:
+    autonomousSystem: 65000
+  l2VPNEVPN:
+    enabled: true
+  vpnIPv4Unicast:
+    enabled: true
+  ipv4Unicast:
+    enabled: false
+  ipv6Unicast:
+    enabled: false
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultBGPPeer
+metadata:
+  name: wan-ibgp-dcgw2-to-dcgw1
+  namespace: dci
+spec:
+  group: wan-ibgp-dc1
+  interface: dcgw2-system0
+  interfaceKind: SystemInterface
+  peerInterface: dcgw1-system0
+  peerInterfaceKind: SystemInterface
+  description: DCI iBGP to dcgw1
+  peerAS:
+    autonomousSystem: 65000
+  localAS:
+    autonomousSystem: 65000
+  l2VPNEVPN:
+    enabled: true
+  vpnIPv4Unicast:
+    enabled: true
+  ipv4Unicast:
+    enabled: false
+  ipv6Unicast:
+    enabled: false
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultBGPPeer
+metadata:
+  name: wan-ibgp-dcgw2-to-dcgw3
+  namespace: dci
+spec:
+  group: wan-ibgp-dc1
+  interface: dcgw2-system0
+  interfaceKind: SystemInterface
+  peerInterface: dcgw3-system0
+  peerInterfaceKind: SystemInterface
+  description: DCI iBGP to dcgw3
+  peerAS:
+    autonomousSystem: 65000
+  localAS:
+    autonomousSystem: 65000
+  l2VPNEVPN:
+    enabled: true
+  vpnIPv4Unicast:
+    enabled: true
+  ipv4Unicast:
+    enabled: false
+  ipv6Unicast:
+    enabled: false
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultBGPPeer
+metadata:
+  name: wan-ibgp-dcgw2-to-dcgw4
+  namespace: dci
+spec:
+  group: wan-ibgp-dc1
+  interface: dcgw2-system0
+  interfaceKind: SystemInterface
+  peerInterface: dcgw4-system0
+  peerInterfaceKind: SystemInterface
+  description: DCI iBGP to dcgw4
+  peerAS:
+    autonomousSystem: 65000
+  localAS:
+    autonomousSystem: 65000
+  l2VPNEVPN:
+    enabled: true
+  vpnIPv4Unicast:
+    enabled: true
+  ipv4Unicast:
+    enabled: false
+  ipv6Unicast:
+    enabled: false
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultBGPPeer
+metadata:
+  name: wan-ibgp-dcgw3-to-dcgw1
+  namespace: dci
+spec:
+  group: wan-ibgp-dc2
+  interface: dcgw3-system0
+  interfaceKind: SystemInterface
+  peerInterface: dcgw1-system0
+  peerInterfaceKind: SystemInterface
+  description: DCI iBGP to dcgw1
+  peerAS:
+    autonomousSystem: 65000
+  localAS:
+    autonomousSystem: 65000
+  l2VPNEVPN:
+    enabled: true
+  vpnIPv4Unicast:
+    enabled: true
+  ipv4Unicast:
+    enabled: false
+  ipv6Unicast:
+    enabled: false
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultBGPPeer
+metadata:
+  name: wan-ibgp-dcgw3-to-dcgw2
+  namespace: dci
+spec:
+  group: wan-ibgp-dc2
+  interface: dcgw3-system0
+  interfaceKind: SystemInterface
+  peerInterface: dcgw2-system0
+  peerInterfaceKind: SystemInterface
+  description: DCI iBGP to dcgw2
+  peerAS:
+    autonomousSystem: 65000
+  localAS:
+    autonomousSystem: 65000
+  l2VPNEVPN:
+    enabled: true
+  vpnIPv4Unicast:
+    enabled: true
+  ipv4Unicast:
+    enabled: false
+  ipv6Unicast:
+    enabled: false
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultBGPPeer
+metadata:
+  name: wan-ibgp-dcgw3-to-dcgw4
+  namespace: dci
+spec:
+  group: wan-ibgp-dc2
+  interface: dcgw3-system0
+  interfaceKind: SystemInterface
+  peerInterface: dcgw4-system0
+  peerInterfaceKind: SystemInterface
+  description: DCI iBGP to dcgw4
+  peerAS:
+    autonomousSystem: 65000
+  localAS:
+    autonomousSystem: 65000
+  l2VPNEVPN:
+    enabled: true
+  vpnIPv4Unicast:
+    enabled: true
+  ipv4Unicast:
+    enabled: false
+  ipv6Unicast:
+    enabled: false
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultBGPPeer
+metadata:
+  name: wan-ibgp-dcgw4-to-dcgw1
+  namespace: dci
+spec:
+  group: wan-ibgp-dc2
+  interface: dcgw4-system0
+  interfaceKind: SystemInterface
+  peerInterface: dcgw1-system0
+  peerInterfaceKind: SystemInterface
+  description: DCI iBGP to dcgw1
+  peerAS:
+    autonomousSystem: 65000
+  localAS:
+    autonomousSystem: 65000
+  l2VPNEVPN:
+    enabled: true
+  vpnIPv4Unicast:
+    enabled: true
+  ipv4Unicast:
+    enabled: false
+  ipv6Unicast:
+    enabled: false
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultBGPPeer
+metadata:
+  name: wan-ibgp-dcgw4-to-dcgw2
+  namespace: dci
+spec:
+  group: wan-ibgp-dc2
+  interface: dcgw4-system0
+  interfaceKind: SystemInterface
+  peerInterface: dcgw2-system0
+  peerInterfaceKind: SystemInterface
+  description: DCI iBGP to dcgw2
+  peerAS:
+    autonomousSystem: 65000
+  localAS:
+    autonomousSystem: 65000
+  l2VPNEVPN:
+    enabled: true
+  vpnIPv4Unicast:
+    enabled: true
+  ipv4Unicast:
+    enabled: false
+  ipv6Unicast:
+    enabled: false
+---
+apiVersion: protocols.eda.nokia.com/v2
+kind: DefaultBGPPeer
+metadata:
+  name: wan-ibgp-dcgw4-to-dcgw3
+  namespace: dci
+spec:
+  group: wan-ibgp-dc2
+  interface: dcgw4-system0
+  interfaceKind: SystemInterface
+  peerInterface: dcgw3-system0
+  peerInterfaceKind: SystemInterface
+  description: DCI iBGP to dcgw3
+  peerAS:
+    autonomousSystem: 65000
+  localAS:
+    autonomousSystem: 65000
+  l2VPNEVPN:
+    enabled: true
+  vpnIPv4Unicast:
+    enabled: true
+  ipv4Unicast:
+    enabled: false
+  ipv6Unicast:
+    enabled: false

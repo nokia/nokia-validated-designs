@@ -1,0 +1,98 @@
+# © 2026 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License-Identifier: BSD-3-Clause
+
+# One Fabric per datacenter, both in the same namespace.
+#
+# Each selector is ONE comma-joined string, not a list of strings: EDA ORs the
+# entries of a selector list, so ["role=leaf", "site=dc1"] would match every leaf
+# AND every dc1 node, and the fabrics would fight over each other's spines. The
+# comma inside a single entry is the AND.
+#
+# Underlay is eBGP over IPv6-unnumbered ISLs and the overlay is eBGP, matching
+# the reference design.
+#
+# The DCGWs are deliberately NOT borderLeafs here. A Fabric allocates one ASN per
+# border leaf from borderLeafs.asnPool and refuses to hand the same value to two
+# nodes ("allocation dcgw2=65000 is already used by dcgw1"), but this design needs
+# all four DCGWs in a single AS 65000 so the WAN core between them can be iBGP -
+# which in turn is what lets the anycast loopback and the shared RDs work. So the
+# DCGWs are configured explicitly instead, in 21-dcgw-uplinks.yaml.
+
+apiVersion: fabrics.eda.nokia.com/v1
+kind: Fabric
+metadata:
+  name: dc1
+  namespace: dci
+spec:
+  systemPoolIPv4: systemipv4-dc1
+  leafs:
+    leafNodeSelectors:
+      - eda.nokia.com/role=leaf,eda.nokia.com/site=dc1
+    asnPool: leaf-asn-dc1
+    systemPoolIPv4: systemipv4-dc1
+  spines:
+    spineNodeSelectors:
+      - eda.nokia.com/role=spine,eda.nokia.com/site=dc1
+    asnPool: spine-asn-dc1
+    systemPoolIPv4: systemipv4-dc1
+  borderLeafs:
+    borderLeafNodeSelectors:
+      - eda.nokia.com/role=dcgw,eda.nokia.com/site=dc1
+    asnPool: dcgw-asn-dc1
+    systemPoolIPv4: systemipv4-dc1
+  interSwitchLinks:
+    unnumbered: IPv6
+    ipMTU: 9198
+    linkSelectors:
+      - eda.nokia.com/role=interSwitch,eda.nokia.com/site=dc1
+      - eda.nokia.com/role=dcgwUplink,eda.nokia.com/site=dc1
+  underlayProtocol:
+    protocols:
+      - EBGP
+    bfd:
+      enabled: true
+      detectionMultiplier: 3
+      desiredMinTransmitIntMs: 1000
+      requiredMinReceiveIntMs: 1000
+  overlayProtocol:
+    protocol: EBGP
+---
+apiVersion: fabrics.eda.nokia.com/v1
+kind: Fabric
+metadata:
+  name: dc2
+  namespace: dci
+spec:
+  systemPoolIPv4: systemipv4-dc2
+  leafs:
+    leafNodeSelectors:
+      - eda.nokia.com/role=leaf,eda.nokia.com/site=dc2
+    asnPool: leaf-asn-dc2
+    systemPoolIPv4: systemipv4-dc2
+  spines:
+    spineNodeSelectors:
+      - eda.nokia.com/role=spine,eda.nokia.com/site=dc2
+    asnPool: spine-asn-dc2
+    systemPoolIPv4: systemipv4-dc2
+  borderLeafs:
+    borderLeafNodeSelectors:
+      - eda.nokia.com/role=dcgw,eda.nokia.com/site=dc2
+    asnPool: dcgw-asn-dc2
+    systemPoolIPv4: systemipv4-dc2
+  interSwitchLinks:
+    unnumbered: IPv6
+    ipMTU: 9198
+    linkSelectors:
+      - eda.nokia.com/role=interSwitch,eda.nokia.com/site=dc2
+      - eda.nokia.com/role=dcgwUplink,eda.nokia.com/site=dc2
+  underlayProtocol:
+    protocols:
+      - EBGP
+    bfd:
+      enabled: true
+      detectionMultiplier: 3
+      desiredMinTransmitIntMs: 1000
+      requiredMinReceiveIntMs: 1000
+  overlayProtocol:
+    protocol: EBGP

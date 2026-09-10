@@ -1,0 +1,192 @@
+# © 2026 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License-Identifier: BSD-3-Clause
+
+# Overlay services for dc2.
+#
+# Names carry the -dc2 suffix because both fabrics share one namespace, but
+# configuredName pins the on-device network-instance name back to the neutral
+# macvrf-l2dci / ipvrf-l3dci that the reference design and the test suite expect.
+#
+# Which of these stretch across the DCI is a per-service decision:
+#   macvrf-l2dci / -b  stretched L2. Route targets (100:100, 110:110) are per-DC;
+#                      the stretch happens because the matching
+#                      BridgeDomainInterconnect re-originates them onto the WAN
+#                      under a SHARED target (65000:100 / 65000:110).
+#   macvrf-l3dci       deliberately NOT stretched. Each DC keeps its own subnet
+#                      (10.200.1.0/24 vs 10.200.2.0/24) behind an anycast IRB;
+#                      only the ip-vrf crosses the WAN, as type-5 routes.
+#   ipvrf-l3dci        the tenant L3 VRF, stitched to IP-VPN by the
+#                      RouterInterconnect.
+#
+# The IRB is an anycast gateway - the same 10.200.x.254 on every leaf in the
+# fabric. It advertises dynamic ARP entries as interface-less (RFC 9014) host
+# routes, and does NOT populate host routes from ARP: those two look
+# interchangeable but are not. Host-route population creates the /32 locally on
+# whichever leaf happened to ARP the host, and that /32 leaves as a type-5 with
+# no ESI, so no other node can alias it - traffic to a multi-homed host pins to
+# one leaf of the segment. Advertising the ARP entry as an IFL host route
+# instead carries the segment with it, and every node resolves the /32 over both
+# leaves. rfc9135SymmetricMode is the knob that picks IFL, despite the name:
+# true renders "interface-less-routing", false leaves it off.
+#
+# The Router deliberately has NO nodeSelectors. Left blank it lands only where
+# there is an IRB or routed interface - the leaves - plus wherever a
+# RouterInterconnect pins it, which is the DCGWs. Naming the nodes explicitly
+# (site + role=leaf, site + role=dcgw) looks tidier and does keep the spines
+# clean, but forcing the router onto a DCGW brings the bridge domain and the
+# anycast IRB along with it. The DCGW then answers ARP for the tenant subnet
+# itself and resolves local host routes through its own bridge domain instead of
+# the aliased IFL host routes, back to a single next hop. Blank keeps the DCGW's
+# ip-vrf what the reference design has: a pure stitching VRF with no interfaces.
+#
+# A site-only selector is worse still - it matches the spines too, and they end
+# up carrying a tenant ip-vrf, mac-vrf and IRB they have no use for.
+
+apiVersion: services.eda.nokia.com/v2
+kind: BridgeDomain
+metadata:
+  name: macvrf-l2dci-dc2
+  namespace: dci
+spec:
+  configuredName: macvrf-l2dci
+  description: L2 DCI stretched bridge-domain vlan100 (dc2)
+  type: EVPNVXLAN
+  evi: 100
+  exportTarget: target:100:100
+  importTarget: target:100:100
+  encapOptions:
+    vxlan:
+      vni: 100
+      tunnelIndexPool: tunnel-index-pool
+  macLearning:
+    enabled: true
+    agingTimeSeconds: 300
+  macDuplicationDetection:
+    enabled: true
+    action: StopLearning
+    holdDownTimeMinutes: 9
+    monitoringWindowMinutes: 3
+    numMoves: 5
+---
+apiVersion: services.eda.nokia.com/v2
+kind: BridgeDomain
+metadata:
+  name: macvrf-l2dci-b-dc2
+  namespace: dci
+spec:
+  configuredName: macvrf-l2dci-b
+  description: L2 DCI stretched bridge-domain vlan110 (dc2)
+  type: EVPNVXLAN
+  evi: 110
+  exportTarget: target:110:110
+  importTarget: target:110:110
+  encapOptions:
+    vxlan:
+      vni: 110
+      tunnelIndexPool: tunnel-index-pool
+  macLearning:
+    enabled: true
+    agingTimeSeconds: 300
+  macDuplicationDetection:
+    enabled: true
+    action: StopLearning
+    holdDownTimeMinutes: 9
+    monitoringWindowMinutes: 3
+    numMoves: 5
+---
+apiVersion: services.eda.nokia.com/v2
+kind: BridgeDomain
+metadata:
+  name: macvrf-l3dci-dc2
+  namespace: dci
+spec:
+  configuredName: macvrf-l3dci
+  description: L3 DCI access bridge-domain vlan200 (dc2) - local only
+  type: EVPNVXLAN
+  evi: 202
+  exportTarget: target:202:202
+  importTarget: target:202:202
+  encapOptions:
+    vxlan:
+      vni: 202
+      tunnelIndexPool: tunnel-index-pool
+  macLearning:
+    enabled: true
+    agingTimeSeconds: 300
+---
+apiVersion: services.eda.nokia.com/v2
+kind: Router
+metadata:
+  name: ipvrf-l3dci-dc2
+  namespace: dci
+spec:
+  configuredName: ipvrf-l3dci
+  description: L3 DCI ip-vrf (dc2) - IFL type-5 vxlan to ip-vpn stitch
+  type: EVPNVXLAN
+  evi: 3000
+  exportTarget: target:3000:3000
+  importTarget: target:3000:3000
+  ecmp: 8
+  encapOptions:
+    vxlan:
+      vni: 3000
+      tunnelIndexPool: tunnel-index-pool
+  bgp:
+    enabled: false
+---
+apiVersion: services.eda.nokia.com/v2
+kind: IRBInterface
+metadata:
+  name: irb-l3dci-dc2
+  namespace: dci
+spec:
+  bridgeDomain: macvrf-l3dci-dc2
+  router: ipvrf-l3dci-dc2
+  description: anycast gateway for the L3 DCI tenant subnet in dc2
+  ipMTU: 1500
+  ipAddresses:
+    - ipv4Address:
+        ipPrefix: 10.200.2.254/24
+        anycast: true
+        primary: true
+  ipv4:
+    arpTimeoutSeconds: 250
+  l3ProxyARPND:
+    proxyARP: true
+  evpnRouteAdvertisementType:
+    arpDynamic: true
+    rfc9135SymmetricMode: true
+---
+apiVersion: services.eda.nokia.com/v2
+kind: VLAN
+metadata:
+  name: vlan100-dc2
+  namespace: dci
+spec:
+  bridgeDomain: macvrf-l2dci-dc2
+  vlanID: "100"
+  interfaceSelectors:
+    - eda.nokia.com/role=edge,eda.nokia.com/site=dc2
+---
+apiVersion: services.eda.nokia.com/v2
+kind: VLAN
+metadata:
+  name: vlan110-dc2
+  namespace: dci
+spec:
+  bridgeDomain: macvrf-l2dci-b-dc2
+  vlanID: "110"
+  interfaceSelectors:
+    - eda.nokia.com/role=edge,eda.nokia.com/site=dc2
+---
+apiVersion: services.eda.nokia.com/v2
+kind: VLAN
+metadata:
+  name: vlan200-dc2
+  namespace: dci
+spec:
+  bridgeDomain: macvrf-l3dci-dc2
+  vlanID: "200"
+  interfaceSelectors:
+    - eda.nokia.com/role=edge,eda.nokia.com/site=dc2

@@ -1,0 +1,194 @@
+# © 2026 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License-Identifier: BSD-3-Clause
+
+# The one piece of this design that no CR can express.
+#
+# advertise-ifl-host-ad-routes tells an all-active ES pair to advertise host
+# Auto-Discovery routes for the IFL ip-vrf, so a remote node resolving a /32
+# tenant host route gets BOTH leaves of the segment as next hops. Without it the
+# /32 is only advertised by whichever leaf happened to ARP the host, and every
+# node in the fabric pins inter-subnet traffic for that host to that one leaf -
+# the ES is all-active for bridged traffic and effectively single-active for
+# routed traffic to a host route.
+#
+# There is no field for it anywhere: not on Interface (where the ESI and the
+# all-active mode live), not on Router, not on RouterInterconnect. Setting it
+# by hand on the node does not survive either - it is inside the subtree EDA
+# owns for the ethernet segment, so the next reconcile deletes it again. A
+# Configlet is the supported way to add config EDA has no schema for, and it
+# keeps the value in the same declarative bundle as everything else rather
+# than in a post-deploy script.
+#
+# Path is jspath, keyed the way the node keys the list, and the value is a
+# presence container - "advertise-ifl-host-ad-routes {}" in the config tree,
+# hence an empty JSON object rather than true.
+#
+# The second Configlet puts the DCGWs' fabric-side EVPN instance back to
+# multi-homing-mode network, which is the NOS default. RouterInterconnect forces
+# it to access, and on access a gateway will not alias a remote ethernet segment:
+# it holds the host A-D routes from both leaves of the segment, marks them valid,
+# and uses neither. The leaves alias fine, so the symptom is narrow and easy to
+# miss - every /32 for a multi-homed host resolves over both leaves everywhere in
+# the fabric EXCEPT on the two gateways, which pin it to whichever leaf ARPed the
+# host. Traffic arriving from the far DC for that host then uses one leaf.
+#
+# There is no field for it: RouterInterconnect's primaryBGPInstance carries only
+# domainId. Deleting the leaf out of band works and then gets reconciled away,
+# same as the ES flag, so it belongs here.
+
+apiVersion: config.eda.nokia.com/v1
+kind: Configlet
+metadata:
+  name: ifl-host-ad-routes-mh-dc1
+  namespace: dci
+spec:
+  operatingSystem: srl
+  priority: 50
+  endpoints:
+    - leaf1
+    - leaf2
+  configs:
+    - operation: Update
+      path: '.system.network-instance.protocols.evpn.ethernet-segments.bgp-instance{.id==1}.ethernet-segment{.name=="mh-dc1"}'
+      config: '{"advertise-ifl-host-ad-routes":{}}'
+---
+apiVersion: config.eda.nokia.com/v1
+kind: Configlet
+metadata:
+  name: ifl-host-ad-routes-mh-dc1b
+  namespace: dci
+spec:
+  operatingSystem: srl
+  priority: 50
+  endpoints:
+    - leaf3
+    - leaf4
+  configs:
+    - operation: Update
+      path: '.system.network-instance.protocols.evpn.ethernet-segments.bgp-instance{.id==1}.ethernet-segment{.name=="mh-dc1b"}'
+      config: '{"advertise-ifl-host-ad-routes":{}}'
+---
+apiVersion: config.eda.nokia.com/v1
+kind: Configlet
+metadata:
+  name: ifl-host-ad-routes-mh-dc2
+  namespace: dci
+spec:
+  operatingSystem: srl
+  priority: 50
+  endpoints:
+    - leaf5
+    - leaf6
+  configs:
+    - operation: Update
+      path: '.system.network-instance.protocols.evpn.ethernet-segments.bgp-instance{.id==1}.ethernet-segment{.name=="mh-dc2"}'
+      config: '{"advertise-ifl-host-ad-routes":{}}'
+---
+apiVersion: config.eda.nokia.com/v1
+kind: Configlet
+metadata:
+  name: ifl-host-ad-routes-mh-dc2b
+  namespace: dci
+spec:
+  operatingSystem: srl
+  priority: 50
+  endpoints:
+    - leaf7
+    - leaf8
+  configs:
+    - operation: Update
+      path: '.system.network-instance.protocols.evpn.ethernet-segments.bgp-instance{.id==1}.ethernet-segment{.name=="mh-dc2b"}'
+      config: '{"advertise-ifl-host-ad-routes":{}}'
+---
+apiVersion: config.eda.nokia.com/v1
+kind: Configlet
+metadata:
+  name: ipvrf-mh-mode-dc1
+  namespace: dci
+spec:
+  operatingSystem: srl
+  priority: 50
+  endpoints:
+    - dcgw1
+    - dcgw2
+  configs:
+    - operation: Update
+      path: '.network-instance{.name=="ipvrf-l3dci"}.protocols.bgp-evpn.bgp-instance{.id==1}'
+      config: '{"multi-homing-mode":"network"}'
+---
+apiVersion: config.eda.nokia.com/v1
+kind: Configlet
+metadata:
+  name: ipvrf-mh-mode-dc2
+  namespace: dci
+spec:
+  operatingSystem: srl
+  priority: 50
+  endpoints:
+    - dcgw3
+    - dcgw4
+  configs:
+    - operation: Update
+      path: '.network-instance{.name=="ipvrf-l3dci"}.protocols.bgp-evpn.bgp-instance{.id==1}'
+      config: '{"multi-homing-mode":"network"}'
+---
+apiVersion: config.eda.nokia.com/v1
+kind: Configlet
+metadata:
+  name: dc-pin-chain-dcgw1
+  namespace: dci
+spec:
+  operatingSystem: srl
+  priority: 50
+  endpoints:
+    - dcgw1
+  configs:
+    - operation: Update
+      path: '.network-instance{.name=="default"}.protocols.bgp.group{.group-name=="bgpgroup-ebgp-dc1"}'
+      config: '{"export-policy":["dcgw-dc-pin-dcgw1","ebgp-isl-export-policy-dc1"]}'
+---
+apiVersion: config.eda.nokia.com/v1
+kind: Configlet
+metadata:
+  name: dc-pin-chain-dcgw2
+  namespace: dci
+spec:
+  operatingSystem: srl
+  priority: 50
+  endpoints:
+    - dcgw2
+  configs:
+    - operation: Update
+      path: '.network-instance{.name=="default"}.protocols.bgp.group{.group-name=="bgpgroup-ebgp-dc1"}'
+      config: '{"export-policy":["dcgw-dc-pin-dcgw2","ebgp-isl-export-policy-dc1"]}'
+---
+apiVersion: config.eda.nokia.com/v1
+kind: Configlet
+metadata:
+  name: dc-pin-chain-dcgw3
+  namespace: dci
+spec:
+  operatingSystem: srl
+  priority: 50
+  endpoints:
+    - dcgw3
+  configs:
+    - operation: Update
+      path: '.network-instance{.name=="default"}.protocols.bgp.group{.group-name=="bgpgroup-ebgp-dc2"}'
+      config: '{"export-policy":["dcgw-dc-pin-dcgw3","ebgp-isl-export-policy-dc2"]}'
+---
+apiVersion: config.eda.nokia.com/v1
+kind: Configlet
+metadata:
+  name: dc-pin-chain-dcgw4
+  namespace: dci
+spec:
+  operatingSystem: srl
+  priority: 50
+  endpoints:
+    - dcgw4
+  configs:
+    - operation: Update
+      path: '.network-instance{.name=="default"}.protocols.bgp.group{.group-name=="bgpgroup-ebgp-dc2"}'
+      config: '{"export-policy":["dcgw-dc-pin-dcgw4","ebgp-isl-export-policy-dc2"]}'

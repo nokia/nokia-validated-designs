@@ -57,6 +57,9 @@ validated-designs/3-stage-evpn-vxlan/3-stage-evpn-vxlan-ansible/
 .env
 .env.*
 !.env.example
+# SR Linux licenses (required by the 7250 IXR-X3b nodes in the DCI labs)
+license-srlinux.txt
+license-srsim.txt
 **/*-ansible/
 # ----- NVD deployer specifics -----
 manifests/

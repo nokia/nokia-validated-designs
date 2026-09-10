@@ -1,0 +1,230 @@
+# © 2026 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License-Identifier: BSD-3-Clause
+
+# The DCI stitch itself - the two resources this whole design exists to exercise.
+#
+# Each adds a SECOND BGP instance to a service that already exists in the local
+# fabric, and that second instance speaks MPLS to the WAN instead of VXLAN to the
+# fabric. The gateway re-originates between the two, so VXLAN terminates at the
+# DCGW and never crosses the DCI.
+#
+# BridgeDomainInterconnect (L2, 4 CRs = 2 bridge domains x 2 DCs)
+#   The local side keeps its per-DC route target; the interconnect side uses a
+#   target shared by both DCs (65000:100 for BD-A, 65000:110 for BD-B), which is
+#   what actually joins them. The WAN EVI is offset by 1000 from the DC EVI purely
+#   as a readable convention.
+#
+#   Both route distinguishers use the pair's ANYCAST loopback as the administrator
+#   field, not the node's own system0. That is what makes a DCGW pair look like a
+#   single PE to the far end: both gateways advertise the same RD, so failing over
+#   between them is not a new route. It is also why primaryBGPInstance is required
+#   whenever the gateways are redundant - without it the fabric-side instance falls
+#   back to a per-node RD and the pair de-aliases.
+#
+# RouterInterconnect (L3, 2 CRs = 1 ip-vrf x 2 DCs)
+#   Stitches the EVPN type-5 ip-vrf to IP-VPN over MPLS. Loop prevention is native
+#   here: domainId is the WAN IP-VPN domain (65000:100, shared by both DCs) and
+#   primaryBGPInstance.domainId the local DC's EVPN domain (65000:1 / 65000:2). A
+#   route this gateway pushed into the DC, which its pair partner then pushed back
+#   at the WAN, carries the WAN domain and is caught as a D-PATH loop on re-import.
+#   No policy needed - contrast the L2 side, which needs the SOO community for
+#   exactly the same job.
+#
+#   Its route distinguisher must be Type 1. RouterInterconnect has no
+#   administrator field (BridgeDomainInterconnect does), so the administrator is
+#   derived from the type: Type 1 takes it from the gateway's own system0 and
+#   yields the per-node RD an ip-vrf wants, keeping the two gateways distinct
+#   IP-VPN next hops. Only the L2 side aliases its pair behind one anycast RD.
+#   Type 0 renders "None:13000" - EDA has no 2-byte AS to fill in - and the node
+#   rejects it. Omitting type entirely is worse than it looks: the docs promise a
+#   NOS-generated RD, but the IP-VPN instance has no EVI to derive one from, so no
+#   RD is emitted at all and the VRF silently exports nothing.
+#
+# Neither kind names an exportPolicy or importPolicy, even though both accept
+# them. Those fields attach the policy to the SERVICE (network-instance ...
+# protocols bgp-vpn), and the WAN policies here are session-scoped: they stamp
+# SOO on everything leaving for the WAN and match on address family, over a
+# default-action of reject. At the service attachment point that rejects every
+# route the VRF would have exported - l3vpn-ipv4 sits at 0/0/0 with the sessions
+# happily established. The DefaultBGPGroup applies them at the BGP group instead,
+# which is where the hand-built reference puts them.
+#
+# Both kinds resolve their MPLS next hop over LDP or SR-ISIS, whichever IS-IS
+# currently prefers.
+
+apiVersion: services.eda.nokia.com/v2
+kind: BridgeDomainInterconnect
+metadata:
+  name: macvrf-l2dci-dc1-ic
+  namespace: dci
+spec:
+  bridgeDomainRef:
+    name: macvrf-l2dci-dc1
+    namespace: dci
+  nodes:
+    - dcgw1
+    - dcgw2
+  primaryBGPInstance:
+    routeDistinguisher:
+      administrator: 192.0.2.150
+      assignedNumber: "100"
+  interconnectBGPInstance:
+    controlPlane: EVPN
+    encapsulation: MPLS
+    evi: 1100
+    exportTarget: target:65000:100
+    importTarget: target:65000:100
+    routeDistinguisher:
+      administrator: 192.0.2.150
+      assignedNumber: "1100"
+    mpls:
+      allowedTunnelTypes:
+        - LDP
+        - SR-ISIS
+---
+apiVersion: services.eda.nokia.com/v2
+kind: BridgeDomainInterconnect
+metadata:
+  name: macvrf-l2dci-b-dc1-ic
+  namespace: dci
+spec:
+  bridgeDomainRef:
+    name: macvrf-l2dci-b-dc1
+    namespace: dci
+  nodes:
+    - dcgw1
+    - dcgw2
+  primaryBGPInstance:
+    routeDistinguisher:
+      administrator: 192.0.2.150
+      assignedNumber: "110"
+  interconnectBGPInstance:
+    controlPlane: EVPN
+    encapsulation: MPLS
+    evi: 1110
+    exportTarget: target:65000:110
+    importTarget: target:65000:110
+    routeDistinguisher:
+      administrator: 192.0.2.150
+      assignedNumber: "1110"
+    mpls:
+      allowedTunnelTypes:
+        - LDP
+        - SR-ISIS
+---
+apiVersion: services.eda.nokia.com/v2
+kind: RouterInterconnect
+metadata:
+  name: ipvrf-l3dci-dc1-ic
+  namespace: dci
+spec:
+  routerRef:
+    name: ipvrf-l3dci-dc1
+    namespace: dci
+  nodes:
+    - dcgw1
+    - dcgw2
+  primaryBGPInstance:
+    domainId: "65000:1"
+  interconnectBGPInstance:
+    controlPlane: IPVPN
+    encapsulation: MPLS
+    domainId: "65000:100"
+    exportTarget: target:65000:3000
+    importTarget: target:65000:3000
+    routeDistinguisher:
+      type: Type 1
+      assignedNumber: "13000"
+    mpls:
+      allowedTunnelTypes:
+        - LDP
+        - SR-ISIS
+---
+apiVersion: services.eda.nokia.com/v2
+kind: BridgeDomainInterconnect
+metadata:
+  name: macvrf-l2dci-dc2-ic
+  namespace: dci
+spec:
+  bridgeDomainRef:
+    name: macvrf-l2dci-dc2
+    namespace: dci
+  nodes:
+    - dcgw3
+    - dcgw4
+  primaryBGPInstance:
+    routeDistinguisher:
+      administrator: 192.0.3.150
+      assignedNumber: "100"
+  interconnectBGPInstance:
+    controlPlane: EVPN
+    encapsulation: MPLS
+    evi: 1100
+    exportTarget: target:65000:100
+    importTarget: target:65000:100
+    routeDistinguisher:
+      administrator: 192.0.3.150
+      assignedNumber: "1100"
+    mpls:
+      allowedTunnelTypes:
+        - LDP
+        - SR-ISIS
+---
+apiVersion: services.eda.nokia.com/v2
+kind: BridgeDomainInterconnect
+metadata:
+  name: macvrf-l2dci-b-dc2-ic
+  namespace: dci
+spec:
+  bridgeDomainRef:
+    name: macvrf-l2dci-b-dc2
+    namespace: dci
+  nodes:
+    - dcgw3
+    - dcgw4
+  primaryBGPInstance:
+    routeDistinguisher:
+      administrator: 192.0.3.150
+      assignedNumber: "110"
+  interconnectBGPInstance:
+    controlPlane: EVPN
+    encapsulation: MPLS
+    evi: 1110
+    exportTarget: target:65000:110
+    importTarget: target:65000:110
+    routeDistinguisher:
+      administrator: 192.0.3.150
+      assignedNumber: "1110"
+    mpls:
+      allowedTunnelTypes:
+        - LDP
+        - SR-ISIS
+---
+apiVersion: services.eda.nokia.com/v2
+kind: RouterInterconnect
+metadata:
+  name: ipvrf-l3dci-dc2-ic
+  namespace: dci
+spec:
+  routerRef:
+    name: ipvrf-l3dci-dc2
+    namespace: dci
+  nodes:
+    - dcgw3
+    - dcgw4
+  primaryBGPInstance:
+    domainId: "65000:2"
+  interconnectBGPInstance:
+    controlPlane: IPVPN
+    encapsulation: MPLS
+    domainId: "65000:100"
+    exportTarget: target:65000:3000
+    importTarget: target:65000:3000
+    routeDistinguisher:
+      type: Type 1
+      assignedNumber: "13000"
+    mpls:
+      allowedTunnelTypes:
+        - LDP
+        - SR-ISIS

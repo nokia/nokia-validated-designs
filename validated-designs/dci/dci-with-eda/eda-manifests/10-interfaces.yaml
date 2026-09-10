@@ -1,0 +1,1415 @@
+# © 2026 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License-Identifier: BSD-3-Clause
+
+# Physical port inventory. One Interface CR per port that carries traffic.
+#
+# The role label drives selection downstream:
+#   interSwitch - fabric ISLs, picked up by the Fabric interSwitchLinks selector
+#   wan         - the DCI mesh and the links to the P routers. Deliberately NOT
+#                 interSwitch: these are numbered IS-IS/LDP links in the default
+#                 network-instance, not eBGP-unnumbered fabric ISLs, and a Fabric
+#                 that selected them would try to run its underlay over them.
+#   edge        - single-homed access ports, dot1q tagged
+#
+# The wan-path label (direct|core) records which DCI plane a port belongs to; the
+# IS-IS metric CRs key on the same distinction.
+#
+# The eight LAG member ports are absent from this file by design. A port that
+# belongs to an aggregate is declared inside the LAG's members list (see
+# 11-lags.yaml), not as an Interface of its own - EDA rejects an Interface of
+# type Interface that carries an aggregateID.
+
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: leaf1-ethernet-1-1
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-leaf1-ethernet-1-1
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: leaf1
+      interface: ethernet-1-1
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine1-ethernet-1-1
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-spine1-ethernet-1-1
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine1
+      interface: ethernet-1-1
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: leaf1-ethernet-1-2
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-leaf1-ethernet-1-2
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: leaf1
+      interface: ethernet-1-2
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine2-ethernet-1-1
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-spine2-ethernet-1-1
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine2
+      interface: ethernet-1-1
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: leaf2-ethernet-1-1
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-leaf2-ethernet-1-1
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: leaf2
+      interface: ethernet-1-1
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine1-ethernet-1-2
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-spine1-ethernet-1-2
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine1
+      interface: ethernet-1-2
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: leaf2-ethernet-1-2
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-leaf2-ethernet-1-2
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: leaf2
+      interface: ethernet-1-2
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine2-ethernet-1-2
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-spine2-ethernet-1-2
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine2
+      interface: ethernet-1-2
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: leaf3-ethernet-1-1
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-leaf3-ethernet-1-1
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: leaf3
+      interface: ethernet-1-1
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine1-ethernet-1-3
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-spine1-ethernet-1-3
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine1
+      interface: ethernet-1-3
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: leaf3-ethernet-1-2
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-leaf3-ethernet-1-2
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: leaf3
+      interface: ethernet-1-2
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine2-ethernet-1-3
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-spine2-ethernet-1-3
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine2
+      interface: ethernet-1-3
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: leaf4-ethernet-1-1
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-leaf4-ethernet-1-1
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: leaf4
+      interface: ethernet-1-1
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine1-ethernet-1-4
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-spine1-ethernet-1-4
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine1
+      interface: ethernet-1-4
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: leaf4-ethernet-1-2
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-leaf4-ethernet-1-2
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: leaf4
+      interface: ethernet-1-2
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine2-ethernet-1-4
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-spine2-ethernet-1-4
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine2
+      interface: ethernet-1-4
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: leaf5-ethernet-1-1
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-leaf5-ethernet-1-1
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: leaf5
+      interface: ethernet-1-1
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine3-ethernet-1-1
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-spine3-ethernet-1-1
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine3
+      interface: ethernet-1-1
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: leaf5-ethernet-1-2
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-leaf5-ethernet-1-2
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: leaf5
+      interface: ethernet-1-2
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine4-ethernet-1-1
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-spine4-ethernet-1-1
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine4
+      interface: ethernet-1-1
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: leaf6-ethernet-1-1
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-leaf6-ethernet-1-1
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: leaf6
+      interface: ethernet-1-1
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine3-ethernet-1-2
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-spine3-ethernet-1-2
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine3
+      interface: ethernet-1-2
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: leaf6-ethernet-1-2
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-leaf6-ethernet-1-2
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: leaf6
+      interface: ethernet-1-2
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine4-ethernet-1-2
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-spine4-ethernet-1-2
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine4
+      interface: ethernet-1-2
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: leaf7-ethernet-1-1
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-leaf7-ethernet-1-1
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: leaf7
+      interface: ethernet-1-1
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine3-ethernet-1-3
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-spine3-ethernet-1-3
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine3
+      interface: ethernet-1-3
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: leaf7-ethernet-1-2
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-leaf7-ethernet-1-2
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: leaf7
+      interface: ethernet-1-2
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine4-ethernet-1-3
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-spine4-ethernet-1-3
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine4
+      interface: ethernet-1-3
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: leaf8-ethernet-1-1
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-leaf8-ethernet-1-1
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: leaf8
+      interface: ethernet-1-1
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine3-ethernet-1-4
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-spine3-ethernet-1-4
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine3
+      interface: ethernet-1-4
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: leaf8-ethernet-1-2
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-leaf8-ethernet-1-2
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: leaf8
+      interface: ethernet-1-2
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine4-ethernet-1-4
+  namespace: dci
+  labels:
+    eda.nokia.com/role: interSwitch
+spec:
+  description: isl-spine4-ethernet-1-4
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine4
+      interface: ethernet-1-4
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine1-ethernet-1-5
+  namespace: dci
+  labels:
+    eda.nokia.com/role: dcgwUplink
+spec:
+  description: spine1-to-dcgw1
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine1
+      interface: ethernet-1-5
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw1-ethernet-1-1
+  namespace: dci
+  labels:
+    eda.nokia.com/role: dcgwUplink
+spec:
+  description: dcgw1-to-spine1
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw1
+      interface: ethernet-1-1
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine2-ethernet-1-5
+  namespace: dci
+  labels:
+    eda.nokia.com/role: dcgwUplink
+spec:
+  description: spine2-to-dcgw1
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine2
+      interface: ethernet-1-5
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw1-ethernet-1-2
+  namespace: dci
+  labels:
+    eda.nokia.com/role: dcgwUplink
+spec:
+  description: dcgw1-to-spine2
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw1
+      interface: ethernet-1-2
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine1-ethernet-1-6
+  namespace: dci
+  labels:
+    eda.nokia.com/role: dcgwUplink
+spec:
+  description: spine1-to-dcgw2
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine1
+      interface: ethernet-1-6
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw2-ethernet-1-1
+  namespace: dci
+  labels:
+    eda.nokia.com/role: dcgwUplink
+spec:
+  description: dcgw2-to-spine1
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw2
+      interface: ethernet-1-1
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine2-ethernet-1-6
+  namespace: dci
+  labels:
+    eda.nokia.com/role: dcgwUplink
+spec:
+  description: spine2-to-dcgw2
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine2
+      interface: ethernet-1-6
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw2-ethernet-1-2
+  namespace: dci
+  labels:
+    eda.nokia.com/role: dcgwUplink
+spec:
+  description: dcgw2-to-spine2
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw2
+      interface: ethernet-1-2
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine3-ethernet-1-5
+  namespace: dci
+  labels:
+    eda.nokia.com/role: dcgwUplink
+spec:
+  description: spine3-to-dcgw3
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine3
+      interface: ethernet-1-5
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw3-ethernet-1-1
+  namespace: dci
+  labels:
+    eda.nokia.com/role: dcgwUplink
+spec:
+  description: dcgw3-to-spine3
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw3
+      interface: ethernet-1-1
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine4-ethernet-1-5
+  namespace: dci
+  labels:
+    eda.nokia.com/role: dcgwUplink
+spec:
+  description: spine4-to-dcgw3
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine4
+      interface: ethernet-1-5
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw3-ethernet-1-2
+  namespace: dci
+  labels:
+    eda.nokia.com/role: dcgwUplink
+spec:
+  description: dcgw3-to-spine4
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw3
+      interface: ethernet-1-2
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine3-ethernet-1-6
+  namespace: dci
+  labels:
+    eda.nokia.com/role: dcgwUplink
+spec:
+  description: spine3-to-dcgw4
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine3
+      interface: ethernet-1-6
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw4-ethernet-1-1
+  namespace: dci
+  labels:
+    eda.nokia.com/role: dcgwUplink
+spec:
+  description: dcgw4-to-spine3
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw4
+      interface: ethernet-1-1
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: spine4-ethernet-1-6
+  namespace: dci
+  labels:
+    eda.nokia.com/role: dcgwUplink
+spec:
+  description: spine4-to-dcgw4
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: spine4
+      interface: ethernet-1-6
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw4-ethernet-1-2
+  namespace: dci
+  labels:
+    eda.nokia.com/role: dcgwUplink
+spec:
+  description: dcgw4-to-spine4
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw4
+      interface: ethernet-1-2
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw1-ethernet-1-5
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: direct
+spec:
+  description: dcgw1-to-dcgw2-direct
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw1
+      interface: ethernet-1-5
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw2-ethernet-1-5
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: direct
+spec:
+  description: dcgw2-to-dcgw1-direct
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw2
+      interface: ethernet-1-5
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw1-ethernet-1-3
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: direct
+spec:
+  description: dcgw1-to-dcgw3-direct
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw1
+      interface: ethernet-1-3
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw3-ethernet-1-3
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: direct
+spec:
+  description: dcgw3-to-dcgw1-direct
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw3
+      interface: ethernet-1-3
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw1-ethernet-1-4
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: direct
+spec:
+  description: dcgw1-to-dcgw4-direct
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw1
+      interface: ethernet-1-4
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw4-ethernet-1-4
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: direct
+spec:
+  description: dcgw4-to-dcgw1-direct
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw4
+      interface: ethernet-1-4
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw2-ethernet-1-4
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: direct
+spec:
+  description: dcgw2-to-dcgw3-direct
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw2
+      interface: ethernet-1-4
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw3-ethernet-1-4
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: direct
+spec:
+  description: dcgw3-to-dcgw2-direct
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw3
+      interface: ethernet-1-4
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw2-ethernet-1-3
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: direct
+spec:
+  description: dcgw2-to-dcgw4-direct
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw2
+      interface: ethernet-1-3
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw4-ethernet-1-3
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: direct
+spec:
+  description: dcgw4-to-dcgw2-direct
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw4
+      interface: ethernet-1-3
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw3-ethernet-1-5
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: direct
+spec:
+  description: dcgw3-to-dcgw4-direct
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw3
+      interface: ethernet-1-5
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw4-ethernet-1-5
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: direct
+spec:
+  description: dcgw4-to-dcgw3-direct
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw4
+      interface: ethernet-1-5
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw1-ethernet-1-6
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: core
+spec:
+  description: dcgw1-to-p1-core
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw1
+      interface: ethernet-1-6
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: p1-ethernet-1-1
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: core
+spec:
+  description: p1-to-dcgw1-core
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: p1
+      interface: ethernet-1-1
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw2-ethernet-1-6
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: core
+spec:
+  description: dcgw2-to-p1-core
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw2
+      interface: ethernet-1-6
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: p1-ethernet-1-2
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: core
+spec:
+  description: p1-to-dcgw2-core
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: p1
+      interface: ethernet-1-2
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw3-ethernet-1-6
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: core
+spec:
+  description: dcgw3-to-p1-core
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw3
+      interface: ethernet-1-6
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: p1-ethernet-1-3
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: core
+spec:
+  description: p1-to-dcgw3-core
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: p1
+      interface: ethernet-1-3
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw4-ethernet-1-6
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: core
+spec:
+  description: dcgw4-to-p1-core
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw4
+      interface: ethernet-1-6
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: p1-ethernet-1-4
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: core
+spec:
+  description: p1-to-dcgw4-core
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: p1
+      interface: ethernet-1-4
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw1-ethernet-1-7
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: core
+spec:
+  description: dcgw1-to-p2-core
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw1
+      interface: ethernet-1-7
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: p2-ethernet-1-1
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: core
+spec:
+  description: p2-to-dcgw1-core
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: p2
+      interface: ethernet-1-1
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw2-ethernet-1-7
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: core
+spec:
+  description: dcgw2-to-p2-core
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw2
+      interface: ethernet-1-7
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: p2-ethernet-1-2
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: core
+spec:
+  description: p2-to-dcgw2-core
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: p2
+      interface: ethernet-1-2
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw3-ethernet-1-7
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: core
+spec:
+  description: dcgw3-to-p2-core
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw3
+      interface: ethernet-1-7
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: p2-ethernet-1-3
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: core
+spec:
+  description: p2-to-dcgw3-core
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: p2
+      interface: ethernet-1-3
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: dcgw4-ethernet-1-7
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: core
+spec:
+  description: dcgw4-to-p2-core
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: dcgw4
+      interface: ethernet-1-7
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: p2-ethernet-1-4
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: core
+spec:
+  description: p2-to-dcgw4-core
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: p2
+      interface: ethernet-1-4
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: p1-ethernet-1-5
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: core
+spec:
+  description: p1-to-p2-core
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: p1
+      interface: ethernet-1-5
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: p2-ethernet-1-5
+  namespace: dci
+  labels:
+    eda.nokia.com/role: wan
+    eda.nokia.com/wan-path: core
+spec:
+  description: p2-to-p1-core
+  enabled: true
+  lldp: true
+  type: Interface
+  members:
+    - node: p2
+      interface: ethernet-1-5
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: leaf3-ethernet-1-3
+  namespace: dci
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/site: dc1
+spec:
+  description: sh-dc1-single-homed
+  enabled: true
+  lldp: true
+  type: Interface
+  encapType: Dot1q
+  members:
+    - node: leaf3
+      interface: ethernet-1-3
+      enabled: true
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: leaf7-ethernet-1-3
+  namespace: dci
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/site: dc2
+spec:
+  description: sh-dc2-single-homed
+  enabled: true
+  lldp: true
+  type: Interface
+  encapType: Dot1q
+  members:
+    - node: leaf7
+      interface: ethernet-1-3
+      enabled: true

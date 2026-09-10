@@ -1,0 +1,29 @@
+# © 2026 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License-Identifier: BSD-3-Clause
+
+# One namespace holds BOTH datacenters and the WAN core.
+#
+# This is deliberate, and it is the single most important structural decision in
+# this design. TopoLink.links[].local.node and Interface.members[].node are bare
+# TopoNode name references with no namespace field, so a link cannot cross an EDA
+# namespace boundary. Four of the six DCGW-to-DCGW mesh links do cross the
+# DC1/DC2 boundary (dcgw1-dcgw3, dcgw1-dcgw4, dcgw2-dcgw3, dcgw2-dcgw4), which
+# rules out the namespace-per-fabric layout used by the ai-dc designs.
+#
+# Consequence: resource names carry a -dc1/-dc2 suffix wherever the same service
+# exists in both fabrics, because names are only unique within a namespace. The
+# on-device name is pinned back to the neutral form via configuredName.
+#
+# spec.bootstrap.fromNamespace would seed this namespace from EDA's own "eda"
+# namespace (NodeGroups, default pools) instead of declaring them by hand as
+# 02-nodeuser.yaml and 04-pools.yaml do. This design spells them out so the
+# manifest set is self-contained and reviewable.
+
+apiVersion: core.eda.nokia.com/v1
+kind: Namespace
+metadata:
+  name: dci
+  namespace: eda-system
+spec:
+  description: DCI validated design - two fabrics plus a WAN core in one namespace

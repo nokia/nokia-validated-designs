@@ -1,0 +1,21 @@
+# © 2026 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License-Identifier: BSD-3-Clause
+
+# commitSave makes EDA persist config to startup on the node, so a containerlab
+# node that is restarted comes back with its config.
+#
+# There is deliberately no spec.mgmt block. Containerlab already assigns each
+# node a static mgmt address from the eda_mgmt subnet, and that address is how
+# EDA reaches the node in the first place - handing mgmt0 to EDA risks cutting
+# the very session that configures it. (The DHCP knobs the older 3-stage design
+# sets here no longer exist: bootstrap v1 replaced mgmt.ipv4DHCP/ipv6DHCP with
+# mgmt.interface.)
+
+apiVersion: bootstrap.eda.nokia.com/v1
+kind: Init
+metadata:
+  name: init-base
+  namespace: dci
+spec:
+  commitSave: true

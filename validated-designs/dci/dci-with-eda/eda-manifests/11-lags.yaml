@@ -1,0 +1,169 @@
+# © 2026 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License-Identifier: BSD-3-Clause
+
+# LAG aggregates carrying the four all-active Ethernet Segments.
+#
+# Each ES spans two leaves. Both members of a pair advertise the SAME esi and the
+# SAME LACP systemMAC, which is what makes the client's single 802.3ad bond look
+# like one multi-homed attachment. AllActive lets both leaves forward at once.
+#
+# Note leaf3 and leaf7 carry both a LAG (for the mh-*b client, on ethernet-1/4)
+# and a plain single-homed access port (ethernet-1/3), which is why the ES members
+# are not simply "port 3 on every leaf".
+#
+# One Interface CR per ES, with a member on EACH leaf - not one CR per leaf.
+# This is what actually creates the ethernet segment: EDA reads the members list
+# as "the ports that make up this segment", so a CR listing a single node is a
+# plain LAG. Split per leaf, the aggregates and their VLAN subinterfaces still
+# render correctly and the config looks right, but no ethernet-segment appears
+# under system network-instance protocols evpn, and the multihoming block is
+# silently ignored.
+
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: mh-dc1
+  namespace: dci
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/es: mh-dc1
+    eda.nokia.com/site: dc1
+spec:
+  description: mh-dc1
+  enabled: true
+  lldp: true
+  type: LAG
+  encapType: Dot1q
+  mtu: 9232
+  members:
+    - node: leaf1
+      interface: ethernet-1-3
+      enabled: true
+    - node: leaf2
+      interface: ethernet-1-3
+      enabled: true
+  lag:
+    type: LACP
+    minLinks: 1
+    lacp:
+      mode: Active
+      interval: Fast
+      adminKey: 100
+      systemMAC: 00:00:00:01:01:01
+      systemPriority: 100
+    multihoming:
+      mode: AllActive
+      dfElection: Default
+      esi: 00:00:00:00:01:01:01:01:01:01
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: mh-dc1b
+  namespace: dci
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/es: mh-dc1b
+    eda.nokia.com/site: dc1
+spec:
+  description: mh-dc1b
+  enabled: true
+  lldp: true
+  type: LAG
+  encapType: Dot1q
+  mtu: 9232
+  members:
+    - node: leaf3
+      interface: ethernet-1-4
+      enabled: true
+    - node: leaf4
+      interface: ethernet-1-3
+      enabled: true
+  lag:
+    type: LACP
+    minLinks: 1
+    lacp:
+      mode: Active
+      interval: Fast
+      adminKey: 300
+      systemMAC: 00:00:00:03:03:03
+      systemPriority: 100
+    multihoming:
+      mode: AllActive
+      dfElection: Default
+      esi: 00:00:00:00:03:03:03:03:03:03
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: mh-dc2
+  namespace: dci
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/es: mh-dc2
+    eda.nokia.com/site: dc2
+spec:
+  description: mh-dc2
+  enabled: true
+  lldp: true
+  type: LAG
+  encapType: Dot1q
+  mtu: 9232
+  members:
+    - node: leaf5
+      interface: ethernet-1-3
+      enabled: true
+    - node: leaf6
+      interface: ethernet-1-3
+      enabled: true
+  lag:
+    type: LACP
+    minLinks: 1
+    lacp:
+      mode: Active
+      interval: Fast
+      adminKey: 200
+      systemMAC: 00:00:00:02:02:02
+      systemPriority: 100
+    multihoming:
+      mode: AllActive
+      dfElection: Default
+      esi: 00:00:00:00:02:02:02:02:02:02
+---
+apiVersion: interfaces.eda.nokia.com/v1
+kind: Interface
+metadata:
+  name: mh-dc2b
+  namespace: dci
+  labels:
+    eda.nokia.com/role: edge
+    eda.nokia.com/es: mh-dc2b
+    eda.nokia.com/site: dc2
+spec:
+  description: mh-dc2b
+  enabled: true
+  lldp: true
+  type: LAG
+  encapType: Dot1q
+  mtu: 9232
+  members:
+    - node: leaf7
+      interface: ethernet-1-4
+      enabled: true
+    - node: leaf8
+      interface: ethernet-1-3
+      enabled: true
+  lag:
+    type: LACP
+    minLinks: 1
+    lacp:
+      mode: Active
+      interval: Fast
+      adminKey: 400
+      systemMAC: 00:00:00:04:04:04
+      systemPriority: 100
+    multihoming:
+      mode: AllActive
+      dfElection: Default
+      esi: 00:00:00:00:04:04:04:04:04:04
