@@ -6,11 +6,24 @@
 #
 # advertise-ifl-host-ad-routes tells an all-active ES pair to advertise host
 # Auto-Discovery routes for the IFL ip-vrf, so a remote node resolving a /32
-# tenant host route gets BOTH leaves of the segment as next hops. Without it the
-# /32 is only advertised by whichever leaf happened to ARP the host, and every
-# node in the fabric pins inter-subnet traffic for that host to that one leaf -
-# the ES is all-active for bridged traffic and effectively single-active for
-# routed traffic to a host route.
+# tenant host route gets BOTH leaves of the segment as next hops.
+#
+# Without it the /32 is not advertised at all. Deleting these Configlets on the
+# running lab and re-warming ARP: both ES leaves hold the host in their ARP
+# table, and not one node in the fabric installs the host route - every remote
+# node falls back to the anycast /24 and tromboning is back. A single-homed host
+# on the same IRB is unaffected, its /32 still propagates normally, which is what
+# pins this on the ethernet segment rather than on IFL generally. Putting the
+# Configlets back restores the /32 on all four non-owner DC nodes over both ES
+# VTEPs.
+#
+# That is stronger than the "one leaf wins" behaviour you might expect, and it
+# follows from the rest of the design: host routes here come only from arp evpn
+# advertise dynamic plus interface-less-routing, with hostRoutePopulate
+# deliberately off. In IFL mode on an all-active ES, the host route rides on the
+# A-D route, so with no A-D route neither leaf advertises. Turn hostRoutePopulate
+# on and you would get the one-leaf-wins version instead - a /32 from whichever
+# leaf ARPed the host, with no ESI and no way for anyone to alias it.
 #
 # There is no field for it anywhere: not on Interface (where the ESI and the
 # all-active mode live), not on Router, not on RouterInterconnect. Setting it
