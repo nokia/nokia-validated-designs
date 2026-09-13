@@ -1,0 +1,190 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "time": { "from": "now-30m", "to": "now" },
+  "refresh": "5s",
+  "title": "DCI Fabric Telemetry",
+  "uid": "dci-fabric",
+  "tags": ["dci", "srlinux", "nokia"],
+  "schemaVersion": 39,
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "refresh": 1
+      },
+      {
+        "name": "source",
+        "type": "query",
+        "datasource": "${datasource}",
+        "definition": "label_values(interface_oper_state, source)",
+        "query": { "query": "label_values(interface_oper_state, source)", "refId": "src" },
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": { "text": "All", "value": "$__all" },
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "netinst",
+        "type": "query",
+        "datasource": "${datasource}",
+        "definition": "label_values(network_instance_oper_state, network_instance_name)",
+        "query": { "query": "label_values(network_instance_oper_state, network_instance_name)", "refId": "ni" },
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": { "text": "All", "value": "$__all" },
+        "refresh": 2,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Fabric overview",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "type": "stat",
+      "title": "Nodes reporting",
+      "datasource": "${datasource}",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "none" },
+      "targets": [
+        { "expr": "count(count by (source) (interface_oper_state))", "refId": "A", "datasource": "${datasource}" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "BGP peers UP (selected NI)",
+      "datasource": "${datasource}",
+      "gridPos": { "h": 4, "w": 5, "x": 4, "y": 1 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        { "expr": "sum(network_instance_protocols_bgp_statistics_up_peers{source=~\"$source\", network_instance_name=~\"$netinst\"})", "refId": "A", "datasource": "${datasource}" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "BGP peers DOWN/disabled (selected NI)",
+      "datasource": "${datasource}",
+      "gridPos": { "h": 4, "w": 5, "x": 9, "y": 1 },
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none" },
+      "targets": [
+        { "expr": "sum(network_instance_protocols_bgp_statistics_total_peers{source=~\"$source\", network_instance_name=~\"$netinst\"}) - sum(network_instance_protocols_bgp_statistics_up_peers{source=~\"$source\", network_instance_name=~\"$netinst\"})", "refId": "A", "datasource": "${datasource}" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Interfaces DOWN (selected nodes)",
+      "datasource": "${datasource}",
+      "gridPos": { "h": 4, "w": 5, "x": 14, "y": 1 },
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "background", "graphMode": "none" },
+      "targets": [
+        { "expr": "count(interface_oper_state{source=~\"$source\"} == 0) or vector(0)", "refId": "A", "datasource": "${datasource}" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Net-instances UP",
+      "datasource": "${datasource}",
+      "gridPos": { "h": 4, "w": 5, "x": 19, "y": 1 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "none" },
+      "targets": [
+        { "expr": "sum(network_instance_oper_state{source=~\"$source\", network_instance_name=~\"$netinst\"})", "refId": "A", "datasource": "${datasource}" }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Interface throughput",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Ingress rate (bps) - $source",
+      "datasource": "${datasource}",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 6 },
+      "fieldConfig": { "defaults": { "unit": "bps", "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } } },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "interface_traffic_rate_in_bps{source=~\"$source\"}", "legendFormat": "{{source}} {{interface_name}}", "refId": "A", "datasource": "${datasource}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Egress rate (bps) - $source",
+      "datasource": "${datasource}",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 6 },
+      "fieldConfig": { "defaults": { "unit": "bps", "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } } },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "interface_traffic_rate_out_bps{source=~\"$source\"}", "legendFormat": "{{source}} {{interface_name}}", "refId": "A", "datasource": "${datasource}" }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Routing / EVPN-DCI control plane",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 }
+    },
+    {
+      "type": "timeseries",
+      "title": "BGP active routes per node/NI",
+      "datasource": "${datasource}",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 16 },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 0, "showPoints": "never" } } },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "network_instance_protocols_bgp_statistics_total_active_routes{source=~\"$source\", network_instance_name=~\"$netinst\"}", "legendFormat": "{{source}} / {{network_instance_name}}", "refId": "A", "datasource": "${datasource}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "IPv4 route-table active routes per node/NI",
+      "datasource": "${datasource}",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 16 },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 0, "showPoints": "never" } } },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "network_instance_route_table_ipv4_unicast_statistics_active_routes{source=~\"$source\", network_instance_name=~\"$netinst\"}", "legendFormat": "{{source}} / {{network_instance_name}}", "refId": "A", "datasource": "${datasource}" }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "System resources",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 }
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU total (instant %)",
+      "datasource": "${datasource}",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 26 },
+      "fieldConfig": { "defaults": { "unit": "percent", "max": 100, "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } } },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "platform_control_cpu_total_instant{source=~\"$source\"}", "legendFormat": "{{source}}", "refId": "A", "datasource": "${datasource}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory utilization (%)",
+      "datasource": "${datasource}",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 26 },
+      "fieldConfig": { "defaults": { "unit": "percent", "max": 100, "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } } },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "platform_control_memory_utilization{source=~\"$source\"}", "legendFormat": "{{source}}", "refId": "A", "datasource": "${datasource}" }
+      ]
+    }
+  ]
+}

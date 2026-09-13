@@ -1,0 +1,79 @@
+set / interface ethernet-1/1 admin-state enable
+set / interface ethernet-1/1 description p1-to-dcgw1
+set / interface ethernet-1/1 subinterface 0 admin-state enable
+set / interface ethernet-1/1 subinterface 0 ipv4 admin-state enable
+set / interface ethernet-1/1 subinterface 0 ipv4 address 10.255.1.1/31
+set / interface ethernet-1/2 admin-state enable
+set / interface ethernet-1/2 description p1-to-dcgw2
+set / interface ethernet-1/2 subinterface 0 admin-state enable
+set / interface ethernet-1/2 subinterface 0 ipv4 admin-state enable
+set / interface ethernet-1/2 subinterface 0 ipv4 address 10.255.1.3/31
+set / interface ethernet-1/3 admin-state enable
+set / interface ethernet-1/3 description p1-to-dcgw3
+set / interface ethernet-1/3 subinterface 0 admin-state enable
+set / interface ethernet-1/3 subinterface 0 ipv4 admin-state enable
+set / interface ethernet-1/3 subinterface 0 ipv4 address 10.255.1.5/31
+set / interface ethernet-1/4 admin-state enable
+set / interface ethernet-1/4 description p1-to-dcgw4
+set / interface ethernet-1/4 subinterface 0 admin-state enable
+set / interface ethernet-1/4 subinterface 0 ipv4 admin-state enable
+set / interface ethernet-1/4 subinterface 0 ipv4 address 10.255.1.7/31
+set / interface ethernet-1/5 admin-state enable
+set / interface ethernet-1/5 description p1-to-p2
+set / interface ethernet-1/5 subinterface 0 admin-state enable
+set / interface ethernet-1/5 subinterface 0 ipv4 admin-state enable
+set / interface ethernet-1/5 subinterface 0 ipv4 address 10.255.1.16/31
+set / interface system0 subinterface 0 admin-state enable
+set / interface system0 subinterface 0 ipv4 admin-state enable
+set / interface system0 subinterface 0 ipv4 address 192.0.100.201/32
+set / system lldp interface ethernet-1/1 admin-state enable
+set / system lldp interface ethernet-1/2 admin-state enable
+set / system lldp interface ethernet-1/3 admin-state enable
+set / system lldp interface ethernet-1/4 admin-state enable
+set / system lldp interface ethernet-1/5 admin-state enable
+set / system name host-name p1
+set / system mpls label-ranges dynamic dyn-ldp start-label 20000 end-label 29999
+# Segment Routing (SR-MPLS) over IS-IS - alternative WAN transport alongside LDP.
+# sr-global = shared SRGB for node SIDs; sr-adj = non-shareable block for adjacency SIDs.
+set / system mpls label-ranges static sr-global start-label 15000 end-label 15999 shared true
+set / system mpls label-ranges static sr-adj start-label 16000 end-label 16999 shared false
+set / network-instance default type default
+set / network-instance default admin-state enable
+set / network-instance default description "wan-core role: P/LSR"
+set / network-instance default router-id 192.0.100.201
+set / network-instance default interface ethernet-1/1.0
+set / network-instance default interface ethernet-1/2.0
+set / network-instance default interface ethernet-1/3.0
+set / network-instance default interface ethernet-1/4.0
+set / network-instance default interface ethernet-1/5.0
+set / network-instance default interface system0.0
+set / network-instance default protocols isis instance main admin-state enable
+set / network-instance default protocols isis instance main level-capability L2
+set / network-instance default protocols isis instance main net [ 49.0001.1920.0100.0201.00 ]
+set / network-instance default protocols isis instance main ipv4-unicast admin-state enable
+set / network-instance default segment-routing mpls global-block label-range sr-global
+set / network-instance default protocols isis instance main segment-routing mpls static-label-block sr-adj
+set / network-instance default protocols isis instance main interface system0.0 passive true
+set / network-instance default protocols isis instance main interface system0.0 segment-routing mpls ipv4-node-sid index 201
+set / network-instance default protocols isis instance main interface ethernet-1/1.0 circuit-type point-to-point
+set / network-instance default protocols isis instance main interface ethernet-1/1.0 ipv4-unicast admin-state enable
+set / network-instance default protocols isis instance main interface ethernet-1/1.0 level 2 metric 100
+set / network-instance default protocols isis instance main interface ethernet-1/2.0 circuit-type point-to-point
+set / network-instance default protocols isis instance main interface ethernet-1/2.0 ipv4-unicast admin-state enable
+set / network-instance default protocols isis instance main interface ethernet-1/2.0 level 2 metric 100
+set / network-instance default protocols isis instance main interface ethernet-1/3.0 circuit-type point-to-point
+set / network-instance default protocols isis instance main interface ethernet-1/3.0 ipv4-unicast admin-state enable
+set / network-instance default protocols isis instance main interface ethernet-1/3.0 level 2 metric 100
+set / network-instance default protocols isis instance main interface ethernet-1/4.0 circuit-type point-to-point
+set / network-instance default protocols isis instance main interface ethernet-1/4.0 ipv4-unicast admin-state enable
+set / network-instance default protocols isis instance main interface ethernet-1/4.0 level 2 metric 100
+set / network-instance default protocols isis instance main interface ethernet-1/5.0 circuit-type point-to-point
+set / network-instance default protocols isis instance main interface ethernet-1/5.0 ipv4-unicast admin-state enable
+set / network-instance default protocols isis instance main interface ethernet-1/5.0 level 2 metric 100
+set / network-instance default protocols ldp admin-state enable
+set / network-instance default protocols ldp dynamic-label-block dyn-ldp
+set / network-instance default protocols ldp discovery interfaces interface ethernet-1/1.0 ipv4 admin-state enable
+set / network-instance default protocols ldp discovery interfaces interface ethernet-1/2.0 ipv4 admin-state enable
+set / network-instance default protocols ldp discovery interfaces interface ethernet-1/3.0 ipv4 admin-state enable
+set / network-instance default protocols ldp discovery interfaces interface ethernet-1/4.0 ipv4 admin-state enable
+set / network-instance default protocols ldp discovery interfaces interface ethernet-1/5.0 ipv4 admin-state enable

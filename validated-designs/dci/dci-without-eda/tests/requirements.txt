@@ -1,0 +1,19 @@
+pytest>=8.0
+allure-pytest>=2.13.0
+pytest-html>=4.0
+pytest-metadata>=3.0
+
+# `fcli` (the SR Linux fabric CLI from github.com/srl-labs/nornir-srl) is a REQUIRED
+# prerequisite, not a pip dependency: the suite uses it for every fabric-wide
+# control-plane / RIB / tunnel-table / interface-counter assertion over gNMI.
+# Minimum version: 0.4.3 (first release with the `tunnel-table` report).
+# Optional: install a current nornir-srl build for `fcli bgp-rib -r l3vpn-v4`
+# (WAN VPNv4 RIB) — the suite skips extra DCGW checks if that mode is missing.
+# Install it as a standalone tool with uv (https://docs.astral.sh/uv/):
+#
+#     uv tool install --force git+https://github.com/srl-labs/nornir-srl
+#
+# (install from upstream - a personal fork's default branch may lag) and make
+# sure the uv tools bin dir (typically ~/.local/bin) is on your PATH. The suite
+# stops early with this hint if `fcli` is missing or older than 0.4.3.
+# Data-plane tests additionally need docker + a deployed containerlab topology.

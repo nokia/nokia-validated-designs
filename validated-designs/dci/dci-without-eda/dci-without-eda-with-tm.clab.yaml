@@ -1,0 +1,212 @@
+# © 2025 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License-Identifier: BSD-3-Clause
+
+# DCI validated design - without EDA - WITH a streaming-telemetry stack
+#
+# This file is the SAME topology, node set, startup-configs and links as
+# dci-without-eda.clab.yaml (kept 100% intact - it reuses the exact same
+# configs/<node>.cli startup-configs and base-configs/*.sh client bootstraps).
+# It only ADDS a metrics telemetry stack (gnmic -> prometheus -> grafana),
+# modeled on https://github.com/srl-labs/srl-telemetry-lab, so the running DCI
+# fabric can be observed without touching any fabric node configuration.
+#
+# The telemetry nodes are plain Linux containers attached to the management
+# network only (no fabric data-plane links), and they do NOT match the
+# `configs/__clabNodeName__.cli` startup-config glob (that only resolves for the
+# SR Linux node names), so no fabric config is altered.
+#
+# NOTE: the 6 x ixr-x3b (7250) nodes REQUIRE a license. Place the license file
+# named "license-srlinux.txt" in this directory before deploying. The 7220
+# ixr-d2l/ixr-d3l leaves and spines need no license.
+
+name: dci-nvd-without-eda
+prefix: ""
+
+mgmt:
+  network: eda_mgmt
+  ipv4-subnet: 172.21.21.0/24
+
+topology:
+  defaults:
+    kind: nokia_srlinux
+  kinds:
+    nokia_srlinux:
+      image: ghcr.io/nokia/srlinux:26.3.1
+      startup-config: configs/__clabNodeName__.cli
+    linux:
+      image: ghcr.io/srl-labs/network-multitool
+      binds:
+        - base-configs:/base-configs
+  nodes:
+    # ---------- DC1 fabric (7220 IXR-D3L spines, 7220 IXR-D2L leaves) ----------
+    spine1: { type: ixr-d3l, mgmt-ipv4: 172.21.21.101, labels: { role: spine, site: dc1 } }
+    spine2: { type: ixr-d3l, mgmt-ipv4: 172.21.21.102, labels: { role: spine, site: dc1 } }
+    leaf1: { type: ixr-d2l, mgmt-ipv4: 172.21.21.11, labels: { role: leaf, site: dc1 } }
+    leaf2: { type: ixr-d2l, mgmt-ipv4: 172.21.21.12, labels: { role: leaf, site: dc1 } }
+    leaf3: { type: ixr-d2l, mgmt-ipv4: 172.21.21.13, labels: { role: leaf, site: dc1 } }
+    leaf4: { type: ixr-d2l, mgmt-ipv4: 172.21.21.14, labels: { role: leaf, site: dc1 } }
+    # ---------- DC2 fabric ----------
+    spine3: { type: ixr-d3l, mgmt-ipv4: 172.21.21.103, labels: { role: spine, site: dc2 } }
+    spine4: { type: ixr-d3l, mgmt-ipv4: 172.21.21.104, labels: { role: spine, site: dc2 } }
+    leaf5: { type: ixr-d2l, mgmt-ipv4: 172.21.21.15, labels: { role: leaf, site: dc2 } }
+    leaf6: { type: ixr-d2l, mgmt-ipv4: 172.21.21.16, labels: { role: leaf, site: dc2 } }
+    leaf7: { type: ixr-d2l, mgmt-ipv4: 172.21.21.17, labels: { role: leaf, site: dc2 } }
+    leaf8: { type: ixr-d2l, mgmt-ipv4: 172.21.21.18, labels: { role: leaf, site: dc2 } }
+    # ---------- DCGWs (7250 IXR-X3b - license required) ----------
+    dcgw1: { type: ixr-x3b, license: license-srlinux.txt, mgmt-ipv4: 172.21.21.151, labels: { role: dcgw, site: dc1 } }
+    dcgw2: { type: ixr-x3b, license: license-srlinux.txt, mgmt-ipv4: 172.21.21.152, labels: { role: dcgw, site: dc1 } }
+    dcgw3: { type: ixr-x3b, license: license-srlinux.txt, mgmt-ipv4: 172.21.21.153, labels: { role: dcgw, site: dc2 } }
+    dcgw4: { type: ixr-x3b, license: license-srlinux.txt, mgmt-ipv4: 172.21.21.154, labels: { role: dcgw, site: dc2 } }
+    # ---------- WAN core P/PE routers (7250 IXR-X3b - license required) ----------
+    p1: { type: ixr-x3b, license: license-srlinux.txt, mgmt-ipv4: 172.21.21.201, labels: { role: pe, site: wan } }
+    p2: { type: ixr-x3b, license: license-srlinux.txt, mgmt-ipv4: 172.21.21.202, labels: { role: pe, site: wan } }
+    # ---------- Linux clients (emulate many logical clients via netns) ----------
+    mh-dc1:
+      kind: linux
+      mgmt-ipv4: 172.21.21.31
+      labels: { role: client, site: dc1 }
+      exec:
+        - bash base-configs/mh-dc1.sh
+    sh-dc1:
+      kind: linux
+      mgmt-ipv4: 172.21.21.32
+      labels: { role: client, site: dc1 }
+      exec:
+        - bash base-configs/sh-dc1.sh
+    mh-dc2:
+      kind: linux
+      mgmt-ipv4: 172.21.21.33
+      labels: { role: client, site: dc2 }
+      exec:
+        - bash base-configs/mh-dc2.sh
+    sh-dc2:
+      kind: linux
+      mgmt-ipv4: 172.21.21.34
+      labels: { role: client, site: dc2 }
+      exec:
+        - bash base-configs/sh-dc2.sh
+    # 2nd multi-homed client per DC, on a SECOND Ethernet-Segment (leaf3/4, leaf7/8)
+    # - adds attachment diversity so DCI traffic hashes across both DCGWs (ECMP)
+    mh-dc1b:
+      kind: linux
+      mgmt-ipv4: 172.21.21.35
+      labels: { role: client, site: dc1 }
+      exec:
+        - bash base-configs/mh-dc1b.sh
+    mh-dc2b:
+      kind: linux
+      mgmt-ipv4: 172.21.21.36
+      labels: { role: client, site: dc2 }
+      exec:
+        - bash base-configs/mh-dc2b.sh
+
+    # ===================== TELEMETRY STACK ============================
+    # gnmic -> prometheus -> grafana. Management-network only; no fabric links,
+    # no fabric-config changes. group "10" tags the telemetry-stack nodes.
+    gnmic:
+      kind: linux
+      mgmt-ipv4: 172.21.21.41
+      image: ghcr.io/openconfig/gnmic:0.45.0
+      binds:
+        - configs/telemetry/gnmic/gnmic-config.yml:/gnmic-config.yml:ro
+      cmd: --config /gnmic-config.yml --log subscribe
+      labels: { role: telemetry, site: oob }
+      group: "10"
+
+    prometheus:
+      kind: linux
+      mgmt-ipv4: 172.21.21.42
+      image: quay.io/prometheus/prometheus:v3.11.3
+      binds:
+        - configs/telemetry/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      cmd: --config.file=/etc/prometheus/prometheus.yml
+      ports:
+        - 9090:9090
+      labels: { role: telemetry, site: oob }
+      group: "10"
+
+    grafana:
+      kind: linux
+      mgmt-ipv4: 172.21.21.43
+      image: grafana/grafana:13.0.1
+      binds:
+        - configs/telemetry/grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yaml:ro
+        - configs/telemetry/grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
+        - configs/telemetry/grafana/dashboards:/var/lib/grafana/dashboards
+      ports:
+        - 3000:3000
+      env:
+        # andrewbmchugh-flow-panel renders the live "weathermap" topology panel
+        GF_INSTALL_PLUGINS: andrewbmchugh-flow-panel
+        GF_ORG_ROLE: Admin
+        GF_ORG_NAME: Main Org
+        GF_AUTH_ANONYMOUS_ENABLED: "true"
+        GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+        GF_AUTH_ANONYMOUS: "true"
+      labels: { role: telemetry, site: oob }
+      group: "10"
+
+  links:
+    # ===== DC1 leaf <-> spine =====
+    - endpoints: [ "leaf1:e1-1", "spine1:e1-1" ]
+    - endpoints: [ "leaf1:e1-2", "spine2:e1-1" ]
+    - endpoints: [ "leaf2:e1-1", "spine1:e1-2" ]
+    - endpoints: [ "leaf2:e1-2", "spine2:e1-2" ]
+    - endpoints: [ "leaf3:e1-1", "spine1:e1-3" ]
+    - endpoints: [ "leaf3:e1-2", "spine2:e1-3" ]
+    - endpoints: [ "leaf4:e1-1", "spine1:e1-4" ]
+    - endpoints: [ "leaf4:e1-2", "spine2:e1-4" ]
+    # ===== DC1 spine <-> DCGW =====
+    - endpoints: [ "spine1:e1-5", "dcgw1:e1-1" ]
+    - endpoints: [ "spine2:e1-5", "dcgw1:e1-2" ]
+    - endpoints: [ "spine1:e1-6", "dcgw2:e1-1" ]
+    - endpoints: [ "spine2:e1-6", "dcgw2:e1-2" ]
+    # ===== DC2 leaf <-> spine =====
+    - endpoints: [ "leaf5:e1-1", "spine3:e1-1" ]
+    - endpoints: [ "leaf5:e1-2", "spine4:e1-1" ]
+    - endpoints: [ "leaf6:e1-1", "spine3:e1-2" ]
+    - endpoints: [ "leaf6:e1-2", "spine4:e1-2" ]
+    - endpoints: [ "leaf7:e1-1", "spine3:e1-3" ]
+    - endpoints: [ "leaf7:e1-2", "spine4:e1-3" ]
+    - endpoints: [ "leaf8:e1-1", "spine3:e1-4" ]
+    - endpoints: [ "leaf8:e1-2", "spine4:e1-4" ]
+    # ===== DC2 spine <-> DCGW =====
+    - endpoints: [ "spine3:e1-5", "dcgw3:e1-1" ]
+    - endpoints: [ "spine4:e1-5", "dcgw3:e1-2" ]
+    - endpoints: [ "spine3:e1-6", "dcgw4:e1-1" ]
+    - endpoints: [ "spine4:e1-6", "dcgw4:e1-2" ]
+    # ===== DCGW direct full-mesh (DIRECT DCI path) =====
+    - endpoints: [ "dcgw1:e1-5", "dcgw2:e1-5" ]
+    - endpoints: [ "dcgw1:e1-3", "dcgw3:e1-3" ]
+    - endpoints: [ "dcgw1:e1-4", "dcgw4:e1-4" ]
+    - endpoints: [ "dcgw2:e1-4", "dcgw3:e1-4" ]
+    - endpoints: [ "dcgw2:e1-3", "dcgw4:e1-3" ]
+    - endpoints: [ "dcgw3:e1-5", "dcgw4:e1-5" ]
+    # ===== DCGW <-> WAN core P routers (WAN DCI path) =====
+    - endpoints: [ "dcgw1:e1-6", "p1:e1-1" ]
+    - endpoints: [ "dcgw2:e1-6", "p1:e1-2" ]
+    - endpoints: [ "dcgw3:e1-6", "p1:e1-3" ]
+    - endpoints: [ "dcgw4:e1-6", "p1:e1-4" ]
+    - endpoints: [ "dcgw1:e1-7", "p2:e1-1" ]
+    - endpoints: [ "dcgw2:e1-7", "p2:e1-2" ]
+    - endpoints: [ "dcgw3:e1-7", "p2:e1-3" ]
+    - endpoints: [ "dcgw4:e1-7", "p2:e1-4" ]
+    - endpoints: [ "p1:e1-5", "p2:e1-5" ]
+    # ===== Clients =====
+    # DC1 multi-homed (LACP bond -> leaf1 + leaf2 = all-active ES)
+    - endpoints: [ "mh-dc1:eth1", "leaf1:e1-3" ]
+    - endpoints: [ "mh-dc1:eth2", "leaf2:e1-3" ]
+    # DC1 single-homed -> leaf3
+    - endpoints: [ "sh-dc1:eth1", "leaf3:e1-3" ]
+    # DC2 multi-homed (LACP bond -> leaf5 + leaf6 = all-active ES)
+    - endpoints: [ "mh-dc2:eth1", "leaf5:e1-3" ]
+    - endpoints: [ "mh-dc2:eth2", "leaf6:e1-3" ]
+    # DC2 single-homed -> leaf7
+    - endpoints: [ "sh-dc2:eth1", "leaf7:e1-3" ]
+    # DC1 2nd multi-homed (LACP bond -> leaf3 + leaf4 = 2nd all-active ES)
+    - endpoints: [ "mh-dc1b:eth1", "leaf3:e1-4" ]
+    - endpoints: [ "mh-dc1b:eth2", "leaf4:e1-3" ]
+    # DC2 2nd multi-homed (LACP bond -> leaf7 + leaf8 = 2nd all-active ES)
+    - endpoints: [ "mh-dc2b:eth1", "leaf7:e1-4" ]
+    - endpoints: [ "mh-dc2b:eth2", "leaf8:e1-3" ]

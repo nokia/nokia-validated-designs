@@ -1,0 +1,138 @@
+# © 2025 Nokia
+# Licensed under the BSD 3-Clause License
+# SPDX-License-Identifier: BSD-3-Clause
+#
+# gnmic collector for the DCI-without-EDA fabric. Subscribes via gNMI to every
+# SR Linux node (8 leaves, 4 spines, 4 DCGWs, 2 P routers) on the management
+# network and exports the samples as a Prometheus endpoint on :9273.
+
+username: admin
+password: NokiaSrl1!
+port: 57400
+timeout: 10s
+skip-verify: true
+
+common_srl_subscriptions: &common_srl_subs
+  subscriptions:
+    - srl-if-stats
+    - srl-bgp
+    - srl-system-performance
+    - srl-routes
+    - srl-bridge
+    - srl-net-instance
+    - srl-isis
+
+targets:
+  # ---- DC1 ----
+  leaf1: *common_srl_subs
+  leaf2: *common_srl_subs
+  leaf3: *common_srl_subs
+  leaf4: *common_srl_subs
+  spine1: *common_srl_subs
+  spine2: *common_srl_subs
+  dcgw1: *common_srl_subs
+  dcgw2: *common_srl_subs
+  # ---- DC2 ----
+  leaf5: *common_srl_subs
+  leaf6: *common_srl_subs
+  leaf7: *common_srl_subs
+  leaf8: *common_srl_subs
+  spine3: *common_srl_subs
+  spine4: *common_srl_subs
+  dcgw3: *common_srl_subs
+  dcgw4: *common_srl_subs
+  # ---- WAN core ----
+  p1: *common_srl_subs
+  p2: *common_srl_subs
+
+subscriptions:
+  srl-system-performance:
+    mode: stream
+    stream-mode: sample
+    sample-interval: 5s
+    paths:
+      - /platform/control[slot=*]/cpu[index=all]/total
+      - /platform/control[slot=*]/memory
+  srl-if-stats:
+    mode: stream
+    stream-mode: sample
+    sample-interval: 5s
+    paths:
+      - /interface[name=ethernet-1/*]/oper-state
+      - /interface[name=ethernet-1/*]/statistics
+      - /interface[name=ethernet-1/*]/traffic-rate
+  srl-routes:
+    mode: stream
+    stream-mode: sample
+    sample-interval: 5s
+    paths:
+      - /network-instance[name=*]/route-table/ipv4-unicast/statistics/
+      - /network-instance[name=*]/route-table/ipv6-unicast/statistics/
+  srl-bgp:
+    mode: stream
+    stream-mode: sample
+    sample-interval: 5s
+    paths:
+      - /network-instance[name=*]/protocols/bgp/statistics
+  srl-bridge:
+    mode: stream
+    stream-mode: sample
+    sample-interval: 5s
+    paths:
+      - /network-instance[name=*]/bridge-table/statistics/
+  srl-net-instance:
+    mode: stream
+    stream-mode: sample
+    sample-interval: 5s
+    paths:
+      - /network-instance[name=*]/oper-state
+  srl-isis:
+    mode: stream
+    stream-mode: sample
+    sample-interval: 5s
+    paths:
+      - /network-instance[name=*]/protocols/isis/instance[name=*]/oper-state
+      - /network-instance[name=*]/protocols/isis/instance[name=*]/total-adjacencies
+
+outputs:
+  prom-output:
+    type: prometheus
+    listen: :9273
+    event-processors:
+      - trim-prefixes
+      - rename-srl-interface
+      - oper-state-to-int
+
+processors:
+  trim-prefixes:
+    event-strings:
+      value-names:
+        - "^/state/.*"
+      transforms:
+        - trim-prefix:
+            apply-on: "name"
+            prefix: "/state/"
+
+  oper-state-to-int:
+    event-strings:
+      value-names:
+        - ".*"
+      transforms:
+        - replace:
+            apply-on: "value"
+            old: "up"
+            new: "1"
+        - replace:
+            apply-on: "value"
+            old: "down"
+            new: "0"
+
+  rename-srl-interface:
+    event-strings:
+      tag-names:
+        - "^interface_name"
+      transforms:
+        - replace:
+            apply-on: "value"
+            old: "ethernet-(\\d+)/(\\d+)"
+            new: "e$1-$2"

@@ -1,0 +1,219 @@
+{
+  "freeTextAnnotations": [],
+  "freeShapeAnnotations": [],
+  "trafficRateAnnotations": [],
+  "groupStyleAnnotations": [],
+  "networkNodeAnnotations": [],
+  "nodeAnnotations": [
+    {
+      "id": "spine1",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 260,
+        "y": 280
+      }
+    },
+    {
+      "id": "spine2",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 360,
+        "y": 220
+      }
+    },
+    {
+      "id": "leaf1",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 180,
+        "y": 120
+      }
+    },
+    {
+      "id": "leaf2",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 120,
+        "y": 220
+      }
+    },
+    {
+      "id": "leaf3",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 260,
+        "y": 80
+      }
+    },
+    {
+      "id": "leaf4",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 360,
+        "y": 80
+      }
+    },
+    {
+      "id": "spine3",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 640,
+        "y": 400
+      }
+    },
+    {
+      "id": "spine4",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 580,
+        "y": 300
+      }
+    },
+    {
+      "id": "leaf5",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 760,
+        "y": 320
+      }
+    },
+    {
+      "id": "leaf6",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 720,
+        "y": 220
+      }
+    },
+    {
+      "id": "leaf7",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 400,
+        "y": 320
+      }
+    },
+    {
+      "id": "leaf8",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 480,
+        "y": 260
+      }
+    },
+    {
+      "id": "dcgw1",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 380,
+        "y": 440
+      }
+    },
+    {
+      "id": "dcgw2",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 480,
+        "y": 380
+      }
+    },
+    {
+      "id": "dcgw3",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 580,
+        "y": 500
+      }
+    },
+    {
+      "id": "dcgw4",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 480,
+        "y": 480
+      }
+    },
+    {
+      "id": "p1",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 500,
+        "y": 600
+      }
+    },
+    {
+      "id": "p2",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 400,
+        "y": 560
+      }
+    },
+    {
+      "id": "mh-dc1",
+      "position": {
+        "x": 60,
+        "y": 20
+      }
+    },
+    {
+      "id": "sh-dc1",
+      "position": {
+        "x": 340,
+        "y": -100
+      }
+    },
+    {
+      "id": "mh-dc2",
+      "position": {
+        "x": 880,
+        "y": 200
+      }
+    },
+    {
+      "id": "sh-dc2",
+      "position": {
+        "x": 200,
+        "y": 360
+      }
+    },
+    {
+      "id": "mh-dc1b",
+      "position": {
+        "x": 440,
+        "y": 160
+      }
+    },
+    {
+      "id": "mh-dc2b",
+      "position": {
+        "x": 300,
+        "y": 380
+      }
+    },
+    {
+      "id": "gnmic",
+      "position": {
+        "x": 360,
+        "y": 960
+      }
+    },
+    {
+      "id": "prometheus",
+      "position": {
+        "x": 680,
+        "y": 920
+      }
+    },
+    {
+      "id": "grafana",
+      "position": {
+        "x": 940,
+        "y": 740
+      }
+    }
+  ],
+  "edgeAnnotations": [],
+  "aliasEndpointAnnotations": [],
+  "viewerSettings": {}
+}

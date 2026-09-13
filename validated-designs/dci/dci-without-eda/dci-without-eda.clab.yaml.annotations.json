@@ -1,0 +1,272 @@
+{
+  "freeTextAnnotations": [],
+  "freeShapeAnnotations": [],
+  "trafficRateAnnotations": [],
+  "groupStyleAnnotations": [
+    {
+      "id": "group-1",
+      "name": "DC1",
+      "level": "1",
+      "position": {
+        "x": -93.62579400448209,
+        "y": 264.34838442953185
+      },
+      "width": 491,
+      "height": 721,
+      "backgroundColor": "rgba(100, 100, 255, 0.1)",
+      "borderColor": "rgba(20, 20, 20, 0.92)",
+      "borderWidth": 2,
+      "borderStyle": "dashed",
+      "borderRadius": 8,
+      "zIndex": -1
+    },
+    {
+      "id": "group-2",
+      "name": "DC2",
+      "level": "1",
+      "position": {
+        "x": 546.5818044294623,
+        "y": 265.6077741420708
+      },
+      "width": 544,
+      "height": 724,
+      "backgroundColor": "#d0e6dc",
+      "borderColor": "rgba(20, 20, 20, 0.92)",
+      "borderWidth": 2,
+      "borderStyle": "dashed",
+      "borderRadius": 8,
+      "zIndex": -1
+    },
+    {
+      "id": "group-3",
+      "name": "WAN",
+      "level": "1",
+      "position": {
+        "x": 408.5639607343636,
+        "y": 90.58021276938388
+      },
+      "width": 128,
+      "height": 629,
+      "backgroundColor": "#e6e6e6",
+      "borderColor": "rgba(20, 20, 20, 0.92)",
+      "borderWidth": 2,
+      "borderStyle": "dashed",
+      "borderRadius": 8,
+      "zIndex": -1
+    }
+  ],
+  "networkNodeAnnotations": [],
+  "nodeAnnotations": [
+    {
+      "id": "sh-dc1",
+      "position": {
+        "x": 140,
+        "y": 880
+      },
+      "icon": "server"
+    },
+    {
+      "id": "spine1",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 40,
+        "y": 560
+      },
+      "icon": "spine"
+    },
+    {
+      "id": "spine2",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 180,
+        "y": 560
+      },
+      "icon": "spine"
+    },
+    {
+      "id": "leaf1",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": -60,
+        "y": 760
+      },
+      "icon": "leaf"
+    },
+    {
+      "id": "leaf2",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 60,
+        "y": 760
+      },
+      "icon": "leaf"
+    },
+    {
+      "id": "leaf3",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 180,
+        "y": 760
+      },
+      "icon": "leaf"
+    },
+    {
+      "id": "leaf4",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 280,
+        "y": 760
+      },
+      "icon": "leaf"
+    },
+    {
+      "id": "spine3",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 720,
+        "y": 560
+      },
+      "icon": "spine"
+    },
+    {
+      "id": "spine4",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 880,
+        "y": 560
+      },
+      "icon": "spine"
+    },
+    {
+      "id": "leaf5",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 660,
+        "y": 760
+      },
+      "icon": "leaf"
+    },
+    {
+      "id": "leaf6",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 760,
+        "y": 760
+      },
+      "icon": "leaf"
+    },
+    {
+      "id": "leaf7",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 860,
+        "y": 760
+      },
+      "icon": "leaf"
+    },
+    {
+      "id": "leaf8",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 980,
+        "y": 760
+      },
+      "icon": "leaf"
+    },
+    {
+      "id": "dcgw1",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 320,
+        "y": 300
+      },
+      "icon": "dcgw"
+    },
+    {
+      "id": "dcgw2",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 320,
+        "y": 460
+      },
+      "icon": "dcgw"
+    },
+    {
+      "id": "dcgw3",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 600,
+        "y": 300
+      },
+      "icon": "dcgw"
+    },
+    {
+      "id": "dcgw4",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 600,
+        "y": 460
+      },
+      "icon": "dcgw"
+    },
+    {
+      "id": "p1",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 460,
+        "y": 540
+      }
+    },
+    {
+      "id": "p2",
+      "interfacePattern": "e1-{n}",
+      "position": {
+        "x": 460,
+        "y": 140
+      }
+    },
+    {
+      "id": "mh-dc1",
+      "position": {
+        "x": 0,
+        "y": 880
+      },
+      "icon": "server"
+    },
+    {
+      "id": "mh-dc2",
+      "position": {
+        "x": 700,
+        "y": 880
+      },
+      "icon": "server"
+    },
+    {
+      "id": "sh-dc2",
+      "position": {
+        "x": 860,
+        "y": 880
+      },
+      "icon": "server"
+    },
+    {
+      "id": "mh-dc2b",
+      "position": {
+        "x": 960,
+        "y": 880
+      },
+      "icon": "server"
+    },
+    {
+      "id": "mh-dc1b",
+      "position": {
+        "x": 240,
+        "y": 880
+      },
+      "icon": "server"
+    }
+  ],
+  "edgeAnnotations": [],
+  "aliasEndpointAnnotations": [],
+  "viewerSettings": {}
+}

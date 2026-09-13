@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+.pytest_cache/
+
+# Allure (pytest --alluredir=… then allure serve|generate)
+allure-results/
+allure-report/
+
+# pytest-html --html=…
+report.html
